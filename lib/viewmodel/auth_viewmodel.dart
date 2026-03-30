@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/user_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _repository = AuthRepository();
+  final UserRepository _userRepository = UserRepository();
 
   bool isLoading = false;
   String? errorMessage;
@@ -100,22 +101,6 @@ class AuthViewModel extends ChangeNotifier {
   // 5. CREACIÓN DEL PERFIL EN FIRESTORE
   // =========================================================
   Future<void> _createInitialUserProfile(User user) async {
-    final userDoc = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid);
-    final snapshot = await userDoc.get();
-
-    if (!snapshot.exists) {
-      await userDoc.set({
-        'email': user.email,
-        'name': user.displayName ?? user.email?.split('@')[0],
-        'level': 1,
-        'currentXp': 0,
-        'totalXp': 1000,
-        'dayStreak': 0,
-        'rank': 'Beginner',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
+    await _userRepository.createIfNotExists(user);
   }
 }

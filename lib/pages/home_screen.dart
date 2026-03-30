@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../viewmodel/calendar_viewmodel.dart';
+import '../viewmodel/user_viewmodel.dart';
 import '../models/calendar_event.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -12,13 +13,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7B2CBF)),
-      );
-    }
+    final userVM = context.watch<UserViewModel>();
 
     const bgColor = Color(0xFF15111D);
     const cardColor = Color(0xFF1E1926);
@@ -26,278 +21,260 @@ class HomeScreen extends StatelessWidget {
     const accentPurple = Color(0xFF8A2BE2);
     const cyanAccent = Color(0xFF00E5FF);
 
+    if (userVM.isLoading) {
+      return const Scaffold(
+        backgroundColor: bgColor,
+        body: Center(child: CircularProgressIndicator(color: primaryPurple)),
+      );
+    }
+
+    final user = userVM.user;
+    if (user == null) {
+      return const Scaffold(
+        backgroundColor: bgColor,
+        body: Center(
+          child: Text('Creando tu perfil...', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: primaryPurple),
-              );
-            }
-
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(
-                child: Text(
-                  'Creando tu perfil...',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              );
-            }
-
-            var userData = snapshot.data!.data() as Map<String, dynamic>;
-
-            String name = userData['name'] ?? 'Usuario';
-            int currentXp = userData['currentXp'] ?? 1310;
-            int totalXp = userData['totalXp'] ?? 2000;
-            int level = userData['level'] ?? 13;
-            int streak = userData['dayStreak'] ?? 12;
-            String rank = userData['rank'] ?? '#4';
-
-            double progress = totalXp > 0 ? (currentXp / totalXp) : 0.0;
-            if (progress > 1.0) progress = 1.0;
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 20.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- HEADER ---
+              Row(
                 children: [
-                  // --- HEADER ---
-                  Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [primaryPurple, cyanAccent],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryPurple.withOpacity(0.4),
-                              blurRadius: 12,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: const CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Color(0xFF2A223E),
-                          child: Icon(Icons.person, color: Colors.white70, size: 28),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Good morning, $name',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatDate(DateTime.now()),
-                              style: TextStyle(
-                                color: Colors.grey.shade400,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: const Icon(
-                          Icons.notifications_outlined,
-                          color: Colors.white70,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // --- TARJETA XP ---
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF5C1A99), primaryPurple],
+                        colors: [primaryPurple, cyanAccent],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
                           color: primaryPurple.withOpacity(0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          blurRadius: 12,
+                          spreadRadius: 1,
                         ),
                       ],
                     ),
+                    child: const CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Color(0xFF2A223E),
+                      child: Icon(Icons.person, color: Colors.white70, size: 28),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.flash_on, color: Colors.white, size: 18),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Daily XP Progress',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              '${_formatNumber(currentXp)} / ${_formatNumber(totalXp)} XP',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          height: 8,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: progress,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Text(
-                          '${_formatNumber(totalXp - currentXp)} XP left to reach Level ${level + 1}! Keep it up.',
+                          'Good morning, ${user.name}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(DateTime.now()),
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.grey.shade400,
                             fontSize: 12,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 28),
-
-                  // --- UP NEXT ---
-                  _buildSectionHeader('Up Next', 'View Schedule'),
-                  const SizedBox(height: 14),
-                  _buildUpNextCard(context, cardColor, accentPurple, primaryPurple),
-                  const SizedBox(height: 28),
-
-                  // --- TOP PENDING TASKS ---
-                  _buildSectionHeader('Top Pending Tasks', 'View All'),
-                  const SizedBox(height: 14),
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('tasks')
-                        .where('isCompleted', isEqualTo: false)
-                        .orderBy('createdAt', descending: true)
-                        .limit(3)
-                        .snapshots(),
-                    builder: (context, taskSnap) {
-                      if (!taskSnap.hasData || taskSnap.data!.docs.isEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12.0),
-                          child: Text(
-                            'No pending tasks. Add one in the Quests tab!',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                          ),
-                        );
-                      }
-                      return Column(
-                        children: taskSnap.data!.docs.asMap().entries.map((entry) {
-                          final data = entry.value.data() as Map<String, dynamic>;
-                          final priority = data['priority'] as String? ?? 'MED';
-                          Color priorityColor = accentPurple;
-                          if (priority == 'HIGH') priorityColor = const Color(0xFFDEB7FF);
-                          if (priority == 'LOW') priorityColor = Colors.grey;
-                          return Column(
-                            children: [
-                              _buildTaskCard(
-                                data['title'] ?? '',
-                                data['subtitle'] ?? '',
-                                priority,
-                                priorityColor,
-                              ),
-                              if (entry.key < taskSnap.data!.docs.length - 1)
-                                const SizedBox(height: 10),
-                            ],
-                          );
-                        }).toList(),
-                      );
-                    },
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
                   ),
-                  const SizedBox(height: 28),
-
-                  // --- STATS ---
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          Icons.local_fire_department,
-                          streak.toString(),
-                          'Day Streak',
-                          Colors.orangeAccent,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildStatCard(
-                          Icons.emoji_events,
-                          rank,
-                          'Leaderboard',
-                          cyanAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 100),
                 ],
               ),
-            );
-          },
+              const SizedBox(height: 24),
+
+              // --- TARJETA XP ---
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5C1A99), primaryPurple],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primaryPurple.withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.flash_on, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              'Daily XP Progress',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${_formatNumber(user.currentXp)} / ${_formatNumber(user.totalXp)} XP',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 8,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: user.xpProgress,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${_formatNumber(user.xpRemaining)} XP left to reach Level ${user.level + 1}! Keep it up.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // --- UP NEXT ---
+              _buildSectionHeader('Up Next', 'View Schedule'),
+              const SizedBox(height: 14),
+              _buildUpNextCard(context, cardColor, accentPurple, primaryPurple),
+              const SizedBox(height: 28),
+
+              // --- TOP PENDING TASKS ---
+              _buildSectionHeader('Top Pending Tasks', 'View All'),
+              const SizedBox(height: 14),
+              if (firebaseUid != null)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(firebaseUid)
+                      .collection('tasks')
+                      .where('isCompleted', isEqualTo: false)
+                      .orderBy('createdAt', descending: true)
+                      .limit(3)
+                      .snapshots(),
+                  builder: (context, taskSnap) {
+                    if (!taskSnap.hasData || taskSnap.data!.docs.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                        child: Text(
+                          'No pending tasks. Add one in the Quests tab!',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: taskSnap.data!.docs.asMap().entries.map((entry) {
+                        final data = entry.value.data() as Map<String, dynamic>;
+                        final priority = data['priority'] as String? ?? 'MED';
+                        Color priorityColor = accentPurple;
+                        if (priority == 'HIGH') priorityColor = const Color(0xFFDEB7FF);
+                        if (priority == 'LOW') priorityColor = Colors.grey;
+                        return Column(
+                          children: [
+                            _buildTaskCard(
+                              data['title'] ?? '',
+                              data['subtitle'] ?? '',
+                              priority,
+                              priorityColor,
+                            ),
+                            if (entry.key < taskSnap.data!.docs.length - 1)
+                              const SizedBox(height: 10),
+                          ],
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              const SizedBox(height: 28),
+
+              // --- STATS ---
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      Icons.local_fire_department,
+                      user.dayStreak.toString(),
+                      'Day Streak',
+                      Colors.orangeAccent,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      Icons.emoji_events,
+                      user.rank,
+                      'Leaderboard',
+                      cyanAccent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );

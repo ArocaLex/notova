@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'user_repository.dart';
 
 class TasksRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UserRepository _userRepository = UserRepository();
 
   // Obtenemos el ID del usuario que tiene la sesión iniciada
   String? get _uid => _auth.currentUser?.uid;
@@ -46,27 +48,20 @@ class TasksRepository {
   Future<void> completeTask(String taskId, int xpReward) async {
     if (_uid == null) return;
 
-    // Un "batch" permite hacer varios cambios en la base de datos a la vez de forma segura
-    final batch = _db.batch();
-
+    // Marcamos la tarea como completada
     final taskRef = _db
         .collection('users')
         .doc(_uid)
         .collection('tasks')
         .doc(taskId);
-    final userRef = _db.collection('users').doc(_uid);
 
-    // A. Tachamos la tarea y guardamos cuándo se completó
-    batch.update(taskRef, {
+    await taskRef.update({
       'isCompleted': true,
       'completedAt': FieldValue.serverTimestamp(),
     });
 
-    // B. Sumamos la XP al perfil del usuario
-    batch.update(userRef, {'currentXp': FieldValue.increment(xpReward)});
-
-    // Ejecutamos ambas cosas
-    await batch.commit();
+    // Sumamos XP con logica de level-up via UserRepository
+    await _userRepository.addXp(xpReward);
   }
 
   /// 4. LEER LAS TAREAS COMPLETADAS EN TIEMPO REAL

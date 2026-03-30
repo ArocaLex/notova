@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'viewmodel/auth_viewmodel.dart';
 import 'viewmodel/calendar_viewmodel.dart';
 import 'viewmodel/task_viewmodel.dart';
+import 'viewmodel/user_viewmodel.dart';
 import 'pages/splash_screen.dart';
 
 void main() async {
@@ -17,6 +18,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider(create: (_) => UserViewModel()),
         ChangeNotifierProvider(create: (_) => TasksViewModel()),
         ChangeNotifierProvider(create: (_) => CalendarViewModel()),
       ],

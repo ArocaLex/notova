@@ -3,12 +3,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
+import '../viewmodel/user_viewmodel.dart';
 import 'auth_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -143,11 +142,22 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final userVM = context.watch<UserViewModel>();
 
+    if (userVM.isLoading) {
+      return const Scaffold(
+        backgroundColor: bgColor,
+        body: Center(child: CircularProgressIndicator(color: primaryPurple)),
+      );
+    }
+
+    final user = userVM.user;
     if (user == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: primaryPurple),
+      return const Scaffold(
+        backgroundColor: bgColor,
+        body: Center(
+          child: Text('Cargando perfil...', style: TextStyle(color: Colors.grey)),
+        ),
       );
     }
 
@@ -176,352 +186,310 @@ class ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: primaryPurple),
-            );
-          }
-
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(
-              child: Text(
-                'Cargando perfil...',
-                style: TextStyle(color: Colors.grey),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // --- AVATAR CON GLOW ---
+            Center(
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [primaryPurple, cyanAccent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryPurple.withOpacity(0.4),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: cyanAccent.withOpacity(0.2),
+                          blurRadius: 30,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 56,
+                      backgroundColor: const Color(0xFF2A223E),
+                      backgroundImage: _avatarFile != null
+                          ? FileImage(_avatarFile!)
+                          : null,
+                      child: _avatarFile == null
+                          ? const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Colors.white70,
+                            )
+                          : null,
+                    ),
+                  ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: primaryPurple,
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(5),
+                    child: const Icon(Icons.check, size: 14, color: Colors.white),
+                  ),
+                ],
               ),
-            );
-          }
+            ),
+            const SizedBox(height: 20),
 
-          var data = snapshot.data!.data() as Map<String, dynamic>;
-          String name = data['name'] ?? 'Usuario';
-          int currentXp = data['currentXp'] ?? 0;
-          int totalXp = data['totalXp'] ?? 1000;
-          int level = data['level'] ?? 1;
-          int streak = data['dayStreak'] ?? 0;
-          String rank = data['rank'] ?? 'Novato';
-          int totalXpEver = data['totalXpEver'] ?? currentXp;
-
-          double progress = totalXp > 0 ? (currentXp / totalXp) : 0.0;
-          if (progress > 1.0) progress = 1.0;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // --- AVATAR CON GLOW ---
-                Center(
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [primaryPurple, cyanAccent],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryPurple.withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                            BoxShadow(
-                              color: cyanAccent.withOpacity(0.2),
-                              blurRadius: 30,
-                              spreadRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 56,
-                          backgroundColor: const Color(0xFF2A223E),
-                          backgroundImage: _avatarFile != null
-                              ? FileImage(_avatarFile!)
-                              : null,
-                          child: _avatarFile == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: Colors.white70,
-                                )
-                              : null,
-                        ),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          color: primaryPurple,
-                          shape: BoxShape.circle,
-                        ),
-                        padding: const EdgeInsets.all(5),
-                        child: const Icon(Icons.check, size: 14, color: Colors.white),
-                      ),
-                    ],
-                  ),
+            // --- NOMBRE Y RANGO ---
+            Text(
+              user.name,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: primaryPurple.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: primaryPurple.withOpacity(0.3)),
+              ),
+              child: Text(
+                '${user.rank.toUpperCase()} · LEVEL ${user.level}',
+                style: const TextStyle(
+                  color: Color(0xFFDEB7FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
                 ),
-                const SizedBox(height: 20),
+              ),
+            ),
+            const SizedBox(height: 28),
 
-                // --- NOMBRE Y RANGO ---
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
+            // --- TARJETA DE EXPERIENCIA ---
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: primaryPurple.withOpacity(0.3),
+                  width: 1,
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: primaryPurple.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: primaryPurple.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    'MASTER STUDENT · LEVEL $level',
-                    style: const TextStyle(
-                      color: Color(0xFFDEB7FF),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // --- TARJETA DE EXPERIENCIA ---
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: primaryPurple.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'EXPERIENCE',
-                                style: TextStyle(
-                                  color: Color(0xFF988D9E),
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                  fontSize: 10,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: _formatNumber(currentXp),
-                                      style: const TextStyle(
-                                        color: Color(0xFFDEB7FF),
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ' / ${_formatNumber(totalXp)} XP',
-                                      style: const TextStyle(
-                                        color: Color(0xFF988D9E),
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          const Text(
+                            'EXPERIENCE',
+                            style: TextStyle(
+                              color: Color(0xFF988D9E),
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                              fontSize: 10,
+                            ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cyanAccent.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'LEVEL UP SOON',
-                              style: TextStyle(
-                                color: cyanAccent,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
+                          const SizedBox(height: 6),
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: _formatNumber(user.currentXp),
+                                  style: const TextStyle(
+                                    color: Color(0xFFDEB7FF),
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ' / ${_formatNumber(user.totalXp)} XP',
+                                  style: const TextStyle(
+                                    color: Color(0xFF988D9E),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        height: 10,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: progress,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              gradient: const LinearGradient(
-                                colors: [primaryPurple, cyanAccent],
-                              ),
+                      if (user.xpProgress >= 0.7)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cyanAccent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'LEVEL UP SOON',
+                            style: TextStyle(
+                              color: cyanAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        '${_formatNumber(totalXp - currentXp)} XP remaining to unlock \'Architect\' status',
-                        style: const TextStyle(
-                          color: Color(0xFF988D9E),
-                          fontStyle: FontStyle.italic,
-                          fontSize: 11,
-                        ),
-                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // --- GRID 2x2 ---
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'CURRENT RANK',
-                        value: rank,
-                        icon: Icons.military_tech,
-                        iconColor: primaryPurple,
-                        badgeText: 'TOP 3%',
-                        badgeColor: cyanAccent,
-                      ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 10,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'TOTAL XP',
-                        value: _formatNumber(totalXpEver),
-                        icon: Icons.star_rounded,
-                        iconColor: const Color(0xFFDEB7FF),
-                        badgeText: 'Top 5%',
-                        badgeColor: Colors.greenAccent,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'DAY STREAK',
-                        value: '$streak Days',
-                        icon: Icons.local_fire_department,
-                        iconColor: Colors.orangeAccent,
-                        badgeText: 'Hot 🔥',
-                        badgeColor: Colors.orangeAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'BADGES',
-                        value: '28',
-                        icon: Icons.shield_rounded,
-                        iconColor: cyanAccent,
-                        badgeText: 'All time',
-                        badgeColor: Colors.white54,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-
-                // --- RECENT BADGES ---
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'RECENT BADGES',
-                      style: TextStyle(
-                        color: Color(0xFF988D9E),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(40, 24),
-                      ),
-                      child: const Text(
-                        'VIEW ALL',
-                        style: TextStyle(
-                          color: Color(0xFF7B2CBF),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                          letterSpacing: 0.5,
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: user.xpProgress,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(
+                            colors: [primaryPurple, cyanAccent],
+                          ),
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildBadgeItem(Icons.menu_book, 'Scholar', primaryPurple),
-                    _buildBadgeItem(Icons.speed, 'Speed Runner', const Color(0xFF2D5AF7)),
-                    _buildBadgeItem(Icons.groups, 'Team Lead', const Color(0xFF10B981)),
-                    _buildBadgeItem(Icons.lock, 'Locked', Colors.grey.shade800, isLocked: true),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _buildMiniBadge(Icons.auto_awesome, primaryPurple),
-                    const SizedBox(width: 12),
-                    _buildMiniBadge(Icons.bolt, cyanAccent),
-                    const SizedBox(width: 12),
-                    _buildMiniBadge(Icons.terminal, Colors.grey.shade600),
-                    const SizedBox(width: 12),
-                    _buildMiniBadge(Icons.emoji_events, primaryPurple),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    '${_formatNumber(user.xpRemaining)} XP remaining to reach Level ${user.level + 1}',
+                    style: const TextStyle(
+                      color: Color(0xFF988D9E),
+                      fontStyle: FontStyle.italic,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
 
-                const SizedBox(height: 100),
+            // --- GRID 2x2 ---
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'CURRENT RANK',
+                    value: user.rank,
+                    icon: Icons.military_tech,
+                    iconColor: primaryPurple,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'TOTAL XP',
+                    value: _formatNumber(user.totalXpEver),
+                    icon: Icons.star_rounded,
+                    iconColor: const Color(0xFFDEB7FF),
+                  ),
+                ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'DAY STREAK',
+                    value: '${user.dayStreak} Days',
+                    icon: Icons.local_fire_department,
+                    iconColor: Colors.orangeAccent,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'BADGES',
+                    value: '${user.badgesCount}',
+                    icon: Icons.shield_rounded,
+                    iconColor: cyanAccent,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+
+            // --- RECENT BADGES ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'RECENT BADGES',
+                  style: TextStyle(
+                    color: Color(0xFF988D9E),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(40, 24),
+                  ),
+                  child: const Text(
+                    'VIEW ALL',
+                    style: TextStyle(
+                      color: Color(0xFF7B2CBF),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildBadgeItem(Icons.menu_book, 'Scholar', primaryPurple),
+                _buildBadgeItem(Icons.speed, 'Speed Runner', const Color(0xFF2D5AF7)),
+                _buildBadgeItem(Icons.groups, 'Team Lead', const Color(0xFF10B981)),
+                _buildBadgeItem(Icons.lock, 'Locked', Colors.grey.shade800, isLocked: true),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _buildMiniBadge(Icons.auto_awesome, primaryPurple),
+                const SizedBox(width: 12),
+                _buildMiniBadge(Icons.bolt, cyanAccent),
+                const SizedBox(width: 12),
+                _buildMiniBadge(Icons.terminal, Colors.grey.shade600),
+                const SizedBox(width: 12),
+                _buildMiniBadge(Icons.emoji_events, primaryPurple),
+              ],
+            ),
+
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
@@ -538,8 +506,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     required String value,
     required IconData icon,
     required Color iconColor,
-    required String badgeText,
-    required Color badgeColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -551,28 +517,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: iconColor, size: 28),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    color: badgeColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          Icon(icon, color: iconColor, size: 28),
           const SizedBox(height: 18),
           Text(
             title,
@@ -716,4 +661,3 @@ class _SettingsTile extends StatelessWidget {
     );
   }
 }
-
