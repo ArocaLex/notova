@@ -2,7 +2,7 @@
 
 > Gestor de tareas y productividad gamificado construido en Flutter. Convierte tus tareas diarias en misiones, gana XP, sube de nivel y mantén rachas de actividad diaria.
 
-**Público objetivo:** Estudiantes, freelancers y opositores (16–35 años) · Versión `0.1.0`
+**Público objetivo:** Estudiantes, freelancers y opositores (16–35 años) · Versión `0.2.0`
 
 ---
 
