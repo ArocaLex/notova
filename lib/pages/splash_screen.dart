@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../repositories/local_task_repository.dart';
 import 'auth_screen.dart';
 import 'main_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -45,22 +48,30 @@ class SplashScreenState extends State<SplashScreen>
       setState(() {
         _userName = user.displayName ?? user.email?.split('@')[0] ?? 'Usuario';
       });
+      // Sincroniza tareas de Firestore → SQLite (caché offline)
+      LocalTaskRepository().syncFromFirestore();
     }
 
     await Future.delayed(const Duration(milliseconds: 2200));
 
     if (!mounted) return;
 
-    final destination = user != null ? const MainScreen() : const AuthScreen();
+    Widget destination;
+    if (user == null) {
+      destination = const AuthScreen();
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      final seen = prefs.getBool('onboarding_seen') ?? false;
+      destination = seen ? const MainScreen() : const OnboardingScreen();
+    }
 
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, a1, a2) => destination,
         transitionDuration: const Duration(milliseconds: 500),
-        transitionsBuilder: (context, animation, secondary, child) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        transitionsBuilder: (context, animation, secondary, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -70,7 +81,7 @@ class SplashScreenState extends State<SplashScreen>
     const primaryPurple = Color(0xFF8A2BE2);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF15111D), // Fondo oscuro de la app
+      backgroundColor: const Color(0xFF120E1A), // Fondo oscuro de la app
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Center(

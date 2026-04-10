@@ -15,10 +15,10 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class CalendarScreenState extends State<CalendarScreen> {
-  static const bgColor = Color(0xFF15111D);
+  static const bgColor = Color(0xFF120E1A);
   static const cardColor = Color(0xFF1E1926);
   static const primaryPurple = Color(0xFF7B2CBF);
-  static const cyanAccent = Color(0xFF00E5FF);
+  static const cyanAccent = Color(0xFFDEB7FF);
 
   // Month shown in the grid (independent of selectedDate in ViewModel).
   late DateTime _focusedMonth;
@@ -911,7 +911,7 @@ class _TimeButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF15111D),
+          color: const Color(0xFF120E1A),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

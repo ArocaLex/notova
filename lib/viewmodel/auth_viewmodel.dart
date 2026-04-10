@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../repositories/auth_repository.dart';
+import '../repositories/local_task_repository.dart';
 import '../repositories/user_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  final AuthRepository _repository = AuthRepository();
-  final UserRepository _userRepository = UserRepository();
+  late final AuthRepository _repository;
+  late final UserRepository _userRepository;
+  late final LocalTaskRepository _localTaskRepository;
+
+  AuthViewModel({
+    AuthRepository? repository,
+    UserRepository? userRepository,
+    LocalTaskRepository? localTaskRepository,
+  })  : _repository = repository ?? AuthRepository(),
+        _userRepository = userRepository ?? UserRepository(),
+        _localTaskRepository =
+            localTaskRepository ?? LocalTaskRepository();
 
   bool isLoading = false;
   String? errorMessage;
@@ -91,14 +102,36 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   // =========================================================
-  // 4. CERRAR SESIÓN
+  // 4. RECUPERAR CONTRASEÑA
+  // =========================================================
+  Future<bool> sendPasswordReset(String email) async {
+    _setLoading(true);
+
+    try {
+      await _repository.sendPasswordResetEmail(email);
+      _setLoading(false);
+      return true;
+    } on AuthException catch (e) {
+      errorMessage = e.message;
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      errorMessage = 'No se pudo enviar el correo de recuperación.';
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // =========================================================
+  // 5. CERRAR SESIÓN
   // =========================================================
   Future<void> signOut() async {
+    await _localTaskRepository.clearLocalCache();
     await _repository.signOut();
   }
 
   // =========================================================
-  // 5. CREACIÓN DEL PERFIL EN FIRESTORE
+  // 6. CREACIÓN DEL PERFIL EN FIRESTORE
   // =========================================================
   Future<void> _createInitialUserProfile(User user) async {
     await _userRepository.createIfNotExists(user);

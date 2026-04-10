@@ -15,11 +15,11 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final userVM = context.watch<UserViewModel>();
 
-    const bgColor = Color(0xFF15111D);
+    const bgColor = Color(0xFF120E1A);
     const cardColor = Color(0xFF1E1926);
     const primaryPurple = Color(0xFF7B2CBF);
     const accentPurple = Color(0xFF8A2BE2);
-    const cyanAccent = Color(0xFF00E5FF);
+    const cyanAccent = Color(0xFFDEB7FF);
 
     if (userVM.isLoading) {
       return const Scaffold(
@@ -155,7 +155,7 @@ class HomeScreen extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          '${_formatNumber(user.currentXp)} / ${_formatNumber(user.totalXp)} XP',
+                          '${_formatNumber(user.totalXpEver)} / ${_formatNumber(user.currentLevelMaxXp)} XP',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

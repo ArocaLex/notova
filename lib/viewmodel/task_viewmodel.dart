@@ -1,28 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../repositories/task_repository.dart'; // Asegúrate de que el nombre del archivo coincida
+import '../models/task_model.dart';
+import '../repositories/audio_repository.dart';
+import '../repositories/task_repository.dart';
+import '../repositories/user_repository.dart';
 
 class TasksViewModel extends ChangeNotifier {
-  final TasksRepository _repository = TasksRepository();
+  late final TasksRepository _repository;
+  late final UserRepository _userRepository;
+  late final AudioRepository _audioRepository;
+
+  TasksViewModel({
+    TasksRepository? repository,
+    UserRepository? userRepository,
+    AudioRepository? audioRepository,
+  })  : _repository = repository ?? TasksRepository(),
+        _userRepository = userRepository ?? UserRepository(),
+        _audioRepository = audioRepository ?? AudioRepository();
 
   bool isLoading = false;
   String? errorMessage;
 
-  // 1. EL TUBO EN TIEMPO REAL: Le pasamos el Stream directo a la vista
-  Stream<QuerySnapshot> get pendingTasksStream => _repository.getPendingTasks();
-  Stream<QuerySnapshot> get completedTasksStream => _repository.getCompletedTasks();
+  // Streams tipados con TaskModel
+  Stream<List<TaskModel>> get pendingTasksStream => _repository.getPendingTasks();
+  Stream<List<TaskModel>> get completedTasksStream => _repository.getCompletedTasks();
 
-  // 2. CREAR TAREA
+  // Crear tarea con fecha de vencimiento opcional
   Future<bool> createTask(
     String title,
     String subtitle,
     String priority,
-    int xpReward,
-  ) async {
+    int xpReward, {
+    DateTime? dueDate,
+  }) async {
     isLoading = true;
     errorMessage = null;
-    notifyListeners(); // Avisamos a la UI para que muestre (si quieres) un loader
+    notifyListeners();
 
     try {
       await _repository.addTask(
@@ -30,6 +43,7 @@ class TasksViewModel extends ChangeNotifier {
         subtitle: subtitle,
         priority: priority,
         xpReward: xpReward,
+        dueDate: dueDate,
       );
       isLoading = false;
       notifyListeners();
@@ -42,18 +56,57 @@ class TasksViewModel extends ChangeNotifier {
     }
   }
 
-  // 3. COMPLETAR TAREA Y GANAR XP
-  Future<void> toggleTaskCompletion(String taskId, int xpReward) async {
-    try {
-      // Llamamos al repositorio que hace el "Batch" (completa tarea + da XP)
-      await _repository.completeTask(taskId, xpReward);
+  // Editar tarea existente
+  Future<bool> updateTask(
+    String taskId,
+    String title,
+    String subtitle,
+    String priority,
+    int xpReward, {
+    DateTime? dueDate,
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
 
-      // ¡OJO! No necesitamos notifyListeners() aquí.
-      // Firestore detecta el cambio en la nube y hace que el StreamBuilder de la pantalla
-      // se redibuje solo al instante, quitando la tarea de la lista.
+    try {
+      await _repository.updateTask(
+        taskId: taskId,
+        title: title,
+        subtitle: subtitle,
+        priority: priority,
+        xpReward: xpReward,
+        dueDate: dueDate,
+      );
+      isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      errorMessage = 'Error al actualizar la tarea: $e';
+      isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Completar tarea: otorga XP, actualiza racha y dispara SFX.
+  // Retorna true si hubo level-up.
+  Future<bool> toggleTaskCompletion(String taskId, int xpReward) async {
+    try {
+      final didLevelUp = await _repository.completeTask(taskId, xpReward);
+      await _userRepository.checkAndUpdateStreak();
+      await _audioRepository.playTaskComplete();
+      if (didLevelUp) await _audioRepository.playLevelUp();
+      return didLevelUp;
     } catch (e) {
       errorMessage = 'Error al actualizar la tarea.';
       notifyListeners();
+      return false;
     }
+  }
+
+  // Llamado al abrir la pantalla de Tasks (mantiene racha aunque no haya tareas)
+  Future<void> checkStreakOnView() async {
+    await _userRepository.checkAndUpdateStreak();
   }
 }

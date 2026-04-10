@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/task_model.dart';
 import 'user_repository.dart';
 
 class TasksRepository {
@@ -7,73 +8,104 @@ class TasksRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final UserRepository _userRepository = UserRepository();
 
-  // Obtenemos el ID del usuario que tiene la sesión iniciada
   String? get _uid => _auth.currentUser?.uid;
 
-  /// 1. CREAR UNA NUEVA TAREA EN FIRESTORE
+  CollectionReference? get _tasksCol => _uid == null
+      ? null
+      : _db.collection('users').doc(_uid).collection('tasks');
+
+  // ── Crear tarea ────────────────────────────────────────────────────────
+
   Future<void> addTask({
     required String title,
     required String subtitle,
     required String priority,
     required int xpReward,
+    DateTime? dueDate,
   }) async {
-    if (_uid == null) return;
+    if (_tasksCol == null) return;
 
-    // Crea un documento nuevo dentro de la carpeta 'tasks' de este usuario
-    await _db.collection('users').doc(_uid).collection('tasks').add({
+    await _tasksCol!.add({
       'title': title,
       'subtitle': subtitle,
       'priority': priority,
       'xpReward': xpReward,
-      'isCompleted': false, // Por defecto nace sin completar
+      'isCompleted': false,
+      'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// 2. LEER LAS TAREAS PENDIENTES EN TIEMPO REAL
-  Stream<QuerySnapshot> getPendingTasks() {
-    if (_uid == null) return const Stream.empty();
+  // ── Streams en tiempo real ─────────────────────────────────────────────
 
-    // Filtra las tareas buscando solo las que tienen 'isCompleted' en false
-    return _db
-        .collection('users')
-        .doc(_uid)
-        .collection('tasks')
+  Stream<List<TaskModel>> getPendingTasks() {
+    if (_tasksCol == null) return const Stream.empty();
+
+    return _tasksCol!
         .where('isCompleted', isEqualTo: false)
         .orderBy('createdAt', descending: true)
-        .snapshots();
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => TaskModel.fromFirestore(doc))
+            .toList());
   }
 
-  /// 3. COMPLETAR TAREA Y DAR EXPERIENCIA AL MISMO TIEMPO
-  Future<void> completeTask(String taskId, int xpReward) async {
-    if (_uid == null) return;
+  Stream<List<TaskModel>> getCompletedTasks() {
+    if (_tasksCol == null) return const Stream.empty();
 
-    // Marcamos la tarea como completada
-    final taskRef = _db
-        .collection('users')
-        .doc(_uid)
-        .collection('tasks')
-        .doc(taskId);
+    return _tasksCol!
+        .where('isCompleted', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => TaskModel.fromFirestore(doc))
+            .toList());
+  }
 
-    await taskRef.update({
+  // ── Editar tarea ─────────────────────────────────────────────────────
+
+  Future<void> updateTask({
+    required String taskId,
+    required String title,
+    required String subtitle,
+    required String priority,
+    required int xpReward,
+    DateTime? dueDate,
+  }) async {
+    if (_tasksCol == null) return;
+
+    await _tasksCol!.doc(taskId).update({
+      'title': title,
+      'subtitle': subtitle,
+      'priority': priority,
+      'xpReward': xpReward,
+      'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
+    });
+  }
+
+  // ── Completar tarea ────────────────────────────────────────────────────
+
+  /// Marca la tarea como completada, otorga XP y retorna si hubo level-up.
+  Future<bool> completeTask(String taskId, int xpReward) async {
+    if (_tasksCol == null) return false;
+
+    await _tasksCol!.doc(taskId).update({
       'isCompleted': true,
       'completedAt': FieldValue.serverTimestamp(),
     });
 
-    // Sumamos XP con logica de level-up via UserRepository
-    await _userRepository.addXp(xpReward);
+    final didLevelUp = await _userRepository.addXp(xpReward);
+    return didLevelUp;
   }
 
-  /// 4. LEER LAS TAREAS COMPLETADAS EN TIEMPO REAL
-  Stream<QuerySnapshot> getCompletedTasks() {
-    if (_uid == null) return const Stream.empty();
+  // ── Leer todas las tareas (para exportación) ───────────────────────────
 
-    return _db
-        .collection('users')
-        .doc(_uid)
-        .collection('tasks')
-        .where('isCompleted', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+  Future<List<TaskModel>> getAllTasks() async {
+    if (_tasksCol == null) return [];
+
+    final snap = await _tasksCol!.orderBy('createdAt', descending: true).get();
+    return snap.docs
+        .map((doc) => TaskModel.fromFirestore(doc))
+        .toList();
   }
 }

@@ -92,6 +92,17 @@ class AuthRepository {
     }
   }
 
+  /// Enviar email de recuperación de contraseña
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_translateAuthError(e.code));
+    } catch (e) {
+      throw AuthException('No se pudo enviar el correo de recuperación.');
+    }
+  }
+
   /// Cerrar sesión
   Future<void> signOut() async {
     try {
@@ -119,6 +130,10 @@ class AuthRepository {
         return 'La contraseña es muy débil (mínimo 6 caracteres).';
       case 'network-request-failed':
         return 'Revisa tu conexión a internet.';
+      case 'missing-email':
+        return 'Introduce un correo electrónico.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
       default:
         return 'Error de autenticación ($errorCode). Inténtalo de nuevo.';
     }

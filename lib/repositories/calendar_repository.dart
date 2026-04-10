@@ -39,17 +39,12 @@ class CalendarRepository {
   }
 
   /// Interactive Google sign-in. Requests Calendar scope authorization after.
+  /// Throws on failure so the ViewModel can show the error message.
   Future<bool> signIn() async {
-    try {
-      await _ensureInitialized();
-      _account = await _googleSignIn.authenticate();
-      // Ensure the Calendar scope is authorized (may show a consent dialog).
-      await _ensureCalendarScope();
-      return _account != null;
-    } catch (_) {
-      _account = null;
-      return false;
-    }
+    await _ensureInitialized();
+    _account = await _googleSignIn.authenticate();
+    await _ensureCalendarScope();
+    return _account != null;
   }
 
   Future<void> signOut() async {

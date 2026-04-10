@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -11,7 +12,7 @@ import '../repositories/user_repository.dart';
 ///   - Al cerrar sesion, limpia los datos y cancela la suscripcion.
 ///
 /// Cualquier pantalla puede acceder a los datos del usuario con:
-///   final user = context.watch<UserViewModel>().user;
+///   final user = context.watch[UserViewModel]().user;
 class UserViewModel extends ChangeNotifier {
   final UserRepository _repository = UserRepository();
 
@@ -64,6 +65,10 @@ class UserViewModel extends ChangeNotifier {
   /// Actualiza campos arbitrarios del usuario.
   Future<void> updateFields(Map<String, dynamic> fields) =>
       _repository.updateFields(fields);
+
+  /// Sube la imagen de avatar a Firebase Storage y actualiza Firestore.
+  Future<void> uploadAvatar(File imageFile) =>
+      _repository.uploadAvatar(imageFile);
 
   @override
   void dispose() {

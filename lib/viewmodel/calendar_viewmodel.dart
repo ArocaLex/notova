@@ -36,12 +36,16 @@ class CalendarViewModel extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
 
-    isSignedIn = await _repository.signIn();
-
-    if (isSignedIn) {
-      await _loadAll();
-    } else {
-      errorMessage = 'No se pudo conectar con Google Calendar.';
+    try {
+      isSignedIn = await _repository.signIn();
+      if (isSignedIn) {
+        await _loadAll();
+      } else {
+        errorMessage = 'No se pudo conectar con Google Calendar.';
+      }
+    } catch (e) {
+      isSignedIn = false;
+      errorMessage = 'Error al conectar: $e';
     }
 
     isLoading = false;

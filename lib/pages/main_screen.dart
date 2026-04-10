@@ -31,7 +31,7 @@ class MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: const Color(0xFF15111D),
+      backgroundColor: const Color(0xFF120E1A),
       body: IndexedStack(index: _currentIndex, children: _screens),
 
       bottomNavigationBar: Padding(

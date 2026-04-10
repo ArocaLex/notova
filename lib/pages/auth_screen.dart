@@ -19,10 +19,10 @@ class AuthScreenState extends State<AuthScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  static const bgColor = Color(0xFF15111D);
+  static const bgColor = Color(0xFF120E1A);
   static const cardColor = Color(0xFF1E1926);
   static const primaryPurple = Color(0xFF7B2CBF);
-  static const cyanAccent = Color(0xFF00E5FF);
+  static const cyanAccent = Color(0xFFDEB7FF);
 
   @override
   void dispose() {
@@ -49,6 +49,111 @@ class AuthScreenState extends State<AuthScreen> {
     final viewModel = context.read<AuthViewModel>();
     final success = await viewModel.signInWithGoogle();
     _handleAuthResult(success, viewModel);
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final resetController = TextEditingController(text: emailController.text.trim());
+    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Recuperar contraseña',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.',
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resetController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'ejemplo@notova.com',
+                  hintStyle: TextStyle(color: Colors.grey.shade600),
+                  filled: true,
+                  fillColor: bgColor,
+                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.white38),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.06)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: primaryPurple, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey.shade400),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryPurple,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final email = resetController.text.trim();
+                if (!emailRegex.hasMatch(email)) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Introduce un correo electrónico válido.'),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return;
+                }
+                final vm = context.read<AuthViewModel>();
+                final nav = Navigator.of(dialogContext);
+                final messenger = ScaffoldMessenger.of(context);
+                final success = await vm.sendPasswordReset(email);
+                if (!mounted) return;
+                nav.pop();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Revisa tu correo para restablecer la contraseña.'
+                          : (vm.errorMessage ?? 'No se pudo enviar el correo.'),
+                    ),
+                    backgroundColor:
+                        success ? Colors.green.shade700 : Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Text(
+                'Enviar',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    resetController.dispose();
   }
 
   void _handleAuthResult(bool success, AuthViewModel viewModel) {
@@ -226,7 +331,7 @@ class AuthScreenState extends State<AuthScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: _showForgotPasswordDialog,
                     child: const Text(
                       '¿Olvidaste la contraseña?',
                       style: TextStyle(
