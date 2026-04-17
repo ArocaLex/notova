@@ -47,6 +47,7 @@ class AppStrings extends ChangeNotifier {
       'delete': 'Eliminar',
       'save': 'Guardar',
       'error': 'Error',
+      'great': '¡Genial!',
 
       // Auth
       'login': 'Iniciar sesión',
@@ -56,11 +57,23 @@ class AppStrings extends ChangeNotifier {
       'sign_in_google': 'Continuar con Google',
       'no_account': '¿No tienes cuenta?',
       'have_account': '¿Ya tienes cuenta?',
-      'welcome_back': '¡Bienvenido de nuevo!',
-      'create_account': 'Crear cuenta',
+      'welcome_back': '¡Hola de nuevo!',
+      'join_notova': '¡Únete a Notova!',
+      'login_subtitle': 'Inicia sesión para continuar tu racha.',
+      'register_subtitle': 'Crea tu cuenta y empieza a subir de nivel.',
+      'create_account': 'Crear Cuenta',
+      'forgot_password': '¿Olvidaste la contraseña?',
+      'recover_password': 'Recuperar contraseña',
+      'recover_password_hint': 'Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.',
+      'invalid_email': 'Introduce un correo electrónico válido.',
+      'send': 'Enviar',
+      'reset_email_sent': 'Revisa tu correo para restablecer la contraseña.',
+      'reset_email_failed': 'No se pudo enviar el correo.',
+      'or_continue_with': 'O CONTINUAR CON',
 
       // Splash
       'hello': 'Hola',
+      'splash_subtitle': 'Potencia tu productividad',
 
       // Onboarding
       'onboarding_title_1': 'Bienvenido a Notova',
@@ -73,18 +86,40 @@ class AppStrings extends ChangeNotifier {
       'next': 'Siguiente',
       'start': 'Comenzar',
 
+      // Navigation
+      'nav_home': 'Inicio',
+      'nav_calendar': 'Agenda',
+      'nav_quests': 'Quests',
+      'nav_profile': 'Perfil',
+
       // Home
       'good_morning': 'Buenos días',
       'good_afternoon': 'Buenas tardes',
       'good_evening': 'Buenas noches',
       'daily_progress': 'PROGRESO DIARIO',
+      'xp_progress': 'Progreso de XP',
       'pending_quests': 'Quests Pendientes',
       'today_events': 'Eventos de Hoy',
       'no_pending': 'Sin quests pendientes',
+      'no_pending_home': 'Sin quests pendientes. ¡Añade una en la pestaña Quests!',
       'no_events': 'Sin eventos hoy',
+      'no_upcoming': 'Sin eventos próximos hoy',
+      'connect_calendar_home': 'Conecta Google Calendar para ver tus próximos eventos',
+      'up_next': 'Próximo Evento',
+      'view_schedule': 'Ver Agenda',
+      'view_all': 'Ver Todas',
+      'in_minutes': 'EN %d MINUTOS',
+      'at_time': 'A LAS %s',
+      'xp_to_next': '%s XP para alcanzar el Nivel %d. ¡Sigue así!',
       'level': 'NIVEL',
       'streak': 'RACHA',
+      'ranking': 'Ranking',
       'days': 'días',
+
+      // Priorities
+      'priority_high': 'ALTA',
+      'priority_med': 'MEDIA',
+      'priority_low': 'BAJA',
 
       // Tasks
       'my_quests': 'Mis Quests',
@@ -96,6 +131,7 @@ class AppStrings extends ChangeNotifier {
       'no_pending_quests': '¡Sin quests pendientes!\nPulsa + para añadir una nueva.',
       'no_completed_quests': 'Aún no has completado ninguna quest.',
       'new_quest': 'Nueva Quest',
+      'edit_quest': 'Editar Quest',
       'quest_title': 'Título de la Quest',
       'notes_optional': 'Notas (opcional)',
       'date_time_optional': 'Fecha y hora (opcional)',
@@ -103,17 +139,20 @@ class AppStrings extends ChangeNotifier {
       'quest_completed': '¡Quest completada!',
       'overdue': '¡VENCIDA!',
       'completed_count': 'Completadas',
+      'keep_completing': '¡Sigue completando quests para avanzar!',
+      'level_up': '¡Subiste de Nivel!',
 
       // Calendar
       'calendar': 'Calendario',
       'my_calendars': 'Mis Calendarios',
-      'connect_calendar': 'Conectar Google Calendar',
+      'connect_calendar': 'CONECTAR GOOGLE CALENDAR',
+      'connect_another': 'CONECTAR OTRA CUENTA',
       'disconnect': 'Desconectar',
       'calendar_connected': 'Google Calendar conectado',
       'connect_hint': 'Sincroniza tus eventos automáticamente.',
       'schedule': 'Agenda',
-      'todays_schedule': 'Agenda de Hoy',
-      'no_events_day': 'Sin eventos este día.',
+      'todays_schedule': 'AGENDA DEL DÍA',
+      'no_events_day': 'No hay eventos para este día.',
       'connect_to_see': 'Conecta Google Calendar para ver tu agenda.',
       'connect_to_see_calendars': 'Conecta Google Calendar para ver tus calendarios.',
       'new_event': 'Nuevo Evento',
@@ -122,9 +161,19 @@ class AppStrings extends ChangeNotifier {
       'time_start': 'Inicio',
       'time_end': 'Fin',
       'delete_event': 'Eliminar evento',
-      'delete_event_confirm': '¿Eliminar',
+      'delete_event_confirm': '¿Eliminar "%s"?',
       'read_only': 'Solo lectura',
       'all_day': 'Todo el día',
+      'sync': 'Sincr.',
+      'not_connected': 'SIN CONECTAR',
+      'accounts_visible': '%d CUENTA%s · %d VISIBLES',
+
+      // Notifications
+      'notifications': 'Notificaciones',
+      'notifications_on': 'Notificaciones activadas',
+      'notifications_off': 'Notificaciones desactivadas',
+      'task_reminder_title': 'Quest por vencer',
+      'task_reminder_body': '"%s" vence en 1 hora',
 
       // Profile
       'profile': 'Perfil de Notova',
@@ -137,6 +186,11 @@ class AppStrings extends ChangeNotifier {
       'streak_label': 'RACHA',
       'badges_label': 'INSIGNIAS',
       'badges': 'INSIGNIAS',
+      'creating_profile': 'Creando tu perfil...',
+      'loading_profile': 'Cargando perfil…',
+      'edit_name': 'Editar Nombre',
+      'edit_name_subtitle': 'Cambia tu nombre de perfil',
+      'your_name': 'Tu nombre',
 
       // Settings
       'settings': 'AJUSTES',
@@ -155,14 +209,12 @@ class AppStrings extends ChangeNotifier {
       'export_csv': 'Exportar como CSV',
       'export_txt': 'Exportar como TXT',
       'exporting': 'Exportando…',
-      'saved_at': 'Guardado en:',
-      'send_to_server': 'Enviar al servidor',
-      'sent_ok': '¡Enviado correctamente!',
-      'send_error': 'Error al enviar al servidor',
       'export_error': 'Error al exportar:',
       'uploading_avatar': 'Subiendo avatar…',
       'avatar_updated': '¡Avatar actualizado!',
       'avatar_error': 'Error al subir avatar:',
+      'preparing_file': 'Preparando archivo…',
+      'export_failed': 'No se pudo exportar el archivo. Inténtalo de nuevo.',
 
       // Badge names
       'badge_first_quest': 'Primera Quest',
@@ -171,6 +223,12 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_3': 'Táctico',
       'badge_nivel_5': 'Maestro',
       'badge_nivel_7': 'SuperNotova',
+
+      // Months / Days (for date formatting)
+      'months_short': 'Ene,Feb,Mar,Abr,May,Jun,Jul,Ago,Sep,Oct,Nov,Dic',
+      'months_long': 'ENERO,FEBRERO,MARZO,ABRIL,MAYO,JUNIO,JULIO,AGOSTO,SEPTIEMBRE,OCTUBRE,NOVIEMBRE,DICIEMBRE',
+      'days_short': 'Lun,Mar,Mié,Jue,Vie,Sáb,Dom',
+      'weekday_initials': 'D,L,M,X,J,V,S',
     },
 
     'en': {
@@ -182,6 +240,7 @@ class AppStrings extends ChangeNotifier {
       'delete': 'Delete',
       'save': 'Save',
       'error': 'Error',
+      'great': 'Awesome!',
 
       // Auth
       'login': 'Sign In',
@@ -192,10 +251,22 @@ class AppStrings extends ChangeNotifier {
       'no_account': "Don't have an account?",
       'have_account': 'Already have an account?',
       'welcome_back': 'Welcome back!',
+      'join_notova': 'Join Notova!',
+      'login_subtitle': 'Sign in to continue your streak.',
+      'register_subtitle': 'Create your account and start leveling up.',
       'create_account': 'Create Account',
+      'forgot_password': 'Forgot your password?',
+      'recover_password': 'Recover password',
+      'recover_password_hint': "Enter your email and we'll send you a link to reset your password.",
+      'invalid_email': 'Please enter a valid email address.',
+      'send': 'Send',
+      'reset_email_sent': 'Check your email to reset your password.',
+      'reset_email_failed': 'Could not send the email.',
+      'or_continue_with': 'OR CONTINUE WITH',
 
       // Splash
       'hello': 'Hello',
+      'splash_subtitle': 'Level up your productivity',
 
       // Onboarding
       'onboarding_title_1': 'Welcome to Notova',
@@ -208,18 +279,40 @@ class AppStrings extends ChangeNotifier {
       'next': 'Next',
       'start': 'Get Started',
 
+      // Navigation
+      'nav_home': 'Home',
+      'nav_calendar': 'Calendar',
+      'nav_quests': 'Quests',
+      'nav_profile': 'Profile',
+
       // Home
       'good_morning': 'Good morning',
       'good_afternoon': 'Good afternoon',
       'good_evening': 'Good evening',
       'daily_progress': 'DAILY PROGRESS',
+      'xp_progress': 'XP Progress',
       'pending_quests': 'Pending Quests',
       'today_events': "Today's Events",
       'no_pending': 'No pending quests',
+      'no_pending_home': 'No pending quests. Add one in the Quests tab!',
       'no_events': 'No events today',
+      'no_upcoming': 'No upcoming events today',
+      'connect_calendar_home': 'Connect Google Calendar to see upcoming events',
+      'up_next': 'Up Next',
+      'view_schedule': 'View Schedule',
+      'view_all': 'View All',
+      'in_minutes': 'IN %d MINUTES',
+      'at_time': 'AT %s',
+      'xp_to_next': '%s XP to reach Level %d. Keep it up!',
       'level': 'LEVEL',
       'streak': 'STREAK',
+      'ranking': 'Ranking',
       'days': 'days',
+
+      // Priorities
+      'priority_high': 'HIGH',
+      'priority_med': 'MED',
+      'priority_low': 'LOW',
 
       // Tasks
       'my_quests': 'My Quests',
@@ -231,6 +324,7 @@ class AppStrings extends ChangeNotifier {
       'no_pending_quests': 'No pending quests!\nTap + to add a new one.',
       'no_completed_quests': 'No completed quests yet.',
       'new_quest': 'New Quest',
+      'edit_quest': 'Edit Quest',
       'quest_title': 'Quest Title',
       'notes_optional': 'Notes (optional)',
       'date_time_optional': 'Date and time (optional)',
@@ -238,16 +332,19 @@ class AppStrings extends ChangeNotifier {
       'quest_completed': 'Quest completed!',
       'overdue': 'OVERDUE!',
       'completed_count': 'Completed',
+      'keep_completing': 'Keep completing quests to level up!',
+      'level_up': 'Level Up!',
 
       // Calendar
       'calendar': 'Calendar',
       'my_calendars': 'My Calendars',
-      'connect_calendar': 'Connect Google Calendar',
+      'connect_calendar': 'CONNECT GOOGLE CALENDAR',
+      'connect_another': 'CONNECT ANOTHER ACCOUNT',
       'disconnect': 'Disconnect',
       'calendar_connected': 'Google Calendar connected',
       'connect_hint': 'Sync your events automatically.',
       'schedule': 'Schedule',
-      'todays_schedule': "Today's Schedule",
+      'todays_schedule': "TODAY'S SCHEDULE",
       'no_events_day': 'No events for this day.',
       'connect_to_see': 'Connect Google Calendar to see your schedule.',
       'connect_to_see_calendars': 'Connect Google Calendar to see your calendars here.',
@@ -257,9 +354,19 @@ class AppStrings extends ChangeNotifier {
       'time_start': 'Start',
       'time_end': 'End',
       'delete_event': 'Delete event',
-      'delete_event_confirm': 'Delete',
+      'delete_event_confirm': 'Delete "%s"?',
       'read_only': 'Read-only',
       'all_day': 'All day',
+      'sync': 'Sync',
+      'not_connected': 'NOT CONNECTED',
+      'accounts_visible': '%d ACCOUNT%s · %d VISIBLE',
+
+      // Notifications
+      'notifications': 'Notifications',
+      'notifications_on': 'Notifications enabled',
+      'notifications_off': 'Notifications disabled',
+      'task_reminder_title': 'Quest due soon',
+      'task_reminder_body': '"%s" is due in 1 hour',
 
       // Profile
       'profile': 'Notova Profile',
@@ -272,6 +379,11 @@ class AppStrings extends ChangeNotifier {
       'streak_label': 'STREAK',
       'badges_label': 'BADGES',
       'badges': 'BADGES',
+      'creating_profile': 'Creating your profile...',
+      'loading_profile': 'Loading profile…',
+      'edit_name': 'Edit Name',
+      'edit_name_subtitle': 'Change your profile name',
+      'your_name': 'Your name',
 
       // Settings
       'settings': 'SETTINGS',
@@ -290,14 +402,12 @@ class AppStrings extends ChangeNotifier {
       'export_csv': 'Export as CSV',
       'export_txt': 'Export as TXT',
       'exporting': 'Exporting…',
-      'saved_at': 'Saved at:',
-      'send_to_server': 'Send to server',
-      'sent_ok': 'Sent successfully!',
-      'send_error': 'Error sending to server',
       'export_error': 'Error exporting:',
       'uploading_avatar': 'Uploading avatar…',
       'avatar_updated': 'Avatar updated!',
       'avatar_error': 'Error uploading avatar:',
+      'preparing_file': 'Preparing file…',
+      'export_failed': 'Could not export the file. Try again.',
 
       // Badge names
       'badge_first_quest': 'First Quest',
@@ -306,6 +416,12 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_3': 'Tactician',
       'badge_nivel_5': 'Master',
       'badge_nivel_7': 'SuperNotova',
+
+      // Months / Days (for date formatting)
+      'months_short': 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
+      'months_long': 'JANUARY,FEBRUARY,MARCH,APRIL,MAY,JUNE,JULY,AUGUST,SEPTEMBER,OCTOBER,NOVEMBER,DECEMBER',
+      'days_short': 'Mon,Tue,Wed,Thu,Fri,Sat,Sun',
+      'weekday_initials': 'S,M,T,W,T,F,S',
     },
   };
 }

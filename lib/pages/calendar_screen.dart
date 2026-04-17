@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/calendar_event.dart';
 import '../models/calendar_info.dart';
+import '../l10n/app_strings.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -15,48 +16,36 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class CalendarScreenState extends State<CalendarScreen> {
-  static const bgColor = Color(0xFF120E1A);
-  static const cardColor = Color(0xFF1E1926);
-  static const primaryPurple = Color(0xFF7B2CBF);
-  static const cyanAccent = Color(0xFFDEB7FF);
-
-  // Month shown in the grid (independent of selectedDate in ViewModel).
-  late DateTime _focusedMonth;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusedMonth = DateTime.now();
-  }
+  // ── Paleta ────────────────────────────────────────────────────────────────
+  static const _bgColor = Color(0xFF120E1A);
+  static const _cardColor = Color(0xFF1E1926);
+  static const _primaryPurple = Color(0xFF7B2CBF);
+  static const _textPrimary = Color(0xFFF4EEFC);
+  static const _textSecondary = Color(0xFFC8B8DB);
+  static const _textMuted = Color(0xFF8F82A3);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   int _daysInMonth(DateTime month) =>
       DateTime(month.year, month.month + 1, 0).day;
 
-  /// Weekday index of the 1st (0 = Sun … 6 = Sat).
   int _firstWeekday(DateTime month) =>
       DateTime(month.year, month.month, 1).weekday % 7;
 
-  String _monthName(DateTime month) {
-    const names = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
+  String _monthName(DateTime month, AppStrings s) {
+    final names = s.get('months_long').split(',');
     return '${names[month.month - 1]} ${month.year}';
   }
 
-  Color _calendarColor(CalendarInfo cal) {
-    if (cal.backgroundColor != null) {
-      try {
-        final hex = cal.backgroundColor!.replaceFirst('#', '');
-        return Color(int.parse('FF$hex', radix: 16));
-      } catch (_) {}
-    }
-    return cal.isOwned ? primaryPurple : Colors.blueGrey;
+  String _dayMonthLabel(DateTime d) {
+    const months = [
+      'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+      'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
   }
 
-  // ── Add event bottom sheet ────────────────────────────────────────────────
+  // ── Add-event bottom sheet ────────────────────────────────────────────────
 
   void _showAddEventSheet(BuildContext context, CalendarViewModel vm) {
     final ownedCals = vm.ownedCalendars;
@@ -70,9 +59,9 @@ class CalendarScreenState extends State<CalendarScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: cardColor,
+      backgroundColor: _cardColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -84,7 +73,6 @@ class CalendarScreenState extends State<CalendarScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
               Center(
                 child: Container(
                   width: 40, height: 4,
@@ -96,24 +84,20 @@ class CalendarScreenState extends State<CalendarScreen> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'New Event',
+                'Nuevo Evento',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
+                  color: _textPrimary, fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Title
               TextField(
                 controller: titleController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: _textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'Event title',
-                  hintStyle: TextStyle(color: Colors.grey.shade600),
-                  filled: true,
-                  fillColor: bgColor,
+                  hintText: 'Título del evento',
+                  hintStyle: const TextStyle(color: _textMuted),
+                  filled: true, fillColor: _bgColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -121,16 +105,13 @@ class CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-
-              // Calendar selector (only owned)
               if (ownedCals.length > 1) ...[
                 DropdownButtonFormField<CalendarInfo>(
                   value: selectedCal,
-                  dropdownColor: cardColor,
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: _cardColor,
+                  style: const TextStyle(color: _textPrimary),
                   decoration: InputDecoration(
-                    filled: true,
-                    fillColor: bgColor,
+                    filled: true, fillColor: _bgColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -139,7 +120,10 @@ class CalendarScreenState extends State<CalendarScreen> {
                   items: ownedCals
                       .map((c) => DropdownMenuItem(
                             value: c,
-                            child: Text(c.summary),
+                            child: Text(
+                              '${c.summary}  ·  ${c.accountEmail}',
+                              style: const TextStyle(color: _textPrimary),
+                            ),
                           ))
                       .toList(),
                   onChanged: (v) {
@@ -148,19 +132,14 @@ class CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 14),
               ],
-
-              // Time row
               Row(
                 children: [
                   Expanded(
                     child: _TimeButton(
-                      label: 'Start',
-                      time: startTime,
+                      label: 'Inicio', time: startTime,
                       onTap: () async {
                         final t = await showTimePicker(
-                          context: ctx,
-                          initialTime: startTime,
-                        );
+                            context: ctx, initialTime: startTime);
                         if (t != null) setSheetState(() => startTime = t);
                       },
                     ),
@@ -168,13 +147,10 @@ class CalendarScreenState extends State<CalendarScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _TimeButton(
-                      label: 'End',
-                      time: endTime,
+                      label: 'Fin', time: endTime,
                       onTap: () async {
                         final t = await showTimePicker(
-                          context: ctx,
-                          initialTime: endTime,
-                        );
+                            context: ctx, initialTime: endTime);
                         if (t != null) setSheetState(() => endTime = t);
                       },
                     ),
@@ -182,14 +158,11 @@ class CalendarScreenState extends State<CalendarScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-
-              // Submit
               SizedBox(
-                width: double.infinity,
-                height: 50,
+                width: double.infinity, height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryPurple,
+                    backgroundColor: _primaryPurple,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -197,42 +170,28 @@ class CalendarScreenState extends State<CalendarScreen> {
                   onPressed: () async {
                     final title = titleController.text.trim();
                     if (title.isEmpty) return;
-
                     final base = vm.selectedDate;
-                    final start = DateTime(
-                      base.year, base.month, base.day,
-                      startTime.hour, startTime.minute,
-                    );
-                    final end = DateTime(
-                      base.year, base.month, base.day,
-                      endTime.hour, endTime.minute,
-                    );
-
+                    final start = DateTime(base.year, base.month, base.day,
+                        startTime.hour, startTime.minute);
+                    final end = DateTime(base.year, base.month, base.day,
+                        endTime.hour, endTime.minute);
                     final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
                     final ok = await vm.createEvent(
                       calendarId: selectedCal.id,
-                      title: title,
-                      start: start,
-                      end: end,
+                      title: title, start: start, end: end,
                     );
                     if (!ok && mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(vm.errorMessage ?? 'Error'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
+                      messenger.showSnackBar(SnackBar(
+                        content: Text(vm.errorMessage ?? 'Error'),
+                        backgroundColor: Colors.redAccent,
+                      ));
                     }
                   },
-                  child: const Text(
-                    'Create Event',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
+                  child: const Text('Crear Evento',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ),
             ],
@@ -247,348 +206,470 @@ class CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<CalendarViewModel>();
+    final s = context.watch<AppStrings>();
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        title: const Row(
-          children: [
-            Icon(Icons.calendar_month, color: primaryPurple, size: 26),
-            SizedBox(width: 10),
-            Text(
-              'Calendar',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (vm.isSignedIn)
-            IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white70),
-              onPressed: vm.isLoading ? null : vm.refresh,
-            ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white70),
-            onPressed: () {},
-          ),
-        ],
-      ),
-
-      // FAB — only visible when signed in and has owned calendars (RF-09)
+      backgroundColor: _bgColor,
       floatingActionButton: vm.isSignedIn && vm.ownedCalendars.isNotEmpty
           ? FloatingActionButton(
-              backgroundColor: primaryPurple,
+              backgroundColor: _primaryPurple,
               onPressed: () => _showAddEventSheet(context, vm),
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
+      body: SafeArea(
+        child: vm.isLoading && vm.accounts.isEmpty
+            ? const Center(
+                child: CircularProgressIndicator(color: _primaryPurple))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    _buildHeader(vm, s),
+                    const SizedBox(height: 20),
+                    _buildCalendarGrid(vm, s),
+                    const SizedBox(height: 24),
+                    _buildCalendarsSection(vm),
+                    const SizedBox(height: 20),
+                    _buildConnectButton(vm, s),
+                    if (vm.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      _buildErrorBanner(vm.errorMessage!),
+                    ],
+                    const SizedBox(height: 28),
+                    _buildScheduleSection(vm, s),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
 
-      body: vm.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: primaryPurple),
-            )
-          : SingleChildScrollView(
+  // ── Header — mismo patrón que TasksScreen / HomeScreen ─────────────────
+
+  Widget _buildHeader(CalendarViewModel vm, AppStrings s) {
+    final connectedCount = vm.accounts.length;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Calendario',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: _primaryPurple.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border:
+                    Border.all(color: _primaryPurple.withOpacity(0.3)),
+              ),
+              child: Text(
+                connectedCount == 0
+                    ? s.get('not_connected')
+                    : s.get('accounts_visible')
+                        .replaceFirst('%d', '$connectedCount')
+                        .replaceFirst('%s', connectedCount > 1 ? 'S' : '')
+                        .replaceFirst('%d', '${vm.allCalendars.where((c) => c.isVisible).length}'),
+                style: const TextStyle(
+                  color: _primaryPurple,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (vm.isSignedIn)
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: _textSecondary.withOpacity(0.3)),
+            ),
+            child: GestureDetector(
+              onTap: vm.isLoading ? null : vm.refresh,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildCalendarGrid(vm),
-                  const SizedBox(height: 28),
-                  _buildCalendarFilters(vm),
-                  const SizedBox(height: 20),
-                  _buildGoogleConnectButton(vm),
-                  const SizedBox(height: 28),
-                  _buildSchedule(vm),
-                  const SizedBox(height: 100),
+                  Icon(Icons.refresh,
+                      color: vm.isLoading
+                          ? _textMuted
+                          : _textSecondary,
+                      size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    s.get('sync'),
+                    style: TextStyle(
+                      color: _textSecondary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
+          ),
+      ],
     );
   }
 
   // ── Calendar grid ─────────────────────────────────────────────────────────
 
-  Widget _buildCalendarGrid(CalendarViewModel vm) {
-    final totalCells = _firstWeekday(_focusedMonth) + _daysInMonth(_focusedMonth);
-    final rows = (totalCells / 7).ceil();
-    final cellCount = rows * 7;
+  Widget _buildCalendarGrid(CalendarViewModel vm, AppStrings s) {
+    final fm = vm.focusedMonth;
+    final offset = _firstWeekday(fm);
+    final daysCount = _daysInMonth(fm);
+    final totalCells = ((offset + daysCount) / 7).ceil() * 7;
+    final prevMonthDays = DateTime(fm.year, fm.month, 0).day;
 
-    // Days in prev month (for grey padding cells)
-    final prevMonthDays = DateTime(_focusedMonth.year, _focusedMonth.month, 0).day;
-
-    // Set of days in focused month that have events
-    final eventDays = vm.events
-        .where((e) =>
-            e.start?.month == _focusedMonth.month &&
-            e.start?.year == _focusedMonth.year)
-        .map((e) => e.start!.day)
-        .toSet();
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
-      ),
-      child: Column(
-        children: [
-          // Month navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: Icon(Icons.chevron_left, color: Colors.grey.shade400),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => setState(() {
-                  _focusedMonth =
-                      DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-                }),
-              ),
-              Text(
-                _monthName(_focusedMonth),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.chevron_right, color: Colors.grey.shade400),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => setState(() {
-                  _focusedMonth =
-                      DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Weekday headers
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) {
-              return Text(
-                d,
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 10),
-
-          // Days grid
-          GridView.builder(
-            shrinkWrap: true,
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cellCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1.1,
-            ),
-            itemBuilder: (context, index) {
-              final offset = _firstWeekday(_focusedMonth);
-              final isGrey = index < offset ||
-                  index >= offset + _daysInMonth(_focusedMonth);
-              final day = isGrey
-                  ? (index < offset
-                      ? prevMonthDays - (offset - index - 1)
-                      : index - offset - _daysInMonth(_focusedMonth) + 1)
-                  : index - offset + 1;
-
-              final isSelected = !isGrey &&
-                  day == vm.selectedDate.day &&
-                  _focusedMonth.month == vm.selectedDate.month &&
-                  _focusedMonth.year == vm.selectedDate.year;
-
-              final hasDot = !isGrey && eventDays.contains(day);
-
-              return GestureDetector(
-                onTap: isGrey
-                    ? null
-                    : () => vm.onDateSelected(DateTime(
-                          _focusedMonth.year,
-                          _focusedMonth.month,
-                          day,
-                        )),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: isSelected ? primaryPurple : Colors.transparent,
-                        shape: BoxShape.circle,
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: primaryPurple.withOpacity(0.4),
-                                  blurRadius: 8,
-                                )
-                              ]
-                            : null,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$day',
-                        style: TextStyle(
-                          color: isGrey
-                              ? Colors.grey.shade700
-                              : isSelected
-                                  ? Colors.white
-                                  : Colors.white,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.w400,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    hasDot
-                        ? Container(
-                            width: 4,
-                            height: 4,
-                            decoration: const BoxDecoration(
-                              color: cyanAccent,
-                              shape: BoxShape.circle,
-                            ),
-                          )
-                        : const SizedBox(height: 4),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Calendar filters ──────────────────────────────────────────────────────
-
-  Widget _buildCalendarFilters(CalendarViewModel vm) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Month navigation
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'My Calendars',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
+            GestureDetector(
+              onTap: () => vm.onMonthChanged(
+                  DateTime(fm.year, fm.month - 1)),
+              child: const Icon(Icons.chevron_left,
+                  color: _textSecondary, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              _monthName(fm, s),
+              style: const TextStyle(
+                color: _textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                letterSpacing: 1.2,
               ),
             ),
-            if (vm.isSignedIn)
-              TextButton(
-                onPressed: vm.disconnectGoogleCalendar,
-                style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                child: Text(
-                  'Disconnect',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: () => vm.onMonthChanged(
+                  DateTime(fm.year, fm.month + 1)),
+              child: const Icon(Icons.chevron_right,
+                  color: _textSecondary, size: 22),
+            ),
           ],
         ),
-        const SizedBox(height: 4),
-        if (!vm.isSignedIn)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Connect Google Calendar to see your calendars here.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            ),
-          )
-        else
-          ...vm.calendars.map((cal) => _buildCalendarFilter(cal, vm)),
+        const SizedBox(height: 24),
+
+        // Weekday headers
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: s.get('weekday_initials').split(',')
+              .map((d) => SizedBox(
+                    width: 40,
+                    child: Center(
+                      child: Text(d,
+                          style: const TextStyle(
+                            color: _textMuted,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          )),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 12),
+
+        // Day grid
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: totalCells,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: 0.9,
+          ),
+          itemBuilder: (context, index) {
+            final isGrey = index < offset || index >= offset + daysCount;
+            final day = isGrey
+                ? (index < offset
+                    ? prevMonthDays - (offset - index - 1)
+                    : index - offset - daysCount + 1)
+                : index - offset + 1;
+
+            final isToday = !isGrey &&
+                day == vm.selectedDate.day &&
+                fm.month == vm.selectedDate.month &&
+                fm.year == vm.selectedDate.year;
+
+            final dots = isGrey
+                ? const <Color>[]
+                : (vm.eventDayColors[day] ?? const <Color>[]);
+
+            return GestureDetector(
+              onTap: isGrey
+                  ? null
+                  : () => vm.onDateSelected(
+                      DateTime(fm.year, fm.month, day)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: isToday ? _primaryPurple : Colors.transparent,
+                      shape: BoxShape.circle,
+                      boxShadow: isToday
+                          ? [BoxShadow(
+                              color: _primaryPurple.withOpacity(0.45),
+                              blurRadius: 10)]
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$day',
+                      style: TextStyle(
+                        color: isGrey
+                            ? _textMuted.withOpacity(0.35)
+                            : isToday
+                                ? Colors.white
+                                : _textPrimary,
+                        fontWeight:
+                            isToday ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    height: 5,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (final c in dots.take(3))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 1.5),
+                            child: Container(
+                              width: 5, height: 5,
+                              decoration: BoxDecoration(
+                                color: c,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildCalendarFilter(CalendarInfo cal, CalendarViewModel vm) {
-    final color = _calendarColor(cal);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // ── Calendars — una cajita por cuenta ────────────────────────────────────
+
+  Widget _buildCalendarsSection(CalendarViewModel vm) {
+    if (!vm.isSignedIn) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        for (final account in vm.accounts)
+          _buildAccountCard(account, vm),
+      ],
+    );
+  }
+
+  Widget _buildAccountCard(CalendarAccount account, CalendarViewModel vm) {
+    final color = account.color;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: email + disconnect
           Row(
             children: [
               Container(
-                width: 14,
-                height: 14,
+                width: 10, height: 10,
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(4),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: color.withOpacity(0.5), blurRadius: 6),
+                  ],
                 ),
               ),
-              const SizedBox(width: 14),
-              Text(
-                cal.summary,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  account.email,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Read-only badge for RF-10 (Classroom / non-owned)
-              if (cal.isReadOnly)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white10,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Read-only',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+              GestureDetector(
+                onTap: () =>
+                    vm.disconnectGoogleCalendar(email: account.email),
+                child: const Icon(Icons.link_off,
+                    color: Color(0xFFFF8A8A), size: 16),
+              ),
             ],
           ),
-          GestureDetector(
-            onTap: () => vm.toggleCalendarVisibility(cal.id),
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: cal.isVisible ? color : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: cal.isVisible ? color : Colors.grey.shade700,
-                  width: 2,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(color: Colors.white10, height: 1),
+          ),
+          // Calendar rows
+          ...account.calendars.map((cal) {
+            final calColor = cal.parsedBackgroundColor ?? color;
+            return InkWell(
+              onTap: () => vm.toggleCalendarVisibility(cal.id),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                child: Row(
+                  children: [
+                    // Color square
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        color: calColor.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 12, height: 12,
+                          decoration: BoxDecoration(
+                            color: calColor,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        cal.summary,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    // Checkbox
+                    Container(
+                      width: 24, height: 24,
+                      decoration: BoxDecoration(
+                        color: cal.isVisible
+                            ? calColor
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: cal.isVisible
+                              ? calColor
+                              : _textMuted.withOpacity(0.4),
+                          width: 2,
+                        ),
+                      ),
+                      child: cal.isVisible
+                          ? const Icon(Icons.check,
+                              color: Colors.white, size: 14)
+                          : null,
+                    ),
+                  ],
                 ),
               ),
-              child: cal.isVisible
-                  ? const Icon(Icons.check, color: Colors.white, size: 14)
-                  : null,
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ── Connect button ────────────────────────────────────────────────────────
+
+  Widget _buildConnectButton(CalendarViewModel vm, AppStrings s) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primaryPurple,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
+        label: Text(
+          vm.isSignedIn
+              ? s.get('connect_another')
+              : s.get('connect_calendar'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            letterSpacing: 1.0,
+          ),
+        ),
+        onPressed: vm.isLoading ? null : vm.connectGoogleCalendar,
+      ),
+    );
+  }
+
+  // ── Error banner ──────────────────────────────────────────────────────────
+
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline,
+              color: Colors.redAccent, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFBABA),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -596,153 +677,87 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Connect / disconnect button ───────────────────────────────────────────
+  // ── TODAY'S SCHEDULE ──────────────────────────────────────────────────────
 
-  Widget _buildGoogleConnectButton(CalendarViewModel vm) {
-    if (vm.isSignedIn) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: primaryPurple.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: primaryPurple.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: primaryPurple, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Google Calendar connected',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (vm.connectedEmail != null)
-                    Text(
-                      vm.connectedEmail!,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
+  Widget _buildScheduleSection(CalendarViewModel vm, AppStrings s) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                s.get('todays_schedule'),
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    }
+              Text(
+                _dayMonthLabel(vm.selectedDate),
+                style: const TextStyle(
+                  color: _textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
 
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryPurple,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          if (!vm.isSignedIn)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  s.get('connect_to_see'),
+                  style: const TextStyle(color: _textMuted, fontSize: 13),
+                ),
               ),
-              elevation: 0,
-            ),
-            icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
-            label: const Text(
-              'Connect Google Calendar',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
+            )
+          else if (vm.events.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  s.get('no_events_day'),
+                  style: const TextStyle(color: _textMuted, fontSize: 13),
+                ),
               ),
-            ),
-            onPressed: vm.connectGoogleCalendar,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            'Sync your events across all your devices automatically.',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-          ),
-        ),
-        if (vm.errorMessage != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            vm.errorMessage!,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
+            )
+          else
+            ...vm.events.map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _buildEventCard(e, vm),
+                )),
+
         ],
-      ],
-    );
-  }
-
-  // ── Schedule ──────────────────────────────────────────────────────────────
-
-  Widget _buildSchedule(CalendarViewModel vm) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          vm.isSignedIn
-              ? "Schedule · ${vm.selectedDate.day}/${vm.selectedDate.month}"
-              : "Today's Schedule",
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 14),
-        if (!vm.isSignedIn)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Text(
-                'Connect Google Calendar to see your schedule.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-              ),
-            ),
-          )
-        else if (vm.events.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Text(
-                'No events for this day.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-              ),
-            ),
-          )
-        else
-          ...vm.events.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildEventCard(e, vm),
-              )),
-      ],
+      ),
     );
   }
 
   Widget _buildEventCard(CalendarEvent event, CalendarViewModel vm) {
-    final color = _eventColor(event);
+    final color = vm.calendarColor(event.calendarId);
+
     return Dismissible(
-      key: Key(event.id),
-      // Only allow swipe-to-delete on owned events (RF-09/RF-10)
-      direction: event.isOwned
-          ? DismissDirection.endToStart
-          : DismissDirection.none,
+      key: Key('${event.accountEmail}_${event.id}'),
+      direction:
+          event.isOwned ? DismissDirection.endToStart : DismissDirection.none,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.red.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: const Icon(Icons.delete_outline, color: Colors.redAccent),
       ),
@@ -750,22 +765,20 @@ class CalendarScreenState extends State<CalendarScreen> {
         return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: cardColor,
-            title: const Text('Delete event',
-                style: TextStyle(color: Colors.white)),
-            content: Text(
-              'Delete "${event.title}"?',
-              style: TextStyle(color: Colors.grey.shade400),
-            ),
+            backgroundColor: _cardColor,
+            title: const Text('Eliminar evento',
+                style: TextStyle(color: _textPrimary)),
+            content: Text('¿Eliminar "${event.title}"?',
+                style: const TextStyle(color: _textSecondary)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel',
-                    style: TextStyle(color: Colors.white54)),
+                child: const Text('Cancelar',
+                    style: TextStyle(color: _textMuted)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Delete',
+                child: const Text('Eliminar',
                     style: TextStyle(color: Colors.redAccent)),
               ),
             ],
@@ -775,56 +788,28 @@ class CalendarScreenState extends State<CalendarScreen> {
       onDismissed: (_) => vm.deleteEvent(event),
       child: Container(
         decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.04)),
+          color: _bgColor,
+          borderRadius: BorderRadius.circular(14),
         ),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Color bar
+              // Colored left bar
               Container(
                 width: 4,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
+                    topLeft: Radius.circular(14),
+                    bottomLeft: Radius.circular(14),
                   ),
                 ),
               ),
-              // Time
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 18.0, vertical: 18.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      event.formattedHour,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      event.meridian,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(width: 1, color: Colors.white.withOpacity(0.05)),
-              // Title + badges
+              const SizedBox(width: 16),
+              // Title + location
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18.0, vertical: 18.0),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -832,23 +817,36 @@ class CalendarScreenState extends State<CalendarScreen> {
                       Text(
                         event.title,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: _textPrimary,
                           fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          if (event.isAllDay)
-                            _badge('All day', Colors.white38),
-                          if (!event.isOwned) ...[
-                            if (event.isAllDay) const SizedBox(width: 6),
-                            _badge('Read-only', Colors.blueGrey),
-                          ],
-                        ],
-                      ),
+                      if (event.location != null &&
+                          event.location!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          event.location!,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
+                  ),
+                ),
+              ),
+              // Time range
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  event.formattedTimeRange,
+                  style: const TextStyle(
+                    color: _textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -859,32 +857,6 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _badge(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-
-  Color _eventColor(CalendarEvent event) {
-    if (!event.isOwned) return Colors.blueGrey;
-    final cal = context
-        .read<CalendarViewModel>()
-        .calendars
-        .where((c) => c.id == event.calendarId)
-        .firstOrNull;
-    if (cal == null) return primaryPurple;
-    return _calendarColor(cal);
-  }
 }
 
 // ── Helper widget ─────────────────────────────────────────────────────────────
@@ -902,7 +874,9 @@ class _TimeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = time.hour == 0 ? 12 : (time.hour > 12 ? time.hour - 12 : time.hour);
+    final h = time.hour == 0
+        ? 12
+        : (time.hour > 12 ? time.hour - 12 : time.hour);
     final m = time.minute.toString().padLeft(2, '0');
     final period = time.hour >= 12 ? 'PM' : 'AM';
 
@@ -916,19 +890,16 @@ class _TimeButton extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-            ),
+            Text(label,
+                style: const TextStyle(
+                    color: Color(0xFF8F82A3), fontSize: 11)),
             const SizedBox(height: 4),
-            Text(
-              '$h:$m $period',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
+            Text('$h:$m $period',
+                style: const TextStyle(
+                  color: Color(0xFFF4EEFC),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                )),
           ],
         ),
       ),

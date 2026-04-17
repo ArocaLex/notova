@@ -13,6 +13,7 @@ class TaskModel {
   final DateTime? dueDate;
   final DateTime? createdAt;
   final DateTime? completedAt;
+  final String? color; // Hex color string e.g. '#FF5252'
 
   const TaskModel({
     required this.id,
@@ -24,6 +25,7 @@ class TaskModel {
     this.dueDate,
     this.createdAt,
     this.completedAt,
+    this.color,
   });
 
   factory TaskModel.fromFirestore(QueryDocumentSnapshot doc) {
@@ -38,6 +40,31 @@ class TaskModel {
       dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      color: data['color'] as String?,
+    );
+  }
+
+  TaskModel copyWith({
+    bool? isCompleted,
+    DateTime? completedAt,
+    String? title,
+    String? subtitle,
+    String? priority,
+    int? xpReward,
+    DateTime? dueDate,
+    String? color,
+  }) {
+    return TaskModel(
+      id: id,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      priority: priority ?? this.priority,
+      xpReward: xpReward ?? this.xpReward,
+      isCompleted: isCompleted ?? this.isCompleted,
+      dueDate: dueDate ?? this.dueDate,
+      createdAt: createdAt,
+      completedAt: completedAt ?? this.completedAt,
+      color: color ?? this.color,
     );
   }
 

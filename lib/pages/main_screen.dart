@@ -1,7 +1,9 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import 'calendar_screen.dart';
 import 'home_screen.dart';
 import 'task_screen.dart';
@@ -26,6 +28,7 @@ class MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
     // Detecta el espacio que ocupan los botones del sistema (si el usuario los tiene)
     final systemBottomPadding = MediaQuery.of(context).viewPadding.bottom;
 
@@ -67,13 +70,13 @@ class MainScreenState extends State<MainScreen> {
                 mainAxisSize: MainAxisSize
                     .min, // Hace que la caja solo ocupe lo necesario
                 children: [
-                  _buildNavItem(0, Icons.home_rounded, 'Home'),
+                  _buildNavItem(0, Icons.home_rounded, s.get('nav_home')),
                   const SizedBox(width: 4),
-                  _buildNavItem(1, Icons.calendar_month_rounded, 'Dates'),
+                  _buildNavItem(1, Icons.calendar_month_rounded, s.get('nav_calendar')),
                   const SizedBox(width: 4),
-                  _buildNavItem(2, Icons.check_circle_rounded, 'Quests'),
+                  _buildNavItem(2, Icons.check_circle_rounded, s.get('nav_quests')),
                   const SizedBox(width: 4),
-                  _buildNavItem(3, Icons.person_rounded, 'Profile'),
+                  _buildNavItem(3, Icons.person_rounded, s.get('nav_profile')),
                 ],
               ),
             ),

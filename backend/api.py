@@ -6,14 +6,6 @@ Auth:      Firebase Admin SDK (verificación de ID tokens)
 DB:        Cloud Firestore (lectura/escritura de tareas)
 Despliegue: PythonAnywhere (arocaalex.pythonanywhere.com)
 
-RAs cubiertos:
-  - RA3.a  Métodos HTTP (GET, POST, PUT, DELETE), rutas, códigos de estado
-  - RA3.b  API RESTful con framework Python (Flask)
-  - RA3.c  CORS habilitado para peticiones de origen cruzado
-  - RA3.d  Autenticación mediante Firebase ID Tokens (Bearer)
-  - RA3.e  Validación de datos de entrada y gestión de errores
-  - RA3.g  Documentación Swagger/OpenAPI automática vía Flasgger
-"""
 
 import csv
 import io

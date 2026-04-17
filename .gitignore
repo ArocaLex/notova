@@ -68,6 +68,7 @@ firebase-debug.*.log
 .claude/
 .agents/
 CLAUDE.md
+skills-lock.json
 
 # Python backend
 backend/__pycache__/
@@ -79,6 +80,12 @@ backend/.env
 backend/instance/
 backend/*.egg-info/
 backend/.pytest_cache/
+
+# Herramientas locales (PDF generator, scripts)
+tools/
+
+# Tests de integración (credenciales locales)
+test/integration/
 
 # Windows
 Thumbs.db

@@ -7,12 +7,10 @@ import '../repositories/user_repository.dart';
 
 /// ViewModel central del usuario.
 ///
-/// Escucha automaticamente los cambios de autenticacion:
-///   - Al iniciar sesion, se suscribe al documento Firestore del usuario.
-///   - Al cerrar sesion, limpia los datos y cancela la suscripcion.
-///
-/// Cualquier pantalla puede acceder a los datos del usuario con:
-///   final user = context.watch[UserViewModel]().user;
+/// Flujo offline-first:
+///   1. Carga inmediata desde caché local (SharedPreferences).
+///   2. Se suscribe al stream de Firestore para sincronizar.
+///   3. Cada actualización remota se guarda en caché local.
 class UserViewModel extends ChangeNotifier {
   final UserRepository _repository = UserRepository();
 
@@ -22,17 +20,11 @@ class UserViewModel extends ChangeNotifier {
   StreamSubscription<UserModel?>? _userSub;
   StreamSubscription<User?>? _authSub;
 
-  /// Datos actuales del usuario (null si no ha iniciado sesion o esta cargando).
   UserModel? get user => _user;
-
-  /// True mientras se espera la primera carga de datos.
   bool get isLoading => _isLoading;
-
-  /// True si hay un usuario autenticado con datos cargados.
   bool get hasUser => _user != null;
 
   UserViewModel() {
-    // Escucha cambios en la autenticacion para conectar/desconectar el stream
     _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
   }
 
@@ -42,6 +34,7 @@ class UserViewModel extends ChangeNotifier {
     if (firebaseUser == null) {
       _user = null;
       _isLoading = false;
+      _repository.clearCachedUser();
       notifyListeners();
       return;
     }
@@ -49,24 +42,30 @@ class UserViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    // 1. Carga inmediata desde caché local
+    _repository.getCachedUser().then((cached) {
+      if (cached != null && _user == null) {
+        _user = cached;
+        _isLoading = false;
+        notifyListeners();
+      }
+    });
+
+    // 2. Sincroniza con Firestore y actualiza caché
     _userSub = _repository.userStream(firebaseUser.uid).listen((userModel) {
       _user = userModel;
       _isLoading = false;
       notifyListeners();
+      if (userModel != null) {
+        _repository.cacheUser(userModel);
+      }
     });
   }
 
-  /// Actualiza el nombre del usuario.
   Future<void> updateName(String name) => _repository.updateName(name);
-
-  /// Suma XP al usuario (con level-up automatico).
   Future<void> addXp(int amount) => _repository.addXp(amount);
-
-  /// Actualiza campos arbitrarios del usuario.
   Future<void> updateFields(Map<String, dynamic> fields) =>
       _repository.updateFields(fields);
-
-  /// Sube la imagen de avatar a Firebase Storage y actualiza Firestore.
   Future<void> uploadAvatar(File imageFile) =>
       _repository.uploadAvatar(imageFile);
 

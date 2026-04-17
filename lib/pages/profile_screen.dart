@@ -27,22 +27,28 @@ class ProfileScreenState extends State<ProfileScreen> {
   static const _primaryPurple = Color(0xFF7B2CBF);
   static const _cyanAccent = Color(0xFFDEB7FF);
 
+  // Jerarquía tipográfica para legibilidad
+  static const _textPrimary = Color(0xFFF4EEFC);
+  static const _textSecondary = Color(0xFFC8B8DB);
+  static const _textMuted = Color(0xFF8F82A3);
+
   final _audio = AudioRepository();
   final _export = ExportRepository();
 
-  // Mapa de definiciones de badges: id → (icono, label, color)
+  // Mapa de definiciones de badges: id → (icono, i18n key, color)
   static const _badgeDefs = {
-    'first_quest': (Icons.flag_rounded, 'Primera Quest', Color(0xFF7B2CBF)),
-    'streak_3': (Icons.local_fire_department, 'Racha x3', Colors.orange),
-    'streak_7': (Icons.whatshot, 'Racha x7', Colors.deepOrange),
-    'nivel_3': (Icons.shield, 'Táctico', Color(0xFF2D5AF7)),
-    'nivel_5': (Icons.star_rounded, 'Maestro', Color(0xFFDEB7FF)),
-    'nivel_7': (Icons.emoji_events, 'SuperNotova', Colors.amber),
+    'first_quest': (Icons.flag_rounded, 'badge_first_quest', Color(0xFF7B2CBF)),
+    'streak_3': (Icons.local_fire_department, 'badge_streak_3', Colors.orange),
+    'streak_7': (Icons.whatshot, 'badge_streak_7', Colors.deepOrange),
+    'nivel_3': (Icons.shield, 'badge_nivel_3', Color(0xFF2D5AF7)),
+    'nivel_5': (Icons.star_rounded, 'badge_nivel_5', Color(0xFFDEB7FF)),
+    'nivel_7': (Icons.emoji_events, 'badge_nivel_7', Colors.amber),
   };
 
   // ── Export sheet ─────────────────────────────────────────────────────────
 
   void _showExportSheet() {
+    final s = context.read<AppStrings>();
     showModalBottomSheet(
       context: context,
       backgroundColor: _cardColor,
@@ -61,11 +67,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 20),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('EXPORTAR HISTORIAL',
-                  style: TextStyle(
-                      color: Color(0xFF988D9E),
+              child: Text(s.get('export_history'),
+                  style: const TextStyle(
+                      color: _textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2)),
@@ -73,14 +79,14 @@ class ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             _ExportButton(
               icon: Icons.table_chart_outlined,
-              label: 'Exportar como CSV',
+              label: s.get('export_csv'),
               color: _cyanAccent,
               onTap: () => _doExport(sheetCtx, 'csv'),
             ),
             const SizedBox(height: 10),
             _ExportButton(
               icon: Icons.text_snippet_outlined,
-              label: 'Exportar como TXT',
+              label: s.get('export_txt'),
               color: const Color(0xFFDEB7FF),
               onTap: () => _doExport(sheetCtx, 'txt'),
             ),
@@ -93,40 +99,22 @@ class ProfileScreenState extends State<ProfileScreen> {
   Future<void> _doExport(BuildContext sheetCtx, String format) async {
     Navigator.pop(sheetCtx);
 
+    final s = context.read<AppStrings>();
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Exportando…'),
-      duration: Duration(seconds: 1),
-      backgroundColor: Color(0xFF1E1A29),
+    messenger.showSnackBar(SnackBar(
+      content: Text(s.get('preparing_file')),
+      duration: const Duration(seconds: 1),
+      backgroundColor: const Color(0xFF1E1A29),
     ));
 
     try {
-      final path = format == 'csv'
-          ? await _export.exportToCsv()
-          : await _export.exportToTxt();
-
+      await _export.shareExport(format);
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text('Guardado en: $path'),
-        backgroundColor: _primaryPurple,
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'Enviar al servidor',
-          textColor: _cyanAccent,
-          onPressed: () async {
-            final ok = await _export.sendToApi(format);
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(ok ? '¡Enviado correctamente!' : 'Error al enviar al servidor'),
-              backgroundColor: ok ? Colors.green : Colors.redAccent,
-            ));
-          },
-        ),
-      ));
+      messenger.hideCurrentSnackBar();
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('Error al exportar: $e'),
+        content: Text(s.get('export_failed')),
         backgroundColor: Colors.redAccent,
       ));
     }
@@ -138,6 +126,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     final current = await _audio.getSfxEnabled();
     if (!mounted) return;
 
+    final s = context.read<AppStrings>();
     showDialog(
       context: context,
       builder: (ctx) {
@@ -147,13 +136,13 @@ class ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: _cardColor,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20)),
-            title: const Text('Ajustes de Sonido',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            title: Text(s.get('sound_settings'),
+                style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.bold)),
             content: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Efectos de sonido (SFX)',
-                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+                Text(s.get('sfx_label'),
+                    style: const TextStyle(color: _textMuted, fontSize: 14)),
                 Switch(
                   value: sfxOn,
                   activeColor: _primaryPurple,
@@ -167,8 +156,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cerrar',
-                    style: TextStyle(color: _primaryPurple)),
+                child: Text(s.get('close'),
+                    style: const TextStyle(color: _primaryPurple)),
               ),
             ],
           ),
@@ -182,6 +171,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   void _showEditNameDialog() {
     final user = context.read<UserViewModel>().user;
     if (user == null) return;
+    final s = context.read<AppStrings>();
 
     final nameCtrl = TextEditingController(text: user.name);
 
@@ -190,14 +180,14 @@ class ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: _cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Editar Nombre',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(s.get('edit_name'),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: nameCtrl,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            hintText: 'Tu nombre',
+            hintText: s.get('your_name'),
             hintStyle: TextStyle(color: Colors.grey.shade600),
             filled: true,
             fillColor: const Color(0xFF120E1A),
@@ -210,7 +200,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text(s.get('cancel'), style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -226,8 +216,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Guardar',
-                style: TextStyle(
+            child: Text(s.get('save'),
+                style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
@@ -238,16 +228,25 @@ class ProfileScreenState extends State<ProfileScreen> {
   // ── Settings sheet ────────────────────────────────────────────────────────
 
   void _showSettingsSheet() {
+    final s = context.read<AppStrings>();
     showModalBottomSheet(
       context: context,
       backgroundColor: _cardColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      builder: (_) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 40,
               height: 4,
@@ -256,11 +255,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 20),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('AJUSTES',
-                  style: TextStyle(
-                      color: Color(0xFF988D9E),
+              child: Text(s.get('settings'),
+                  style: const TextStyle(
+                      color: _textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2)),
@@ -269,8 +268,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.edit_outlined,
               iconColor: Colors.white70,
-              label: 'Editar Nombre',
-              subtitle: 'Cambia tu nombre de perfil',
+              label: s.get('edit_name'),
+              subtitle: s.get('edit_name_subtitle'),
               onTap: () {
                 Navigator.pop(context);
                 _showEditNameDialog();
@@ -279,8 +278,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.file_download_outlined,
               iconColor: _cyanAccent,
-              label: 'Exportar Quests',
-              subtitle: 'Descarga tu historial en .csv / .txt',
+              label: s.get('export_quests'),
+              subtitle: s.get('export_subtitle'),
               onTap: () {
                 Navigator.pop(context);
                 _showExportSheet();
@@ -289,8 +288,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.volume_up_outlined,
               iconColor: _primaryPurple,
-              label: 'Ajustes de Sonido',
-              subtitle: 'Activa o desactiva los SFX',
+              label: s.get('sound_settings'),
+              subtitle: s.get('sound_subtitle'),
               onTap: () {
                 Navigator.pop(context);
                 _showSfxDialog();
@@ -299,8 +298,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.photo_library_outlined,
               iconColor: const Color(0xFFDEB7FF),
-              label: 'Configurar Avatar',
-              subtitle: 'Elige una imagen de tu galería',
+              label: s.get('configure_avatar'),
+              subtitle: s.get('avatar_subtitle'),
               onTap: () async {
                 Navigator.pop(context);
                 try {
@@ -311,23 +310,23 @@ class ProfileScreenState extends State<ProfileScreen> {
                   );
                   if (picked == null || !mounted) return;
                   final messenger = ScaffoldMessenger.of(context);
-                  messenger.showSnackBar(const SnackBar(
-                    content: Text('Subiendo avatar…'),
-                    duration: Duration(seconds: 2),
-                    backgroundColor: Color(0xFF1E1A29),
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(s.get('uploading_avatar')),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: const Color(0xFF1E1A29),
                   ));
                   await context
                       .read<UserViewModel>()
                       .uploadAvatar(File(picked.path));
                   if (!mounted) return;
-                  messenger.showSnackBar(const SnackBar(
-                    content: Text('¡Avatar actualizado!'),
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(s.get('avatar_updated')),
                     backgroundColor: Colors.green,
                   ));
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Error al subir avatar: $e'),
+                    content: Text('${s.get('avatar_error')} $e'),
                     backgroundColor: Colors.redAccent,
                     duration: const Duration(seconds: 5),
                   ));
@@ -337,10 +336,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.language,
               iconColor: Colors.blueAccent,
-              label: context.read<AppStrings>().get('language'),
-              subtitle: context.read<AppStrings>().isSpanish
-                  ? 'Español → English'
-                  : 'English → Español',
+              label: s.get('language'),
+              subtitle: s.isSpanish ? 'Español → English' : 'English → Español',
               onTap: () {
                 context.read<AppStrings>().toggle();
                 Navigator.pop(context);
@@ -353,8 +350,8 @@ class ProfileScreenState extends State<ProfileScreen> {
             _SettingsTile(
               icon: Icons.logout,
               iconColor: Colors.redAccent,
-              label: context.read<AppStrings>().get('logout'),
-              subtitle: context.read<AppStrings>().get('logout_subtitle'),
+              label: s.get('logout'),
+              subtitle: s.get('logout_subtitle'),
               onTap: () async {
                 Navigator.pop(context);
                 await context.read<AuthViewModel>().signOut();
@@ -363,7 +360,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   PageRouteBuilder(
                     pageBuilder: (ctx, a1, a2) => const AuthScreen(),
                     transitionDuration: const Duration(milliseconds: 400),
-                    transitionsBuilder: (ctx, anim, s, child) =>
+                    transitionsBuilder: (ctx, anim, sec, child) =>
                         FadeTransition(opacity: anim, child: child),
                   ),
                   (route) => false,
@@ -371,6 +368,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               },
             ),
           ],
+          ),
         ),
       ),
     );
@@ -381,22 +379,31 @@ class ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userVM = context.watch<UserViewModel>();
+    final s = context.watch<AppStrings>();
 
     if (userVM.isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _bgColor,
         body: Center(
-            child: CircularProgressIndicator(color: _primaryPurple)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: _primaryPurple),
+                const SizedBox(height: 16),
+                Text(s.get('loading_profile'),
+                    style: const TextStyle(color: Colors.grey)),
+              ],
+            )),
       );
     }
 
     final user = userVM.user;
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _bgColor,
         body: Center(
-            child: Text('Cargando perfil…',
-                style: TextStyle(color: Colors.grey))),
+            child: Text(s.get('loading_profile'),
+                style: const TextStyle(color: Colors.grey))),
       );
     }
 
@@ -410,8 +417,8 @@ class ProfileScreenState extends State<ProfileScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         centerTitle: true,
-        title: const Text('Notova Profile',
-            style: TextStyle(
+        title: Text(s.get('profile'),
+            style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
                 color: Color(0xFFDEB7FF))),
@@ -457,12 +464,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                     child: CircleAvatar(
                       radius: 56,
                       backgroundColor: const Color(0xFF2A223E),
-                      backgroundImage: user.avatarUrl != null
-                          ? NetworkImage(user.avatarUrl!)
-                          : null,
-                      child: user.avatarUrl == null
+                      backgroundImage: _avatarImage(user.avatarUrl),
+                      child: _avatarImage(user.avatarUrl) == null
                           ? const Icon(Icons.person,
-                              size: 60, color: Colors.white70)
+                              size: 60, color: _textSecondary)
                           : null,
                     ),
                   ),
@@ -498,7 +503,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                     color: _primaryPurple.withOpacity(0.3)),
               ),
               child: Text(
-                '${user.rank.toUpperCase()} · NIVEL ${user.level}',
+                '${user.rank.toUpperCase()} · ${s.get('level')} ${user.level}',
                 style: const TextStyle(
                     color: Color(0xFFDEB7FF),
                     fontSize: 10,
@@ -527,9 +532,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('EXPERIENCIA',
-                              style: TextStyle(
-                                  color: Color(0xFF988D9E),
+                          Text(s.get('experience'),
+                              style: const TextStyle(
+                                  color: _textSecondary,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
                                   fontSize: 10)),
@@ -547,14 +552,14 @@ class ProfileScreenState extends State<ProfileScreen> {
                                 TextSpan(
                                   text: ' / ${_formatNumber(user.currentLevelMaxXp)} XP',
                                   style: const TextStyle(
-                                      color: Color(0xFF988D9E),
+                                      color: _textSecondary,
                                       fontSize: 14),
                                 )
                               else
                                 const TextSpan(
                                   text: ' XP  🏆',
                                   style: TextStyle(
-                                      color: Color(0xFF988D9E),
+                                      color: _textSecondary,
                                       fontSize: 14),
                                 ),
                             ]),
@@ -569,8 +574,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                             color: _cyanAccent.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text('¡PRÓXIMO NIVEL!',
-                              style: TextStyle(
+                          child: Text(s.get('next_level'),
+                              style: const TextStyle(
                                   color: _cyanAccent,
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
@@ -601,10 +606,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 14),
                   Text(
                     user.level < 7
-                        ? '${_formatNumber(user.xpRemaining)} XP para alcanzar ${_nextRankName(user.level)}'
-                        : '¡Has alcanzado el nivel máximo! Estado SuperNotova.',
+                        ? '${_formatNumber(user.xpRemaining)} ${s.get('xp_to_reach')} ${_nextRankName(user.level)}'
+                        : s.get('max_level'),
                     style: const TextStyle(
-                        color: Color(0xFF988D9E),
+                        color: _textSecondary,
                         fontStyle: FontStyle.italic,
                         fontSize: 11),
                   ),
@@ -618,7 +623,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    title: 'RANGO',
+                    title: s.get('rank'),
                     value: user.rank,
                     icon: Icons.military_tech,
                     iconColor: _primaryPurple,
@@ -627,7 +632,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'XP TOTAL',
+                    title: s.get('total_xp'),
                     value: _formatNumber(user.totalXpEver),
                     icon: Icons.star_rounded,
                     iconColor: const Color(0xFFDEB7FF),
@@ -640,8 +645,8 @@ class ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    title: 'RACHA',
-                    value: '${user.dayStreak} días',
+                    title: s.get('streak_label'),
+                    value: '${user.dayStreak} ${s.get('days')}',
                     icon: Icons.local_fire_department,
                     iconColor: Colors.orangeAccent,
                   ),
@@ -649,7 +654,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'INSIGNIAS',
+                    title: s.get('badges_label'),
                     value: '${user.badgesCount}',
                     icon: Icons.shield_rounded,
                     iconColor: _cyanAccent,
@@ -663,9 +668,9 @@ class ProfileScreenState extends State<ProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('INSIGNIAS',
-                    style: TextStyle(
-                        color: Color(0xFF988D9E),
+                Text(s.get('badges'),
+                    style: const TextStyle(
+                        color: _textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.5)),
@@ -677,9 +682,9 @@ class ProfileScreenState extends State<ProfileScreen> {
               runSpacing: 16,
               children: _badgeDefs.entries.map((entry) {
                 final id = entry.key;
-                final (icon, label, color) = entry.value;
+                final (icon, labelKey, color) = entry.value;
                 final unlocked = user.badges.contains(id);
-                return _buildBadgeItem(icon, label, color,
+                return _buildBadgeItem(icon, s.get(labelKey), color,
                     isLocked: !unlocked);
               }).toList(),
             ),
@@ -689,6 +694,21 @@ class ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// Devuelve la imagen apropiada para el avatar:
+  ///   - `file://...`  → FileImage (avatar guardado localmente)
+  ///   - `http(s)://`  → NetworkImage (avatar sincronizado desde Firebase)
+  ///   - null          → sin imagen, se muestra el icono por defecto
+  ImageProvider? _avatarImage(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('file://')) {
+      final path = url.substring('file://'.length);
+      final file = File(path);
+      if (file.existsSync()) return FileImage(file);
+      return null;
+    }
+    return NetworkImage(url);
   }
 
   String _nextRankName(int currentLevel) {
@@ -722,7 +742,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 18),
           Text(title,
               style: const TextStyle(
-                  color: Color(0xFF988D9E),
+                  color: _textSecondary,
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1)),

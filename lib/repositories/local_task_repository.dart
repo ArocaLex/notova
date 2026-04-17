@@ -12,9 +12,6 @@ import '../models/task_model.dart';
 ///   - Sincronización unidireccional: Firestore → SQLite.
 ///   - Lectura desde SQLite cuando no hay conexión.
 ///
-/// RAs cubiertos:
-///   - RA2 (Acceso a Datos): Base de datos relacional (SQLite).
-///   - RA3 (Acceso a Datos): ORM — drift mapea objetos Dart ↔ tablas SQL.
 class LocalTaskRepository {
   final AppDatabase _db;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -107,7 +104,7 @@ class LocalTaskRepository {
       return _toCompanion(task);
     }).toList();
 
-    await _db.syncFromFirestore(companions);
+    await _db.mergeFromFirestore(companions);
     final total = await _db.getAllTasks();
     debugPrint('[SQLite Sync] ${total.length} tareas cacheadas en notova.db');
   }

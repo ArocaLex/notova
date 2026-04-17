@@ -4,16 +4,62 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
+import '../repositories/notification_repository.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
 import '../models/calendar_event.dart';
+import 'all_events_screen.dart';
+import 'all_tasks_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  HomeScreenState createState() => HomeScreenState();
+}
+
+class HomeScreenState extends State<HomeScreen> {
+  final _notifRepo = NotificationRepository();
+  bool _notificationsOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifPref();
+  }
+
+  Future<void> _loadNotifPref() async {
+    final on = await _notifRepo.isEnabled();
+    if (mounted) setState(() => _notificationsOn = on);
+  }
+
+  Future<void> _toggleNotifications() async {
+    if (!_notificationsOn) {
+      final granted = await _notifRepo.requestPermission();
+      if (!granted) return;
+    }
+    final newValue = !_notificationsOn;
+    await _notifRepo.setEnabled(newValue);
+    if (!mounted) return;
+    setState(() => _notificationsOn = newValue);
+    final s = context.read<AppStrings>();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          newValue ? s.get('notifications_on') : s.get('notifications_off'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF7B2CBF),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final userVM = context.watch<UserViewModel>();
+    final s = context.watch<AppStrings>();
 
     const bgColor = Color(0xFF120E1A);
     const cardColor = Color(0xFF1E1926);
@@ -30,10 +76,11 @@ class HomeScreen extends StatelessWidget {
 
     final user = userVM.user;
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: bgColor,
         body: Center(
-          child: Text('Creando tu perfil...', style: TextStyle(color: Colors.grey)),
+          child: Text(s.get('creating_profile'),
+              style: const TextStyle(color: Colors.grey)),
         ),
       );
     }
@@ -81,7 +128,7 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Good morning, ${user.name}',
+                          '${_greeting(s)}, ${user.name}',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -90,7 +137,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _formatDate(DateTime.now()),
+                          _formatDate(DateTime.now(), s),
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: 12,
@@ -99,17 +146,30 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: cardColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white70,
-                      size: 20,
+                  GestureDetector(
+                    onTap: _toggleNotifications,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _notificationsOn
+                            ? primaryPurple.withOpacity(0.2)
+                            : cardColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _notificationsOn
+                              ? primaryPurple.withOpacity(0.5)
+                              : Colors.white10,
+                        ),
+                      ),
+                      child: Icon(
+                        _notificationsOn
+                            ? Icons.notifications_active
+                            : Icons.notifications_outlined,
+                        color: _notificationsOn
+                            ? primaryPurple
+                            : Colors.white70,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -140,13 +200,13 @@ class HomeScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.flash_on, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
+                            const Icon(Icons.flash_on, color: Colors.white, size: 18),
+                            const SizedBox(width: 6),
                             Text(
-                              'Daily XP Progress',
-                              style: TextStyle(
+                              s.get('xp_progress'),
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 fontSize: 15,
@@ -185,7 +245,9 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${_formatNumber(user.xpRemaining)} XP left to reach Level ${user.level + 1}! Keep it up.',
+                      s.get('xp_to_next')
+                          .replaceFirst('%s', _formatNumber(user.xpRemaining))
+                          .replaceFirst('%d', '${user.level + 1}'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 12,
@@ -197,13 +259,19 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 28),
 
               // --- UP NEXT ---
-              _buildSectionHeader('Up Next', 'View Schedule'),
+              _buildSectionHeader(s.get('up_next'), s.get('view_schedule'),
+                onAction: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AllEventsScreen())),
+              ),
               const SizedBox(height: 14),
-              _buildUpNextCard(context, cardColor, accentPurple, primaryPurple),
+              _buildUpNextCard(context, s, cardColor, accentPurple, primaryPurple),
               const SizedBox(height: 28),
 
               // --- TOP PENDING TASKS ---
-              _buildSectionHeader('Top Pending Tasks', 'View All'),
+              _buildSectionHeader(s.get('pending_quests'), s.get('view_all'),
+                onAction: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AllTasksScreen())),
+              ),
               const SizedBox(height: 14),
               if (firebaseUid != null)
                 StreamBuilder<QuerySnapshot>(
@@ -220,7 +288,7 @@ class HomeScreen extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12.0),
                         child: Text(
-                          'No pending tasks. Add one in the Quests tab!',
+                          s.get('no_pending_home'),
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                         ),
                       );
@@ -239,6 +307,7 @@ class HomeScreen extends StatelessWidget {
                               data['subtitle'] ?? '',
                               priority,
                               priorityColor,
+                              s,
                             ),
                             if (entry.key < taskSnap.data!.docs.length - 1)
                               const SizedBox(height: 10),
@@ -256,8 +325,8 @@ class HomeScreen extends StatelessWidget {
                   Expanded(
                     child: _buildStatCard(
                       Icons.local_fire_department,
-                      user.dayStreak.toString(),
-                      'Day Streak',
+                      '${user.dayStreak} ${s.get('days')}',
+                      s.get('streak'),
                       Colors.orangeAccent,
                     ),
                   ),
@@ -266,7 +335,7 @@ class HomeScreen extends StatelessWidget {
                     child: _buildStatCard(
                       Icons.emoji_events,
                       user.rank,
-                      'Leaderboard',
+                      s.get('ranking'),
                       cyanAccent,
                     ),
                   ),
@@ -280,11 +349,32 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+  String _priorityLabel(String priority, AppStrings s) {
+    switch (priority) {
+      case 'HIGH':
+        return s.get('priority_high');
+      case 'MED':
+        return s.get('priority_med');
+      case 'LOW':
+        return s.get('priority_low');
+      default:
+        return priority;
+    }
+  }
+
+  String _greeting(AppStrings s) {
+    final h = DateTime.now().hour;
+    if (h < 12) return s.get('good_morning');
+    if (h < 19) return s.get('good_afternoon');
+    return s.get('good_evening');
+  }
+
+  String _formatDate(DateTime date, AppStrings s) {
+    final days = s.get('days_short').split(',');
+    final months = s.get('months_short').split(',');
+    return s.isSpanish
+        ? '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]}'
+        : '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
   }
 
   String _formatNumber(int number) {
@@ -294,7 +384,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title, String actionText) {
+  Widget _buildSectionHeader(String title, String actionText, {VoidCallback? onAction}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -307,14 +397,14 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         TextButton(
-          onPressed: () {},
+          onPressed: onAction,
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
             minimumSize: const Size(50, 30),
           ),
-          child: const Text(
-            'View All',
-            style: TextStyle(
+          child: Text(
+            actionText,
+            style: const TextStyle(
               color: Color(0xFF7B2CBF),
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -330,6 +420,7 @@ class HomeScreen extends StatelessWidget {
     String subtitle,
     String priority,
     Color priorityColor,
+    AppStrings s,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -376,7 +467,7 @@ class HomeScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              priority,
+              _priorityLabel(priority, s),
               style: TextStyle(
                 color: priorityColor,
                 fontSize: 10,
@@ -392,6 +483,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildUpNextCard(
     BuildContext context,
+    AppStrings s,
     Color cardColor,
     Color accentPurple,
     Color primaryPurple,
@@ -412,7 +504,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Text(
-                'Connect Google Calendar to see upcoming events',
+                s.get('connect_calendar_home'),
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               ),
             ),
@@ -444,7 +536,7 @@ class HomeScreen extends StatelessWidget {
             Icon(Icons.event_available, color: Colors.grey.shade600, size: 32),
             const SizedBox(width: 16),
             Text(
-              'No upcoming events today',
+              s.get('no_upcoming'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ],
@@ -454,8 +546,8 @@ class HomeScreen extends StatelessWidget {
 
     final minutesUntil = nextEvent.start!.difference(now).inMinutes;
     final timeLabel = minutesUntil <= 60
-        ? 'IN $minutesUntil MINUTES'
-        : 'AT ${nextEvent.formattedTime}';
+        ? s.get('in_minutes').replaceFirst('%d', '$minutesUntil')
+        : s.get('at_time').replaceFirst('%s', nextEvent.formattedTime);
 
     String endFormatted = '';
     if (nextEvent.end != null) {

@@ -125,6 +125,47 @@ class UserModel {
     );
   }
 
+  // ── JSON: caché local (SharedPreferences) ─────────────────────────────────
+
+  Map<String, dynamic> toJson() => {
+        'uid': uid,
+        'email': email,
+        'name': name,
+        'level': level,
+        'totalXpEver': totalXpEver,
+        'dayStreak': dayStreak,
+        'rank': rank,
+        'badgesCount': badgesCount,
+        'badges': badges,
+        'createdAt': createdAt?.millisecondsSinceEpoch,
+        'lastActivityDate': lastActivityDate?.millisecondsSinceEpoch,
+        'avatarUrl': avatarUrl,
+      };
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    final totalXpEver = json['totalXpEver'] as int? ?? 0;
+    final level = levelFromXp(totalXpEver);
+    return UserModel(
+      uid: json['uid'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      name: json['name'] as String? ?? 'Usuario',
+      level: level,
+      totalXpEver: totalXpEver,
+      dayStreak: json['dayStreak'] as int? ?? 0,
+      rank: json['rank'] as String? ?? rankForLevel(level),
+      badgesCount: json['badgesCount'] as int? ?? 0,
+      badges: List<String>.from(json['badges'] as List? ?? []),
+      createdAt: json['createdAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int)
+          : null,
+      lastActivityDate: json['lastActivityDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              json['lastActivityDate'] as int)
+          : null,
+      avatarUrl: json['avatarUrl'] as String?,
+    );
+  }
+
   // ── Datos iniciales para Firestore ────────────────────────────────────────
 
   static Map<String, dynamic> initialData({

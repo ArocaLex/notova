@@ -14,26 +14,44 @@ class TasksRepository {
       ? null
       : _db.collection('users').doc(_uid).collection('tasks');
 
-  // ── Crear tarea ────────────────────────────────────────────────────────
+  /// Genera un ID válido de Firestore sin tocar la red. Útil para crear
+  /// tareas en modo offline-first: el ID se asigna localmente y luego la
+  /// sincronización en background hace `set` con ese mismo ID.
+  String? generateTaskId() {
+    if (_tasksCol == null) return null;
+    return _tasksCol!.doc().id;
+  }
 
-  Future<void> addTask({
+  // ── Crear / actualizar tarea (upsert con ID conocido) ─────────────────
+
+  /// Escribe una tarea completa en Firestore usando un ID ya generado.
+  /// Idempotente: si ya existe, la sustituye con merge.
+  Future<void> setTask({
+    required String taskId,
     required String title,
     required String subtitle,
     required String priority,
     required int xpReward,
+    required bool isCompleted,
     DateTime? dueDate,
+    DateTime? createdAt,
+    DateTime? completedAt,
+    String? color,
   }) async {
     if (_tasksCol == null) return;
-
-    await _tasksCol!.add({
+    await _tasksCol!.doc(taskId).set({
       'title': title,
       'subtitle': subtitle,
       'priority': priority,
       'xpReward': xpReward,
-      'isCompleted': false,
+      'isCompleted': isCompleted,
       'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+      'completedAt':
+          completedAt != null ? Timestamp.fromDate(completedAt) : null,
+      'color': color,
+      'createdAt':
+          createdAt != null ? Timestamp.fromDate(createdAt) : Timestamp.now(),
+    }, SetOptions(merge: true));
   }
 
   // ── Streams en tiempo real ─────────────────────────────────────────────
@@ -71,6 +89,7 @@ class TasksRepository {
     required String priority,
     required int xpReward,
     DateTime? dueDate,
+    String? color,
   }) async {
     if (_tasksCol == null) return;
 
@@ -80,6 +99,7 @@ class TasksRepository {
       'priority': priority,
       'xpReward': xpReward,
       'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
+      'color': color,
     });
   }
 

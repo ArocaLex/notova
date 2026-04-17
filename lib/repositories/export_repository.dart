@@ -1,30 +1,35 @@
-import 'dart:convert';
 import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../models/task_model.dart';
+import 'api_client.dart';
 
 /// Gestiona la exportación del historial de tareas a CSV o TXT.
 ///
-/// Destinos posibles:
-///   1. Archivo local en el directorio de documentos del dispositivo.
-///   2. API REST en https://arocaalex.pythonanywhere.com/
+/// Flujo principal (online):
+///   1. Recoge las tareas del usuario.
+///   2. Las envía al microservicio REST en PythonAnywhere vía [ApiClient]
+///      (RA3.c — llamada HTTP a otra API). El servidor procesa los datos
+///      y genera el fichero.
+///   3. Se guarda la respuesta en local y se abre el menú de compartir.
+///
+/// Fallback (offline): genera el fichero íntegramente en el dispositivo
+/// cuando la API no está disponible.
+///
 class ExportRepository {
-  static const _apiBase = 'https://arocaalex.pythonanywhere.com';
-
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ApiClient _api;
+
+  ExportRepository({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
   String? get _uid => _auth.currentUser?.uid;
-
-  /// Obtiene el Firebase ID Token del usuario actual para autenticar
-  /// las peticiones a la API REST (RA3.d).
-  Future<String?> _getIdToken() async {
-    return await _auth.currentUser?.getIdToken();
-  }
 
   // ── Leer todas las tareas ────────────────────────────────────────────────
 
@@ -39,12 +44,65 @@ class ExportRepository {
     return snap.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
   }
 
-  // ── Exportar a CSV ───────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  EXPORTACIÓN VÍA API REST (RA3.c, RA4d)
+  // ═══════════════════════════════════════════════════════════════════════
 
-  Future<String> exportToCsv() async {
+  /// Convierte las tareas a la estructura JSON que espera la API Python.
+  List<Map<String, dynamic>> _tasksToApiPayload(List<TaskModel> tasks) {
+    return tasks
+        .map((t) => {
+              'titulo': t.title,
+              'prioridad': t.priority,
+              'completada': t.isCompleted,
+              'xpReward': t.xpReward,
+            })
+        .toList();
+  }
+
+  /// Exporta las tareas llamando al endpoint POST /exportar/{format}
+  /// del microservicio Python vía [ApiClient]. El token se inyecta
+  /// automáticamente. Devuelve el contenido del fichero generado
+  /// por el servidor, o `null` si la API no está disponible.
+  Future<String?> _exportViaApi(String format) async {
+    try {
+      final tasks = await _fetchAllTasks();
+      final response = await _api.post(
+        '/exportar/$format',
+        body: {'tareas': _tasksToApiPayload(tasks)},
+      );
+
+      if (response.isOk) {
+        debugPrint('[Export] API response OK ($format) — '
+            '${response.body.length} bytes');
+        return response.body;
+      }
+
+      debugPrint('[Export] API error ${response.statusCode}: ${response.body}');
+      return null;
+    } catch (e) {
+      debugPrint('[Export] API call failed (offline?): $e');
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  EXPORTACIÓN LOCAL (fallback offline — RA1 Ficheros)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  Future<String> _exportToCsvLocal() async {
     final tasks = await _fetchAllTasks();
     final rows = <List<dynamic>>[
-      ['Título', 'Notas', 'Prioridad', 'XP', 'Completada', 'FechaLímite', 'CreadaEn', 'CompletadaEn'],
+      [
+        'Título',
+        'Notas',
+        'Prioridad',
+        'XP',
+        'Completada',
+        'FechaLímite',
+        'CreadaEn',
+        'CompletadaEn'
+      ],
     ];
 
     for (final t in tasks) {
@@ -67,9 +125,7 @@ class ExportRepository {
     return file.path;
   }
 
-  // ── Exportar a TXT ───────────────────────────────────────────────────────
-
-  Future<String> exportToTxt() async {
+  Future<String> _exportToTxtLocal() async {
     final tasks = await _fetchAllTasks();
     final buffer = StringBuffer();
     buffer.writeln('═══════════════════════════════════');
@@ -81,9 +137,14 @@ class ExportRepository {
       buffer.writeln('[${t.isCompleted ? '✓' : ' '}] ${t.title}');
       if (t.subtitle.isNotEmpty) buffer.writeln('    Notas: ${t.subtitle}');
       buffer.writeln('    Prioridad: ${t.priority}  |  XP: ${t.xpReward}');
-      if (t.dueDate != null) buffer.writeln('    Fecha límite: ${_formatDate(t.dueDate!)}');
-      buffer.writeln('    Creada: ${t.createdAt != null ? _formatDate(t.createdAt!) : '-'}');
-      if (t.completedAt != null) buffer.writeln('    Completada: ${_formatDate(t.completedAt!)}');
+      if (t.dueDate != null) {
+        buffer.writeln('    Fecha límite: ${_formatDate(t.dueDate!)}');
+      }
+      buffer.writeln(
+          '    Creada: ${t.createdAt != null ? _formatDate(t.createdAt!) : '-'}');
+      if (t.completedAt != null) {
+        buffer.writeln('    Completada: ${_formatDate(t.completedAt!)}');
+      }
       buffer.writeln('───────────────────────────────────');
     }
 
@@ -93,39 +154,54 @@ class ExportRepository {
     return file.path;
   }
 
-  // ── Enviar a la API REST (autenticado con Firebase ID Token) ─────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  COMPARTIR — intenta API primero, fallback local (RA3.c + RA1)
+  // ═══════════════════════════════════════════════════════════════════════
 
-  Future<bool> sendToApi(String format) async {
-    try {
-      final token = await _getIdToken();
-      if (token == null) return false;
+  /// Genera el fichero de exportación y abre el menú nativo de compartir.
+  ///
+  /// Flujo:
+  ///   1. Intenta generar el fichero a través de la API REST (microservicio
+  ///      Python desplegado en PythonAnywhere) vía [ApiClient].
+  ///   2. Si la API no responde (offline o error), genera el fichero
+  ///      localmente como fallback.
+  ///   3. En ambos casos escribe el resultado en disco y lanza share_plus.
+  Future<String> shareExport(String format) async {
+    String path;
 
-      final tasks = await _fetchAllTasks();
-      final tareasJson = tasks.map((t) {
-        return {
-          'titulo': t.title,
-          'prioridad': t.priority,
-          'completada': t.isCompleted,
-          'xpReward': t.xpReward,
-        };
-      }).toList();
+    // 1. Intentar vía API REST.
+    final apiContent = await _exportViaApi(format);
 
-      final uri = Uri.parse('$_apiBase/exportar/$format');
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'tareas': tareasJson}),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      return response.statusCode >= 200 && response.statusCode < 300;
-    } catch (_) {
-      return false;
+    if (apiContent != null) {
+      // El servidor generó el fichero — guardamos en disco.
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName =
+          format == 'csv' ? 'notova_export.csv' : 'notova_export.txt';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(apiContent);
+      path = file.path;
+      debugPrint('[Export] Fichero generado vía API REST ($format)');
+    } else {
+      // 2. Fallback local.
+      path = format == 'csv'
+          ? await _exportToCsvLocal()
+          : await _exportToTxtLocal();
+      debugPrint('[Export] Fichero generado localmente ($format) — '
+          'API no disponible');
     }
+
+    // 3. Compartir.
+    final mime = format == 'csv' ? 'text/csv' : 'text/plain';
+    final fileName =
+        format == 'csv' ? 'notova_export.csv' : 'notova_export.txt';
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(path, mimeType: mime, name: fileName)],
+        subject: 'Historial de Notova',
+        text: 'Mi historial de quests de Notova.',
+      ),
+    );
+    return path;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────

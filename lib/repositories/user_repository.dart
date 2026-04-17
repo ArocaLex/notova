@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 /// Repositorio centralizado para operaciones del usuario en Firestore.
@@ -161,16 +165,81 @@ class UserRepository {
     });
   }
 
-  // ── Avatar en Firebase Storage ──────────────────────────────────────────
+  // ── Avatar: local + Firebase Storage (con fallback) ─────────────────────
 
-  /// Sube la imagen del avatar a Firebase Storage y guarda la URL en Firestore.
-  Future<String> uploadAvatar(File imageFile) async {
+  /// Guarda la imagen como avatar del usuario. Flujo:
+  ///   1. Copia el archivo a una ubicación estable dentro del almacenamiento
+  ///      privado de la app (`<documents>/avatars/<uid>.jpg`). Esto nos da
+  ///      un avatar que funciona sin conexión y que no depende de las reglas
+  ///      de Firebase Storage.
+  ///   2. Guarda el path local en SharedPreferences (por uid) para que la
+  ///      UI lo pueda leer aunque Firestore todavía no se haya sincronizado.
+  ///   3. Intenta subir a Firebase Storage en segundo plano. Si falla (por
+  ///      ejemplo por reglas o por red) lo registra pero NO lanza excepción
+  ///      — el usuario ya ve su avatar local.
+  Future<void> uploadAvatar(File imageFile) async {
     if (_uid == null) throw Exception('Usuario no autenticado');
 
-    final ref = FirebaseStorage.instance.ref('avatars/$_uid.jpg');
-    await ref.putFile(imageFile);
-    final downloadUrl = await ref.getDownloadURL();
-    await updateFields({'avatarUrl': downloadUrl});
-    return downloadUrl;
+    // 1 · Copia local estable
+    final docs = await getApplicationDocumentsDirectory();
+    final avatarsDir = Directory(p.join(docs.path, 'avatars'));
+    if (!avatarsDir.existsSync()) avatarsDir.createSync(recursive: true);
+    final localFile = File(p.join(avatarsDir.path, '$_uid.jpg'));
+    await imageFile.copy(localFile.path);
+
+    // 2 · Guardar path local en preferencias
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('avatar_local_$_uid', localFile.path);
+
+    // Señalamos a Firestore que hay un avatar local (usamos `file://`
+    // para distinguirlo de una URL remota). El UserModel lo interpreta
+    // como FileImage cuando empieza por `file://`.
+    try {
+      await updateFields({'avatarUrl': 'file://${localFile.path}'});
+    } catch (_) {}
+
+    // 3 · Intento opcional de subida a Firebase Storage. Si falla, se
+    // queda el avatar local y el usuario no ve ningún error.
+    try {
+      final ref = FirebaseStorage.instance.ref('avatars/$_uid.jpg');
+      await ref.putFile(
+        localFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final downloadUrl = await ref.getDownloadURL();
+      await updateFields({'avatarUrl': downloadUrl});
+    } catch (_) {
+      // Silencioso: el avatar local funciona igualmente.
+    }
+  }
+
+  /// Devuelve el path local del avatar si existe (para usar como FileImage).
+  Future<String?> getLocalAvatarPath() async {
+    if (_uid == null) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString('avatar_local_$_uid');
+    if (path == null) return null;
+    return File(path).existsSync() ? path : null;
+  }
+
+  // ── Caché local del usuario (SharedPreferences) ─────────────────────────
+
+  static const _userCacheKey = 'cached_user';
+
+  Future<void> cacheUser(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userCacheKey, jsonEncode(user.toJson()));
+  }
+
+  Future<UserModel?> getCachedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_userCacheKey);
+    if (raw == null) return null;
+    return UserModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> clearCachedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userCacheKey);
   }
 }
