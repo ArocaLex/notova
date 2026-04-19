@@ -5,27 +5,24 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../models/calendar_event.dart';
 import '../viewmodel/calendar_viewmodel.dart';
+import '../theme/app_colors.dart';
 
+/// Muestra la lista completa de eventos del día seleccionado en el calendario.
 class AllEventsScreen extends StatelessWidget {
   const AllEventsScreen({super.key});
 
-  static const _bgColor = Color(0xFF120E1A);
-  static const _cardColor = Color(0xFF1E1926);
-  static const _primaryPurple = Color(0xFF7B2CBF);
-  static const _neonCyan = Color(0xFF00E5FF);
-
   @override
   Widget build(BuildContext context) {
-    final calVM = context.watch<CalendarViewModel>();
     final s = context.watch<AppStrings>();
-    final events = calVM.events;
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final events = context.select((CalendarViewModel vm) => vm.events);
+    final vm = context.read<CalendarViewModel>();
 
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -35,9 +32,9 @@ class AllEventsScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _cardColor,
+                        color: AppColors.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _primaryPurple.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.primaryPurple.withOpacity(0.3)),
                       ),
                       child: const Icon(Icons.arrow_back_ios_new,
                           color: Colors.white, size: 18),
@@ -55,15 +52,17 @@ class AllEventsScreen extends StatelessWidget {
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${events.length} ${s.get('today_events').toLowerCase()}',
                           style: TextStyle(
-                            color: _neonCyan.withOpacity(0.7),
+                            color: AppColors.neonCyan.withOpacity(0.7),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -74,7 +73,6 @@ class AllEventsScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Neon divider
             Container(
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -82,8 +80,8 @@ class AllEventsScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    _neonCyan.withOpacity(0.4),
-                    _primaryPurple.withOpacity(0.6),
+                    AppColors.neonCyan.withOpacity(0.4),
+                    AppColors.primaryPurple.withOpacity(0.6),
                     Colors.transparent,
                   ],
                 ),
@@ -92,9 +90,8 @@ class AllEventsScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Events list
             Expanded(
-              child: !calVM.isSignedIn
+              child: !isSignedIn
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -133,7 +130,7 @@ class AllEventsScreen extends StatelessWidget {
                           itemCount: events.length,
                           itemBuilder: (context, index) {
                             return _buildEventItem(
-                                context, events[index], calVM);
+                                context, events[index], vm);
                           },
                         ),
             ),
@@ -146,14 +143,14 @@ class AllEventsScreen extends StatelessWidget {
   Widget _buildEventItem(
     BuildContext context,
     CalendarEvent event,
-    CalendarViewModel calVM,
+    CalendarViewModel vm,
   ) {
-    final color = calVM.calendarColor(event.calendarId);
+    final color = vm.calendarColor(event.calendarId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.2)),
         boxShadow: [
@@ -167,7 +164,6 @@ class AllEventsScreen extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(
           children: [
-            // Color bar
             Container(
               width: 4,
               decoration: BoxDecoration(
@@ -202,6 +198,7 @@ class AllEventsScreen extends StatelessWidget {
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (event.location != null &&
                               event.location!.isNotEmpty) ...[

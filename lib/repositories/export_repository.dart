@@ -31,8 +31,8 @@ class ExportRepository {
 
   String? get _uid => _auth.currentUser?.uid;
 
-  // ── Leer todas las tareas ────────────────────────────────────────────────
-
+  /// Recupera todas las tareas del usuario desde Firestore ordenadas por
+  /// fecha de creación ascendente.
   Future<List<TaskModel>> _fetchAllTasks() async {
     if (_uid == null) return [];
     final snap = await _db
@@ -43,10 +43,6 @@ class ExportRepository {
         .get();
     return snap.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
   }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  //  EXPORTACIÓN VÍA API REST (RA3.c, RA4d)
-  // ═══════════════════════════════════════════════════════════════════════
 
   /// Convierte las tareas a la estructura JSON que espera la API Python.
   List<Map<String, dynamic>> _tasksToApiPayload(List<TaskModel> tasks) {
@@ -86,10 +82,9 @@ class ExportRepository {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  //  EXPORTACIÓN LOCAL (fallback offline — RA1 Ficheros)
-  // ═══════════════════════════════════════════════════════════════════════
-
+  /// Genera un fichero CSV en el dispositivo con todas las tareas del usuario.
+  ///
+  /// Se usa como fallback cuando la API REST no está disponible.
   Future<String> _exportToCsvLocal() async {
     final tasks = await _fetchAllTasks();
     final rows = <List<dynamic>>[
@@ -125,6 +120,9 @@ class ExportRepository {
     return file.path;
   }
 
+  /// Genera un fichero TXT en el dispositivo con todas las tareas del usuario.
+  ///
+  /// Se usa como fallback cuando la API REST no está disponible.
   Future<String> _exportToTxtLocal() async {
     final tasks = await _fetchAllTasks();
     final buffer = StringBuffer();
@@ -154,10 +152,6 @@ class ExportRepository {
     return file.path;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  //  COMPARTIR — intenta API primero, fallback local (RA3.c + RA1)
-  // ═══════════════════════════════════════════════════════════════════════
-
   /// Genera el fichero de exportación y abre el menú nativo de compartir.
   ///
   /// Flujo:
@@ -169,11 +163,9 @@ class ExportRepository {
   Future<String> shareExport(String format) async {
     String path;
 
-    // 1. Intentar vía API REST.
     final apiContent = await _exportViaApi(format);
 
     if (apiContent != null) {
-      // El servidor generó el fichero — guardamos en disco.
       final dir = await getApplicationDocumentsDirectory();
       final fileName =
           format == 'csv' ? 'notova_export.csv' : 'notova_export.txt';
@@ -182,7 +174,6 @@ class ExportRepository {
       path = file.path;
       debugPrint('[Export] Fichero generado vía API REST ($format)');
     } else {
-      // 2. Fallback local.
       path = format == 'csv'
           ? await _exportToCsvLocal()
           : await _exportToTxtLocal();
@@ -190,7 +181,6 @@ class ExportRepository {
           'API no disponible');
     }
 
-    // 3. Compartir.
     final mime = format == 'csv' ? 'text/csv' : 'text/plain';
     final fileName =
         format == 'csv' ? 'notova_export.csv' : 'notova_export.txt';
@@ -204,8 +194,7 @@ class ExportRepository {
     return path;
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
+  /// Formatea [d] como `dd/mm/yyyy  hh:mm`.
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}  ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }

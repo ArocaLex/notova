@@ -3,13 +3,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/task_model.dart';
 import 'user_repository.dart';
 
+/// Repositorio de tareas del usuario autenticado.
+///
+/// Centraliza el acceso a la colección `/users/{uid}/tasks` en Firestore.
+/// Proporciona operaciones CRUD, streams en tiempo real y la lógica de
+/// completar tareas con recompensa de XP mediante [UserRepository].
 class TasksRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final UserRepository _userRepository = UserRepository();
 
+  /// UID del usuario autenticado actualmente.
   String? get _uid => _auth.currentUser?.uid;
 
+  /// Referencia a la colección de tareas del usuario autenticado.
   CollectionReference? get _tasksCol => _uid == null
       ? null
       : _db.collection('users').doc(_uid).collection('tasks');
@@ -22,10 +29,9 @@ class TasksRepository {
     return _tasksCol!.doc().id;
   }
 
-  // ── Crear / actualizar tarea (upsert con ID conocido) ─────────────────
-
   /// Escribe una tarea completa en Firestore usando un ID ya generado.
-  /// Idempotente: si ya existe, la sustituye con merge.
+  ///
+  /// Es idempotente: si la tarea ya existe, la sustituye mediante merge.
   Future<void> setTask({
     required String taskId,
     required String title,
@@ -54,8 +60,8 @@ class TasksRepository {
     }, SetOptions(merge: true));
   }
 
-  // ── Streams en tiempo real ─────────────────────────────────────────────
-
+  /// Retorna un stream de tareas pendientes ordenadas por fecha de creación
+  /// descendente.
   Stream<List<TaskModel>> getPendingTasks() {
     if (_tasksCol == null) return const Stream.empty();
 
@@ -68,6 +74,8 @@ class TasksRepository {
             .toList());
   }
 
+  /// Retorna un stream de tareas completadas ordenadas por fecha de creación
+  /// descendente.
   Stream<List<TaskModel>> getCompletedTasks() {
     if (_tasksCol == null) return const Stream.empty();
 
@@ -80,8 +88,7 @@ class TasksRepository {
             .toList());
   }
 
-  // ── Editar tarea ─────────────────────────────────────────────────────
-
+  /// Actualiza los campos editables de una tarea existente en Firestore.
   Future<void> updateTask({
     required String taskId,
     required String title,
@@ -103,9 +110,8 @@ class TasksRepository {
     });
   }
 
-  // ── Completar tarea ────────────────────────────────────────────────────
-
-  /// Marca la tarea como completada, otorga XP y retorna si hubo level-up.
+  /// Marca la tarea como completada, otorga [xpReward] al usuario y retorna
+  /// `true` si se produjo un level-up.
   Future<bool> completeTask(String taskId, int xpReward) async {
     if (_tasksCol == null) return false;
 
@@ -118,8 +124,14 @@ class TasksRepository {
     return didLevelUp;
   }
 
-  // ── Leer todas las tareas (para exportación) ───────────────────────────
+  /// Elimina la tarea con [taskId] de Firestore.
+  Future<void> deleteTask(String taskId) async {
+    if (_tasksCol == null) return;
+    await _tasksCol!.doc(taskId).delete();
+  }
 
+  /// Obtiene todas las tareas del usuario en una sola consulta Firestore,
+  /// ordenadas por fecha de creación descendente.
   Future<List<TaskModel>> getAllTasks() async {
     if (_tasksCol == null) return [];
 

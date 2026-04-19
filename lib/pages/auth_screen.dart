@@ -6,6 +6,10 @@ import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
 
+/// Pantalla de autenticación (login/registro) de Notova.
+///
+/// Consume [AuthViewModel] para iniciar sesión con Google o con email/contraseña,
+/// registrar nuevas cuentas y enviar correos de recuperación de contraseña.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -65,8 +69,6 @@ class AuthScreenState extends State<AuthScreen>
     passwordController.dispose();
     super.dispose();
   }
-
-  // ── Auth logic (unchanged) ────────────────────────────────────────────────
 
   Future<void> _submitAuth() async {
     final email = emailController.text.trim();
@@ -206,8 +208,6 @@ class AuthScreenState extends State<AuthScreen>
     }
   }
 
-  // ── Shared input decoration ───────────────────────────────────────────────
-
   InputDecoration _inputDecoration({
     required String hint,
     required IconData icon,
@@ -235,8 +235,6 @@ class AuthScreenState extends State<AuthScreen>
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<AuthViewModel>().isLoading;
@@ -245,7 +243,6 @@ class AuthScreenState extends State<AuthScreen>
       backgroundColor: _bgColor,
       body: Stack(
         children: [
-          // Background glow
           Positioned(
             top: -80,
             left: -60,
@@ -281,7 +278,6 @@ class AuthScreenState extends State<AuthScreen>
             ),
           ),
 
-          // Content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
@@ -293,14 +289,12 @@ class AuthScreenState extends State<AuthScreen>
                   children: [
                     const SizedBox(height: 20),
 
-                    // ── Logo header ──────────────────────────────────
                     Transform.translate(
                       offset: Offset(0, _headerSlide.value),
                       child: Opacity(
                         opacity: _headerOpacity.value,
                         child: Column(
                           children: [
-                            // Logo with glow
                             Container(
                               width: 104,
                               height: 104,
@@ -344,7 +338,6 @@ class AuthScreenState extends State<AuthScreen>
                     ),
                     const SizedBox(height: 36),
 
-                    // ── Title + subtitle ─────────────────────────────
                     Opacity(
                       opacity: _formOpacity.value,
                       child: Column(
@@ -383,7 +376,6 @@ class AuthScreenState extends State<AuthScreen>
                     ),
                     const SizedBox(height: 32),
 
-                    // ── Form fields ──────────────────────────────────
                     Opacity(
                       opacity: _formOpacity.value,
                       child: Column(
@@ -436,7 +428,6 @@ class AuthScreenState extends State<AuthScreen>
                           ] else
                             const SizedBox(height: 24),
 
-                          // CTA
                           SizedBox(
                             height: 54,
                             width: double.infinity,
@@ -482,7 +473,6 @@ class AuthScreenState extends State<AuthScreen>
                           ),
                           const SizedBox(height: 28),
 
-                          // Divider
                           Row(
                             children: [
                               Expanded(
@@ -510,7 +500,6 @@ class AuthScreenState extends State<AuthScreen>
                           ),
                           const SizedBox(height: 28),
 
-                          // Google button
                           SizedBox(
                             height: 54,
                             width: double.infinity,
@@ -542,7 +531,6 @@ class AuthScreenState extends State<AuthScreen>
                           ),
                           const SizedBox(height: 36),
 
-                          // Toggle
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

@@ -21,9 +21,8 @@ class LocalTaskRepository {
 
   String? get _uid => _auth.currentUser?.uid;
 
-  // ── Conversión TaskModel ↔ drift Companion ──────────────────────────
-
-  /// Convierte un TaskModel (Firestore) a un Companion de drift (SQLite).
+  /// Convierte un [TaskModel] a un [LocalTasksCompanion] para persistirlo
+  /// en SQLite mediante drift.
   LocalTasksCompanion _toCompanion(TaskModel task) {
     return LocalTasksCompanion(
       id: Value(task.id),
@@ -53,21 +52,19 @@ class LocalTaskRepository {
     );
   }
 
-  // ── Lectura desde SQLite ────────────────────────────────────────────
-
-  /// Tareas pendientes desde caché local.
+  /// Retorna las tareas pendientes almacenadas en la caché local.
   Future<List<TaskModel>> getPendingTasks() async {
     final rows = await _db.getPendingTasks();
     return rows.map(_toTaskModel).toList();
   }
 
-  /// Tareas completadas desde caché local.
+  /// Retorna las tareas completadas almacenadas en la caché local.
   Future<List<TaskModel>> getCompletedTasks() async {
     final rows = await _db.getCompletedTasks();
     return rows.map(_toTaskModel).toList();
   }
 
-  /// Todas las tareas desde caché local.
+  /// Retorna todas las tareas almacenadas en la caché local.
   Future<List<TaskModel>> getAllTasks() async {
     final rows = await _db.getAllTasks();
     return rows.map(_toTaskModel).toList();
@@ -87,9 +84,7 @@ class LocalTaskRepository {
     );
   }
 
-  // ── Sincronización Firestore → SQLite ───────────────────────────────
-
-  /// Descarga todas las tareas de Firestore y las guarda en SQLite.
+  /// Descarga todas las tareas de Firestore y las fusiona con SQLite.
   Future<void> syncFromFirestore() async {
     if (_uid == null) return;
 

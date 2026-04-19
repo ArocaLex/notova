@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'main_screen.dart';
 
+/// Onboarding inicial que se muestra una única vez.
+///
+/// Persiste la preferencia `onboarding_seen` en [SharedPreferences] y navega a
+/// [MainScreen] al finalizar u omitir.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -70,7 +74,6 @@ class OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Botón Omitir
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
@@ -81,7 +84,6 @@ class OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // Páginas
             Expanded(
               child: PageView(
                 controller: _controller,
@@ -90,7 +92,6 @@ class OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // Indicadores de página
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(_pages.length, (i) {
@@ -108,7 +109,6 @@ class OnboardingScreenState extends State<OnboardingScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Botón principal
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: SizedBox(

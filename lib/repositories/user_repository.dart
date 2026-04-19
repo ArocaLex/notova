@@ -19,10 +19,12 @@ class UserRepository {
 
   String? get _uid => _auth.currentUser?.uid;
 
+  /// Retorna la referencia al documento Firestore del usuario con [uid].
   DocumentReference _userDoc(String uid) => _db.collection('users').doc(uid);
 
-  // ── Lectura en tiempo real ──────────────────────────────────────────────
-
+  /// Retorna un stream reactivo del [UserModel] del usuario con [uid].
+  ///
+  /// Emite `null` si el documento no existe.
   Stream<UserModel?> userStream(String uid) {
     return _userDoc(uid).snapshots().map((doc) {
       if (!doc.exists) return null;
@@ -30,15 +32,17 @@ class UserRepository {
     });
   }
 
+  /// Obtiene el [UserModel] del usuario con [uid] en una sola lectura, o
+  /// `null` si el documento no existe.
   Future<UserModel?> getUser(String uid) async {
     final doc = await _userDoc(uid).get();
     if (!doc.exists) return null;
     return UserModel.fromFirestore(doc);
   }
 
-  // ── Creación de perfil ──────────────────────────────────────────────────
-
-  /// Crea el documento del usuario si no existe. Retorna true si lo creó.
+  /// Crea el documento del usuario en Firestore si no existe.
+  ///
+  /// Retorna `true` si el documento fue creado, `false` si ya existía.
   Future<bool> createIfNotExists(User firebaseUser) async {
     final doc = await _userDoc(firebaseUser.uid).get();
     if (doc.exists) return false;
@@ -50,23 +54,23 @@ class UserRepository {
     return true;
   }
 
-  // ── Actualizaciones de campos ───────────────────────────────────────────
-
+  /// Actualiza los campos indicados en [fields] en el documento Firestore
+  /// del usuario autenticado.
   Future<void> updateFields(Map<String, dynamic> fields) async {
     if (_uid == null) return;
     await _userDoc(_uid!).update(fields);
   }
 
+  /// Actualiza el nombre visible del usuario en Firestore.
   Future<void> updateName(String name) async {
     await updateFields({'name': name});
   }
 
-  // ── Sistema de XP y niveles (PRD RF-07) ────────────────────────────────
-
-  /// Suma XP al usuario y gestiona el level-up automático.
+  /// Suma [amount] de XP al usuario, recalcula nivel y rango, y otorga
+  /// los badges correspondientes.
   ///
-  /// Retorna true si ocurrió un level-up (para disparar SFX).
-  /// El nivel se determina por umbrales fijos de XP total acumulada (PRD v1.0).
+  /// Retorna `true` si el usuario subió de nivel, lo que puede usarse para
+  /// disparar efectos visuales o de sonido en la UI.
   Future<bool> addXp(int amount) async {
     if (_uid == null || amount <= 0) return false;
 
@@ -94,15 +98,10 @@ class UserRepository {
     return didLevelUp;
   }
 
-  // ── Sistema de Rachas Diarias (PRD RF-06) ──────────────────────────────
-
   /// Comprueba y actualiza la racha diaria del usuario.
   ///
-  /// Lógica:
-  ///   - Sin actividad previa → racha = 1
-  ///   - Ya contado hoy → no hace nada
-  ///   - Ayer → racha++
-  ///   - Más de 1 día sin actividad → racha = 1 (rota)
+  /// La racha se incrementa si la última actividad fue ayer, se reinicia a 1
+  /// si pasó más de un día, y no se modifica si ya se registró actividad hoy.
   Future<void> checkAndUpdateStreak() async {
     if (_uid == null) return;
 
@@ -124,7 +123,7 @@ class UserRepository {
     final lastOnly = DateTime(last.year, last.month, last.day);
     final diff = today.difference(lastOnly).inDays;
 
-    if (diff == 0) return; // Ya contado hoy
+    if (diff == 0) return;
 
     final newStreak = diff == 1 ? user.dayStreak + 1 : 1;
     await _userDoc(_uid!).update({
@@ -133,9 +132,8 @@ class UserRepository {
     });
   }
 
-  // ── Sistema de Badges (PRD comercial) ──────────────────────────────────
-
-  /// Evalúa las condiciones de badges y otorga los no desbloqueados aún.
+  /// Evalúa las condiciones de desbloqueo de badges y otorga los que aún no
+  /// tiene el usuario.
   Future<void> checkAndAwardBadges({
     required int totalXpEver,
     required int level,
@@ -165,52 +163,51 @@ class UserRepository {
     });
   }
 
-  // ── Avatar: local + Firebase Storage (con fallback) ─────────────────────
-
-  /// Guarda la imagen como avatar del usuario. Flujo:
-  ///   1. Copia el archivo a una ubicación estable dentro del almacenamiento
-  ///      privado de la app (`<documents>/avatars/<uid>.jpg`). Esto nos da
-  ///      un avatar que funciona sin conexión y que no depende de las reglas
-  ///      de Firebase Storage.
-  ///   2. Guarda el path local en SharedPreferences (por uid) para que la
-  ///      UI lo pueda leer aunque Firestore todavía no se haya sincronizado.
-  ///   3. Intenta subir a Firebase Storage en segundo plano. Si falla (por
-  ///      ejemplo por reglas o por red) lo registra pero NO lanza excepción
-  ///      — el usuario ya ve su avatar local.
-  Future<void> uploadAvatar(File imageFile) async {
+  /// Guarda [imageFile] como avatar local del usuario y retorna el path local.
+  ///
+  /// Copia el archivo a `<documents>/avatars/<uid>.jpg` y persiste el path
+  /// en [SharedPreferences]. Esta operación es rápida y síncrona con la UI:
+  /// la imagen queda disponible inmediatamente aun sin conexión.
+  ///
+  /// La subida a Firebase Storage se hace aparte con [syncAvatarToCloud].
+  Future<String> saveAvatarLocally(File imageFile) async {
     if (_uid == null) throw Exception('Usuario no autenticado');
 
-    // 1 · Copia local estable
     final docs = await getApplicationDocumentsDirectory();
     final avatarsDir = Directory(p.join(docs.path, 'avatars'));
     if (!avatarsDir.existsSync()) avatarsDir.createSync(recursive: true);
     final localFile = File(p.join(avatarsDir.path, '$_uid.jpg'));
     await imageFile.copy(localFile.path);
 
-    // 2 · Guardar path local en preferencias
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('avatar_local_$_uid', localFile.path);
 
-    // Señalamos a Firestore que hay un avatar local (usamos `file://`
-    // para distinguirlo de una URL remota). El UserModel lo interpreta
-    // como FileImage cuando empieza por `file://`.
-    try {
-      await updateFields({'avatarUrl': 'file://${localFile.path}'});
-    } catch (_) {}
+    return localFile.path;
+  }
 
-    // 3 · Intento opcional de subida a Firebase Storage. Si falla, se
-    // queda el avatar local y el usuario no ve ningún error.
+  /// Sube el avatar local a Firebase Storage y actualiza `avatarUrl` en
+  /// Firestore con la URL de descarga.
+  ///
+  /// Pensado para ejecutarse en background tras [saveAvatarLocally]. Si falla
+  /// (sin red, permisos, etc.) no propaga la excepción: el avatar local sigue
+  /// siendo válido y el próximo intento lo volverá a sincronizar.
+  Future<void> syncAvatarToCloud() async {
+    if (_uid == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString('avatar_local_$_uid');
+    if (path == null) return;
+    final file = File(path);
+    if (!file.existsSync()) return;
+
     try {
       final ref = FirebaseStorage.instance.ref('avatars/$_uid.jpg');
       await ref.putFile(
-        localFile,
+        file,
         SettableMetadata(contentType: 'image/jpeg'),
       );
       final downloadUrl = await ref.getDownloadURL();
       await updateFields({'avatarUrl': downloadUrl});
-    } catch (_) {
-      // Silencioso: el avatar local funciona igualmente.
-    }
+    } catch (_) {}
   }
 
   /// Devuelve el path local del avatar si existe (para usar como FileImage).
@@ -222,15 +219,15 @@ class UserRepository {
     return File(path).existsSync() ? path : null;
   }
 
-  // ── Caché local del usuario (SharedPreferences) ─────────────────────────
-
   static const _userCacheKey = 'cached_user';
 
+  /// Serializa [user] y lo guarda en [SharedPreferences] como caché local.
   Future<void> cacheUser(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userCacheKey, jsonEncode(user.toJson()));
   }
 
+  /// Recupera el [UserModel] de la caché local, o `null` si no existe.
   Future<UserModel?> getCachedUser() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_userCacheKey);
@@ -238,6 +235,7 @@ class UserRepository {
     return UserModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
+  /// Elimina el [UserModel] almacenado en la caché local.
   Future<void> clearCachedUser() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userCacheKey);

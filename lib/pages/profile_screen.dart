@@ -12,8 +12,14 @@ import '../repositories/audio_repository.dart';
 import '../repositories/export_repository.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
+import '../theme/app_colors.dart';
 import 'auth_screen.dart';
+import 'main_screen.dart';
 
+/// Pantalla de perfil del usuario.
+///
+/// Permite editar nombre y avatar, gestionar ajustes (audio/notificaciones)
+/// y exportar el historial de quests mediante [ExportRepository].
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -22,20 +28,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class ProfileScreenState extends State<ProfileScreen> {
-  static const _bgColor = Color(0xFF120E1A);
-  static const _cardColor = Color(0xFF1E1926);
-  static const _primaryPurple = Color(0xFF7B2CBF);
-  static const _cyanAccent = Color(0xFFDEB7FF);
+  static const _bgColor = AppColors.background;
+  static const _cardColor = AppColors.card;
+  static const _primaryPurple = AppColors.primaryPurple;
+  static const _cyanAccent = AppColors.cyanAccent;
 
-  // Jerarquía tipográfica para legibilidad
-  static const _textPrimary = Color(0xFFF4EEFC);
-  static const _textSecondary = Color(0xFFC8B8DB);
-  static const _textMuted = Color(0xFF8F82A3);
+  static const _textPrimary = AppColors.textPrimary;
+  static const _textSecondary = AppColors.textSecondary;
+  static const _textMuted = AppColors.textMuted;
 
   final _audio = AudioRepository();
   final _export = ExportRepository();
 
-  // Mapa de definiciones de badges: id → (icono, i18n key, color)
   static const _badgeDefs = {
     'first_quest': (Icons.flag_rounded, 'badge_first_quest', Color(0xFF7B2CBF)),
     'streak_3': (Icons.local_fire_department, 'badge_streak_3', Colors.orange),
@@ -44,8 +48,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     'nivel_5': (Icons.star_rounded, 'badge_nivel_5', Color(0xFFDEB7FF)),
     'nivel_7': (Icons.emoji_events, 'badge_nivel_7', Colors.amber),
   };
-
-  // ── Export sheet ─────────────────────────────────────────────────────────
 
   void _showExportSheet() {
     final s = context.read<AppStrings>();
@@ -120,8 +122,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ── SFX dialog ────────────────────────────────────────────────────────────
-
   void _showSfxDialog() async {
     final current = await _audio.getSfxEnabled();
     if (!mounted) return;
@@ -165,8 +165,6 @@ class ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
-
-  // ── Edit name dialog ──────────────────────────────────────────────────────
 
   void _showEditNameDialog() {
     final user = context.read<UserViewModel>().user;
@@ -224,8 +222,6 @@ class ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  // ── Settings sheet ────────────────────────────────────────────────────────
 
   void _showSettingsSheet() {
     final s = context.read<AppStrings>();
@@ -374,12 +370,11 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final userVM = context.watch<UserViewModel>();
     final s = context.watch<AppStrings>();
+    final navHeight = MainScreen.navBarHeight(context);
 
     if (userVM.isLoading) {
       return Scaffold(
@@ -436,7 +431,6 @@ class ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // --- AVATAR CON GLOW ---
             Center(
               child: Stack(
                 alignment: Alignment.bottomRight,
@@ -462,10 +456,14 @@ class ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     child: CircleAvatar(
+                      key: ValueKey('avatar_${userVM.avatarVersion}'),
                       radius: 56,
                       backgroundColor: const Color(0xFF2A223E),
-                      backgroundImage: _avatarImage(user.avatarUrl),
-                      child: _avatarImage(user.avatarUrl) == null
+                      backgroundImage: _avatarImage(
+                          userVM.localAvatarPath, user.avatarUrl),
+                      child: _avatarImage(
+                                  userVM.localAvatarPath, user.avatarUrl) ==
+                              null
                           ? const Icon(Icons.person,
                               size: 60, color: _textSecondary)
                           : null,
@@ -483,7 +481,6 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // --- NOMBRE Y RANGO ---
             Text(
               user.name,
               style: const TextStyle(
@@ -513,7 +510,6 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 28),
 
-            // --- TARJETA DE EXPERIENCIA ---
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
@@ -618,7 +614,6 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // --- GRID 2x2 ---
             Row(
               children: [
                 Expanded(
@@ -664,7 +659,6 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 28),
 
-            // --- BADGES DINÁMICOS ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -689,26 +683,29 @@ class ProfileScreenState extends State<ProfileScreen> {
               }).toList(),
             ),
 
-            const SizedBox(height: 100),
+            SizedBox(height: navHeight + 24),
           ],
         ),
       ),
     );
   }
 
-  /// Devuelve la imagen apropiada para el avatar:
-  ///   - `file://...`  → FileImage (avatar guardado localmente)
-  ///   - `http(s)://`  → NetworkImage (avatar sincronizado desde Firebase)
-  ///   - null          → sin imagen, se muestra el icono por defecto
-  ImageProvider? _avatarImage(String? url) {
-    if (url == null || url.isEmpty) return null;
-    if (url.startsWith('file://')) {
-      final path = url.substring('file://'.length);
+  /// Devuelve la imagen apropiada para el avatar dando prioridad al archivo
+  /// local (para reflejar el cambio al instante y funcionar sin conexión) y,
+  /// como fallback, al `avatarUrl` remoto.
+  ImageProvider? _avatarImage(String? localPath, String? remoteUrl) {
+    if (localPath != null) {
+      final file = File(localPath);
+      if (file.existsSync()) return FileImage(file);
+    }
+    if (remoteUrl == null || remoteUrl.isEmpty) return null;
+    if (remoteUrl.startsWith('file://')) {
+      final path = remoteUrl.substring('file://'.length);
       final file = File(path);
       if (file.existsSync()) return FileImage(file);
       return null;
     }
-    return NetworkImage(url);
+    return NetworkImage(remoteUrl);
   }
 
   String _nextRankName(int currentLevel) {
@@ -795,8 +792,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ── Export button ─────────────────────────────────────────────────────────────
-
+/// Botón de exportación con icono y etiqueta para el bottom sheet de exportar.
 class _ExportButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -841,8 +837,7 @@ class _ExportButton extends StatelessWidget {
   }
 }
 
-// ── Settings tile ─────────────────────────────────────────────────────────────
-
+/// Tile genérico para el bottom sheet de ajustes de la pantalla de perfil.
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;

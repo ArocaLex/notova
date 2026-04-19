@@ -7,6 +7,8 @@ import '../models/calendar_event.dart';
 import '../models/calendar_info.dart';
 import '../l10n/app_strings.dart';
 import '../viewmodel/calendar_viewmodel.dart';
+import '../theme/app_colors.dart';
+import 'main_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -16,16 +18,6 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class CalendarScreenState extends State<CalendarScreen> {
-  // ── Paleta ────────────────────────────────────────────────────────────────
-  static const _bgColor = Color(0xFF120E1A);
-  static const _cardColor = Color(0xFF1E1926);
-  static const _primaryPurple = Color(0xFF7B2CBF);
-  static const _textPrimary = Color(0xFFF4EEFC);
-  static const _textSecondary = Color(0xFFC8B8DB);
-  static const _textMuted = Color(0xFF8F82A3);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   int _daysInMonth(DateTime month) =>
       DateTime(month.year, month.month + 1, 0).day;
 
@@ -45,8 +37,6 @@ class CalendarScreenState extends State<CalendarScreen> {
     return '${months[d.month - 1]} ${d.day}';
   }
 
-  // ── Add-event bottom sheet ────────────────────────────────────────────────
-
   void _showAddEventSheet(BuildContext context, CalendarViewModel vm) {
     final ownedCals = vm.ownedCalendars;
     if (ownedCals.isEmpty) return;
@@ -59,7 +49,7 @@ class CalendarScreenState extends State<CalendarScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _cardColor,
+      backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -86,18 +76,18 @@ class CalendarScreenState extends State<CalendarScreen> {
               const Text(
                 'Nuevo Evento',
                 style: TextStyle(
-                  color: _textPrimary, fontSize: 18,
+                  color: AppColors.textPrimary, fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: titleController,
-                style: const TextStyle(color: _textPrimary),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Título del evento',
-                  hintStyle: const TextStyle(color: _textMuted),
-                  filled: true, fillColor: _bgColor,
+                  hintStyle: const TextStyle(color: AppColors.textMuted),
+                  filled: true, fillColor: AppColors.background,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -108,10 +98,10 @@ class CalendarScreenState extends State<CalendarScreen> {
               if (ownedCals.length > 1) ...[
                 DropdownButtonFormField<CalendarInfo>(
                   value: selectedCal,
-                  dropdownColor: _cardColor,
-                  style: const TextStyle(color: _textPrimary),
+                  dropdownColor: AppColors.card,
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    filled: true, fillColor: _bgColor,
+                    filled: true, fillColor: AppColors.background,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -122,7 +112,8 @@ class CalendarScreenState extends State<CalendarScreen> {
                             value: c,
                             child: Text(
                               '${c.summary}  ·  ${c.accountEmail}',
-                              style: const TextStyle(color: _textPrimary),
+                              style: const TextStyle(color: AppColors.textPrimary),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ))
                       .toList(),
@@ -162,7 +153,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                 width: double.infinity, height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryPurple,
+                    backgroundColor: AppColors.primaryPurple,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -184,7 +175,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                     if (!ok && mounted) {
                       messenger.showSnackBar(SnackBar(
                         content: Text(vm.errorMessage ?? 'Error'),
-                        backgroundColor: Colors.redAccent,
+                        backgroundColor: AppColors.error,
                       ));
                     }
                   },
@@ -201,46 +192,44 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<CalendarViewModel>();
     final s = context.watch<AppStrings>();
+    final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
+    final isAccountsEmpty = context.select((CalendarViewModel vm) => vm.accounts.isEmpty);
+    final errorMessage = context.select((CalendarViewModel vm) => vm.errorMessage);
+    final navHeight = MainScreen.navBarHeight(context);
 
     return Scaffold(
-      backgroundColor: _bgColor,
-      floatingActionButton: vm.isSignedIn && vm.ownedCalendars.isNotEmpty
-          ? FloatingActionButton(
-              backgroundColor: _primaryPurple,
-              onPressed: () => _showAddEventSheet(context, vm),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: vm.isLoading && vm.accounts.isEmpty
+        child: isLoading && isAccountsEmpty
             ? const Center(
-                child: CircularProgressIndicator(color: _primaryPurple))
+                child: CircularProgressIndicator(color: AppColors.primaryPurple))
             : SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-                    _buildHeader(vm, s),
+                    _HeaderSection(onAddEvent: (vm) => _showAddEventSheet(context, vm)),
                     const SizedBox(height: 20),
-                    _buildCalendarGrid(vm, s),
+                    _CalendarGridSection(
+                      daysInMonth: _daysInMonth,
+                      firstWeekday: _firstWeekday,
+                      monthName: _monthName,
+                    ),
                     const SizedBox(height: 24),
-                    _buildCalendarsSection(vm),
+                    const _CalendarsSection(),
                     const SizedBox(height: 20),
-                    _buildConnectButton(vm, s),
-                    if (vm.errorMessage != null) ...[
+                    const _ConnectButtonSection(),
+                    if (errorMessage != null) ...[
                       const SizedBox(height: 12),
-                      _buildErrorBanner(vm.errorMessage!),
+                      _buildErrorBanner(errorMessage),
                     ],
                     const SizedBox(height: 28),
-                    _buildScheduleSection(vm, s),
-                    const SizedBox(height: 100),
+                    _ScheduleSection(dayMonthLabel: _dayMonthLabel),
+                    SizedBox(height: navHeight + 24),
                   ],
                 ),
               ),
@@ -248,10 +237,88 @@ class CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // ── Header — mismo patrón que TasksScreen / HomeScreen ─────────────────
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline,
+              color: AppColors.error, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFBABA),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-  Widget _buildHeader(CalendarViewModel vm, AppStrings s) {
-    final connectedCount = vm.accounts.length;
+class _TimeButton extends StatelessWidget {
+  final String label;
+  final TimeOfDay time;
+  final VoidCallback onTap;
+
+  const _TimeButton({
+    required this.label,
+    required this.time,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(color: AppColors.textMuted)),
+            Text(
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderSection extends StatelessWidget {
+  final void Function(CalendarViewModel) onAddEvent;
+
+  const _HeaderSection({required this.onAddEvent});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final connectedCount = context.select((CalendarViewModel vm) => vm.accounts.length);
+    final visibleCount = context.select((CalendarViewModel vm) => vm.allCalendars.where((c) => c.isVisible).length);
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
+    final vm = context.read<CalendarViewModel>();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -271,10 +338,10 @@ class CalendarScreenState extends State<CalendarScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                color: _primaryPurple.withOpacity(0.2),
+                color: AppColors.primaryPurple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(20),
                 border:
-                    Border.all(color: _primaryPurple.withOpacity(0.3)),
+                    Border.all(color: AppColors.primaryPurple.withOpacity(0.3)),
               ),
               child: Text(
                 connectedCount == 0
@@ -282,9 +349,9 @@ class CalendarScreenState extends State<CalendarScreen> {
                     : s.get('accounts_visible')
                         .replaceFirst('%d', '$connectedCount')
                         .replaceFirst('%s', connectedCount > 1 ? 'S' : '')
-                        .replaceFirst('%d', '${vm.allCalendars.where((c) => c.isVisible).length}'),
+                        .replaceFirst('%d', '$visibleCount'),
                 style: const TextStyle(
-                  color: _primaryPurple,
+                  color: AppColors.primaryPurple,
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2,
@@ -293,31 +360,31 @@ class CalendarScreenState extends State<CalendarScreen> {
             ),
           ],
         ),
-        if (vm.isSignedIn)
+        if (isSignedIn) ...[
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: _cardColor,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: _textSecondary.withOpacity(0.3)),
+                  color: AppColors.textSecondary.withOpacity(0.3)),
             ),
             child: GestureDetector(
-              onTap: vm.isLoading ? null : vm.refresh,
+              onTap: isLoading ? null : vm.refresh,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.refresh,
-                      color: vm.isLoading
-                          ? _textMuted
-                          : _textSecondary,
+                      color: isLoading
+                          ? AppColors.textMuted
+                          : AppColors.textSecondary,
                       size: 16),
                   const SizedBox(width: 4),
                   Text(
                     s.get('sync'),
-                    style: TextStyle(
-                      color: _textSecondary,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -326,22 +393,67 @@ class CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryPurple,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: GestureDetector(
+              onTap: () => onAddEvent(vm),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add,
+                      color: Colors.white,
+                      size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Agregar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
+}
 
-  // ── Calendar grid ─────────────────────────────────────────────────────────
+class _CalendarGridSection extends StatelessWidget {
+  final int Function(DateTime) daysInMonth;
+  final int Function(DateTime) firstWeekday;
+  final String Function(DateTime, AppStrings) monthName;
 
-  Widget _buildCalendarGrid(CalendarViewModel vm, AppStrings s) {
-    final fm = vm.focusedMonth;
-    final offset = _firstWeekday(fm);
-    final daysCount = _daysInMonth(fm);
+  const _CalendarGridSection({
+    required this.daysInMonth,
+    required this.firstWeekday,
+    required this.monthName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final fm = context.select((CalendarViewModel vm) => vm.focusedMonth);
+    final selectedDate = context.select((CalendarViewModel vm) => vm.selectedDate);
+    final eventDayColors = context.select((CalendarViewModel vm) => vm.eventDayColors);
+    final vm = context.read<CalendarViewModel>();
+
+    final offset = firstWeekday(fm);
+    final daysCount = daysInMonth(fm);
     final totalCells = ((offset + daysCount) / 7).ceil() * 7;
     final prevMonthDays = DateTime(fm.year, fm.month, 0).day;
 
     return Column(
       children: [
-        // Month navigation
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -349,13 +461,13 @@ class CalendarScreenState extends State<CalendarScreen> {
               onTap: () => vm.onMonthChanged(
                   DateTime(fm.year, fm.month - 1)),
               child: const Icon(Icons.chevron_left,
-                  color: _textSecondary, size: 22),
+                  color: AppColors.textSecondary, size: 22),
             ),
             const SizedBox(width: 16),
             Text(
-              _monthName(fm, s),
+              monthName(fm, s),
               style: const TextStyle(
-                color: _textPrimary,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
                 letterSpacing: 1.2,
@@ -366,13 +478,12 @@ class CalendarScreenState extends State<CalendarScreen> {
               onTap: () => vm.onMonthChanged(
                   DateTime(fm.year, fm.month + 1)),
               child: const Icon(Icons.chevron_right,
-                  color: _textSecondary, size: 22),
+                  color: AppColors.textSecondary, size: 22),
             ),
           ],
         ),
         const SizedBox(height: 24),
 
-        // Weekday headers
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: s.get('weekday_initials').split(',')
@@ -381,7 +492,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                     child: Center(
                       child: Text(d,
                           style: const TextStyle(
-                            color: _textMuted,
+                            color: AppColors.textMuted,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           )),
@@ -391,7 +502,6 @@ class CalendarScreenState extends State<CalendarScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Day grid
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -410,13 +520,13 @@ class CalendarScreenState extends State<CalendarScreen> {
                 : index - offset + 1;
 
             final isToday = !isGrey &&
-                day == vm.selectedDate.day &&
-                fm.month == vm.selectedDate.month &&
-                fm.year == vm.selectedDate.year;
+                day == selectedDate.day &&
+                fm.month == selectedDate.month &&
+                fm.year == selectedDate.year;
 
             final dots = isGrey
                 ? const <Color>[]
-                : (vm.eventDayColors[day] ?? const <Color>[]);
+                : (eventDayColors[day] ?? const <Color>[]);
 
             return GestureDetector(
               onTap: isGrey
@@ -430,11 +540,11 @@ class CalendarScreenState extends State<CalendarScreen> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: isToday ? _primaryPurple : Colors.transparent,
+                      color: isToday ? AppColors.primaryPurple : Colors.transparent,
                       shape: BoxShape.circle,
                       boxShadow: isToday
                           ? [BoxShadow(
-                              color: _primaryPurple.withOpacity(0.45),
+                              color: AppColors.primaryPurple.withOpacity(0.45),
                               blurRadius: 10)]
                           : null,
                     ),
@@ -443,10 +553,10 @@ class CalendarScreenState extends State<CalendarScreen> {
                       '$day',
                       style: TextStyle(
                         color: isGrey
-                            ? _textMuted.withOpacity(0.35)
+                            ? AppColors.textMuted.withOpacity(0.35)
                             : isToday
                                 ? Colors.white
-                                : _textPrimary,
+                                : AppColors.textPrimary,
                         fontWeight:
                             isToday ? FontWeight.bold : FontWeight.w500,
                         fontSize: 14,
@@ -482,15 +592,22 @@ class CalendarScreenState extends State<CalendarScreen> {
       ],
     );
   }
+}
 
-  // ── Calendars — una cajita por cuenta ────────────────────────────────────
+class _CalendarsSection extends StatelessWidget {
+  const _CalendarsSection();
 
-  Widget _buildCalendarsSection(CalendarViewModel vm) {
-    if (!vm.isSignedIn) return const SizedBox.shrink();
+  @override
+  Widget build(BuildContext context) {
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final accounts = context.select((CalendarViewModel vm) => vm.accounts);
+    final vm = context.read<CalendarViewModel>();
+
+    if (!isSignedIn) return const SizedBox.shrink();
 
     return Column(
       children: [
-        for (final account in vm.accounts)
+        for (final account in accounts)
           _buildAccountCard(account, vm),
       ],
     );
@@ -502,14 +619,13 @@ class CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: email + disconnect
           Row(
             children: [
               Container(
@@ -528,7 +644,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                   account.email,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _textPrimary,
+                    color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -546,7 +662,6 @@ class CalendarScreenState extends State<CalendarScreen> {
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(color: Colors.white10, height: 1),
           ),
-          // Calendar rows
           ...account.calendars.map((cal) {
             final calColor = cal.parsedBackgroundColor ?? color;
             return InkWell(
@@ -557,7 +672,6 @@ class CalendarScreenState extends State<CalendarScreen> {
                     const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
                 child: Row(
                   children: [
-                    // Color square
                     Container(
                       width: 22, height: 22,
                       decoration: BoxDecoration(
@@ -580,13 +694,12 @@ class CalendarScreenState extends State<CalendarScreen> {
                         cal.summary,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _textPrimary,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    // Checkbox
                     Container(
                       width: 24, height: 24,
                       decoration: BoxDecoration(
@@ -597,7 +710,7 @@ class CalendarScreenState extends State<CalendarScreen> {
                         border: Border.all(
                           color: cal.isVisible
                               ? calColor
-                              : _textMuted.withOpacity(0.4),
+                              : AppColors.textMuted.withOpacity(0.4),
                           width: 2,
                         ),
                       ),
@@ -615,16 +728,24 @@ class CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
+}
 
-  // ── Connect button ────────────────────────────────────────────────────────
+class _ConnectButtonSection extends StatelessWidget {
+  const _ConnectButtonSection();
 
-  Widget _buildConnectButton(CalendarViewModel vm, AppStrings s) {
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
+    final vm = context.read<CalendarViewModel>();
+
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryPurple,
+          backgroundColor: AppColors.primaryPurple,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -632,7 +753,7 @@ class CalendarScreenState extends State<CalendarScreen> {
         ),
         icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
         label: Text(
-          vm.isSignedIn
+          isSignedIn
               ? s.get('connect_another')
               : s.get('connect_calendar'),
           style: const TextStyle(
@@ -642,48 +763,29 @@ class CalendarScreenState extends State<CalendarScreen> {
             letterSpacing: 1.0,
           ),
         ),
-        onPressed: vm.isLoading ? null : vm.connectGoogleCalendar,
+        onPressed: isLoading ? null : vm.connectGoogleCalendar,
       ),
     );
   }
+}
 
-  // ── Error banner ──────────────────────────────────────────────────────────
+class _ScheduleSection extends StatelessWidget {
+  final String Function(DateTime) dayMonthLabel;
 
-  Widget _buildErrorBanner(String message) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.redAccent.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline,
-              color: Colors.redAccent, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFFFBABA),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  const _ScheduleSection({required this.dayMonthLabel});
 
-  // ── TODAY'S SCHEDULE ──────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final events = context.select((CalendarViewModel vm) => vm.events);
+    final selectedDate = context.select((CalendarViewModel vm) => vm.selectedDate);
+    final vm = context.read<CalendarViewModel>();
 
-  Widget _buildScheduleSection(CalendarViewModel vm, AppStrings s) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -693,19 +795,23 @@ class CalendarScreenState extends State<CalendarScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                s.get('todays_schedule'),
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                  letterSpacing: 0.5,
+              Expanded(
+                child: Text(
+                  s.get('todays_schedule'),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
-                _dayMonthLabel(vm.selectedDate),
+                dayMonthLabel(selectedDate),
                 style: const TextStyle(
-                  color: _textMuted,
+                  color: AppColors.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -714,38 +820,39 @@ class CalendarScreenState extends State<CalendarScreen> {
           ),
           const SizedBox(height: 18),
 
-          if (!vm.isSignedIn)
+          if (!isSignedIn)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Center(
                 child: Text(
                   s.get('connect_to_see'),
-                  style: const TextStyle(color: _textMuted, fontSize: 13),
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  textAlign: TextAlign.center,
                 ),
               ),
             )
-          else if (vm.events.isEmpty)
+          else if (events.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Center(
                 child: Text(
                   s.get('no_events_day'),
-                  style: const TextStyle(color: _textMuted, fontSize: 13),
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  textAlign: TextAlign.center,
                 ),
               ),
             )
           else
-            ...vm.events.map((e) => Padding(
+            ...events.map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
-                  child: _buildEventCard(e, vm),
+                  child: _buildEventCard(context, e, vm),
                 )),
-
         ],
       ),
     );
   }
 
-  Widget _buildEventCard(CalendarEvent event, CalendarViewModel vm) {
+  Widget _buildEventCard(BuildContext context, CalendarEvent event, CalendarViewModel vm) {
     final color = vm.calendarColor(event.calendarId);
 
     return Dismissible(
@@ -765,16 +872,16 @@ class CalendarScreenState extends State<CalendarScreen> {
         return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: _cardColor,
+            backgroundColor: AppColors.card,
             title: const Text('Eliminar evento',
-                style: TextStyle(color: _textPrimary)),
+                style: TextStyle(color: AppColors.textPrimary)),
             content: Text('¿Eliminar "${event.title}"?',
-                style: const TextStyle(color: _textSecondary)),
+                style: const TextStyle(color: AppColors.textSecondary)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Cancelar',
-                    style: TextStyle(color: _textMuted)),
+                    style: TextStyle(color: AppColors.textMuted)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
@@ -788,13 +895,12 @@ class CalendarScreenState extends State<CalendarScreen> {
       onDismissed: (_) => vm.deleteEvent(event),
       child: Container(
         decoration: BoxDecoration(
-          color: _bgColor,
+          color: AppColors.background,
           borderRadius: BorderRadius.circular(14),
         ),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Colored left bar
               Container(
                 width: 4,
                 decoration: BoxDecoration(
@@ -805,32 +911,44 @@ class CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              // Title + location
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          color: _textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              event.title,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            event.isAllDay ? 'Todo el día' : event.formattedTime,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (event.location != null &&
-                          event.location!.isNotEmpty) ...[
-                        const SizedBox(height: 3),
+                      if (event.end != null && !event.isAllDay) ...[
+                        const SizedBox(height: 4),
                         Text(
-                          event.location!,
-                          overflow: TextOverflow.ellipsis,
+                          'hasta ${event.formattedTimeRange.split(' - ').last}',
                           style: const TextStyle(
-                            color: _textMuted,
-                            fontSize: 12,
+                            color: AppColors.textMuted,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -838,69 +956,8 @@ class CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               ),
-              // Time range
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text(
-                  event.formattedTimeRange,
-                  style: const TextStyle(
-                    color: _textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-}
-
-// ── Helper widget ─────────────────────────────────────────────────────────────
-
-class _TimeButton extends StatelessWidget {
-  final String label;
-  final TimeOfDay time;
-  final VoidCallback onTap;
-
-  const _TimeButton({
-    required this.label,
-    required this.time,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final h = time.hour == 0
-        ? 12
-        : (time.hour > 12 ? time.hour - 12 : time.hour);
-    final m = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF120E1A),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    color: Color(0xFF8F82A3), fontSize: 11)),
-            const SizedBox(height: 4),
-            Text('$h:$m $period',
-                style: const TextStyle(
-                  color: Color(0xFFF4EEFC),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                )),
-          ],
         ),
       ),
     );

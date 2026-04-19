@@ -23,14 +23,16 @@ class CalendarInfo {
     this.isVisible = true,
   });
 
-  /// Owner or writer can create/edit/delete events.
+  /// Indica si el usuario tiene permisos de escritura sobre este calendario
+  /// (`'owner'` o `'writer'`).
   bool get isOwned => accessRole == 'owner' || accessRole == 'writer';
 
-  /// Calendars with reader or freeBusyReader access are read-only.
+  /// Indica si el calendario es de solo lectura (acceso `'reader'` o
+  /// `'freeBusyReader'`).
   bool get isReadOnly => !isOwned;
 
-  /// Paletas de colores para calendarios cuyo backgroundColor no se puede
-  /// parsear. El color de la cuenta prevalece sobre este.
+  /// Retorna el color de fondo del calendario como [Color], o `null` si el
+  /// valor de [backgroundColor] no puede parsearse como hexadecimal.
   Color? get parsedBackgroundColor {
     if (backgroundColor == null) return null;
     try {
@@ -64,6 +66,7 @@ class CalendarAccount {
     this.tokenExpiry,
   });
 
+  /// Indica si el access token ha caducado.
   bool get isTokenExpired =>
       tokenExpiry != null && DateTime.now().isAfter(tokenExpiry!);
 }

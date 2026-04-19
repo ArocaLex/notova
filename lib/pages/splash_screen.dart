@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,10 +9,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_strings.dart';
 import '../repositories/local_task_repository.dart';
+import '../repositories/user_repository.dart';
 import 'auth_screen.dart';
 import 'main_screen.dart';
 import 'onboarding_screen.dart';
 
+/// Pantalla inicial con animación de carga y enrutado.
+///
+/// Decide el primer destino en función de:
+/// - Sesión de Firebase (si hay usuario autenticado).
+/// - Flag `onboarding_seen` persistido en [SharedPreferences].
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -42,7 +49,6 @@ class SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Logo: scale up + fade in
     _logoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -54,7 +60,6 @@ class SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
     );
 
-    // Text content: slide up + fade
     _contentController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -75,7 +80,6 @@ class SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // Pulsing glow ring
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -84,7 +88,6 @@ class SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Stagger: logo → content
     _logoController.forward().then((_) {
       _contentController.forward();
     });
@@ -104,8 +107,14 @@ class SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  /// Actualiza la racha diaria en Firestore sin bloquear el flujo del splash.
+  Future<void> _updateStreakSilently() async {
+    try {
+      await UserRepository().checkAndUpdateStreak();
+    } catch (_) {}
+  }
+
   Future<void> _checkAuthState() async {
-    // Run minimum display time and actual loading in parallel
     final minDisplay = Future.delayed(const Duration(milliseconds: 2800));
 
     final user = FirebaseAuth.instance.currentUser;
@@ -116,9 +125,9 @@ class SplashScreenState extends State<SplashScreen>
             user.displayName ?? user.email?.split('@')[0] ?? 'Usuario';
       });
       LocalTaskRepository().syncFromFirestore();
+      unawaited(_updateStreakSilently());
     }
 
-    // Resolve destination while splash plays
     Widget destination;
     if (user == null) {
       destination = const AuthScreen();
@@ -128,16 +137,19 @@ class SplashScreenState extends State<SplashScreen>
       destination = seen ? const MainScreen() : const OnboardingScreen();
     }
 
-    // Wait for minimum display time so animations finish smoothly
     await minDisplay;
     if (!mounted) return;
 
+    final isOnboarding = destination is OnboardingScreen;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, a1, a2) => destination,
-        transitionDuration: const Duration(milliseconds: 500),
-        transitionsBuilder: (context, animation, secondary, child) =>
-            FadeTransition(opacity: animation, child: child),
+        transitionDuration:
+            isOnboarding ? Duration.zero : const Duration(milliseconds: 500),
+        transitionsBuilder: isOnboarding
+            ? (ctx, a, s, child) => child
+            : (context, animation, secondary, child) =>
+                FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -148,7 +160,6 @@ class SplashScreenState extends State<SplashScreen>
       backgroundColor: _bgColor,
       body: Stack(
         children: [
-          // Background subtle gradient
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -164,15 +175,12 @@ class SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // Animated floating particles
           ..._buildParticles(),
 
-          // Main content
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Pulsing glow + logo
                 AnimatedBuilder(
                   animation: Listenable.merge(
                       [_logoController, _pulseController]),
@@ -184,7 +192,6 @@ class SplashScreenState extends State<SplashScreen>
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Glow ring
                             AnimatedBuilder(
                               animation: _pulseAnim,
                               builder: (context, _) => Container(
@@ -203,7 +210,6 @@ class SplashScreenState extends State<SplashScreen>
                                 ),
                               ),
                             ),
-                            // Logo
                             ClipOval(
                               child: Image.asset(
                                 'assets/images/notova.png',
@@ -221,7 +227,6 @@ class SplashScreenState extends State<SplashScreen>
 
                 const SizedBox(height: 32),
 
-                // Liquid loading bar
                 AnimatedBuilder(
                   animation: _contentController,
                   builder: (context, _) => Opacity(
@@ -232,7 +237,6 @@ class SplashScreenState extends State<SplashScreen>
 
                 const SizedBox(height: 24),
 
-                // Title + username
                 AnimatedBuilder(
                   animation: _contentController,
                   builder: (context, _) => Transform.translate(
@@ -279,7 +283,6 @@ class SplashScreenState extends State<SplashScreen>
   }
 
   List<Widget> _buildParticles() {
-    // Subtle floating dots around the logo area
     final rng = math.Random(42);
     return List.generate(8, (i) {
       final left = 0.2 + rng.nextDouble() * 0.6;
@@ -308,8 +311,7 @@ class SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ── Liquid loading bar ──────────────────────────────────────────────────────
-
+/// Barra de carga animada con efecto líquido que se muestra durante el splash.
 class _LiquidLoadingBar extends StatefulWidget {
   const _LiquidLoadingBar();
 
@@ -361,6 +363,7 @@ class _LiquidLoadingBarState extends State<_LiquidLoadingBar>
   }
 }
 
+/// Pinta el blob líquido en movimiento sobre la barra de carga.
 class _LiquidBarPainter extends CustomPainter {
   final double progress;
   _LiquidBarPainter(this.progress);
@@ -370,9 +373,7 @@ class _LiquidBarPainter extends CustomPainter {
     const purple = Color(0xFF7B2CBF);
     const white = Colors.white;
 
-    // Liquid blob that slides back and forth with gradient
     final blobWidth = size.width * 0.45;
-    // Use sine for smooth liquid-like motion
     final center = size.width * (0.5 + 0.5 * math.sin(progress * 2 * math.pi));
 
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
@@ -410,8 +411,7 @@ class _LiquidBarPainter extends CustomPainter {
   bool shouldRepaint(_LiquidBarPainter old) => old.progress != progress;
 }
 
-// ── Floating particle ───────────────────────────────────────────────────────
-
+/// Partícula flotante animada que rodea el logo en la pantalla de inicio.
 class _FloatingParticle extends StatefulWidget {
   final double size;
   final Duration delay;

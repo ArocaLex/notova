@@ -23,15 +23,16 @@ class ApiClient {
   /// URL base del microservicio REST desplegado en PythonAnywhere.
   static const baseUrl = 'https://arocaalex.pythonanywhere.com';
 
+  /// Crea un cliente API con instancias opcionales de [FirebaseAuth] y
+  /// [http.Client] para facilitar la inyección en tests.
   ApiClient({
     FirebaseAuth? auth,
     http.Client? httpClient,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _http = httpClient ?? http.Client();
 
-  // ── Token automático ────────────────────────────────────────────────────
-
   /// Obtiene el Firebase ID Token del usuario actualmente logueado.
+  ///
   /// Retorna `null` si no hay sesión activa.
   Future<String?> _getIdToken() async {
     final user = _auth.currentUser;
@@ -51,16 +52,20 @@ class ApiClient {
     };
   }
 
-  // ── Métodos HTTP ────────────────────────────────────────────────────────
-
-  /// GET autenticado. Lanza [ApiException] si la respuesta no es 2xx.
+  /// Realiza una petición GET autenticada.
+  ///
+  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
+  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> get(String path) async {
     final headers = await _authHeaders();
     final response = await _http.get(Uri.parse('$baseUrl$path'), headers: headers);
     return _handleResponse(response);
   }
 
-  /// POST autenticado con body JSON.
+  /// Realiza una petición POST autenticada con cuerpo JSON opcional.
+  ///
+  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
+  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> post(String path, {Map<String, dynamic>? body}) async {
     final headers = await _authHeaders();
     final response = await _http.post(
@@ -71,7 +76,10 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  /// PUT autenticado con body JSON.
+  /// Realiza una petición PUT autenticada con cuerpo JSON opcional.
+  ///
+  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
+  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> put(String path, {Map<String, dynamic>? body}) async {
     final headers = await _authHeaders();
     final response = await _http.put(
@@ -82,15 +90,17 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  /// DELETE autenticado.
+  /// Realiza una petición DELETE autenticada.
+  ///
+  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
+  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> delete(String path) async {
     final headers = await _authHeaders();
     final response = await _http.delete(Uri.parse('$baseUrl$path'), headers: headers);
     return _handleResponse(response);
   }
 
-  // ── Respuesta ───────────────────────────────────────────────────────────
-
+  /// Procesa la respuesta HTTP y la encapsula en un [ApiResponse].
   ApiResponse _handleResponse(http.Response response) {
     final apiResponse = ApiResponse(
       statusCode: response.statusCode,
@@ -105,26 +115,34 @@ class ApiClient {
   }
 }
 
-/// Respuesta tipada de la API.
+/// Respuesta tipada devuelta por [ApiClient] tras cada petición HTTP.
 class ApiResponse {
+  /// Código de estado HTTP de la respuesta.
   final int statusCode;
+
+  /// Cuerpo de la respuesta como texto plano.
   final String body;
 
   const ApiResponse({required this.statusCode, required this.body});
 
+  /// Indica si la respuesta tiene un código de estado exitoso (2xx).
   bool get isOk => statusCode >= 200 && statusCode < 300;
 
-  /// Parsea el body como JSON Map.
+  /// Decodifica el cuerpo de la respuesta como un mapa JSON.
   Map<String, dynamic> get json =>
       jsonDecode(body) as Map<String, dynamic>;
 
-  /// Parsea el body como JSON List.
+  /// Decodifica el cuerpo de la respuesta como una lista JSON.
   List<dynamic> get jsonList => jsonDecode(body) as List<dynamic>;
 }
 
-/// Error lanzado cuando no hay sesión activa.
+/// Excepción lanzada por [ApiClient] cuando no hay sesión activa o la
+/// respuesta indica un error HTTP.
 class ApiException implements Exception {
+  /// Código de estado HTTP asociado al error.
   final int statusCode;
+
+  /// Mensaje descriptivo del error.
   final String message;
 
   const ApiException(this.statusCode, this.message);

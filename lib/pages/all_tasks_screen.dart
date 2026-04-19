@@ -5,29 +5,21 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../models/task_model.dart';
 import '../viewmodel/task_viewmodel.dart';
+import '../theme/app_colors.dart';
 
 class AllTasksScreen extends StatelessWidget {
   const AllTasksScreen({super.key});
 
-  static const _bgColor = Color(0xFF120E1A);
-  static const _cardColor = Color(0xFF1E1926);
-  static const _primaryPurple = Color(0xFF7B2CBF);
-  static const _neonCyan = Color(0xFF00E5FF);
-  static const _neonPink = Color(0xFFFF4081);
-  static const _cyanAccent = Color(0xFFDEB7FF);
-
   @override
   Widget build(BuildContext context) {
-    final taskVM = context.watch<TasksViewModel>();
     final s = context.watch<AppStrings>();
-    final pending = taskVM.pending;
+    final pending = context.select((TasksViewModel vm) => vm.pending);
 
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -37,9 +29,9 @@ class AllTasksScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _cardColor,
+                        color: AppColors.card,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _primaryPurple.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.primaryPurple.withOpacity(0.3)),
                       ),
                       child: const Icon(Icons.arrow_back_ios_new,
                           color: Colors.white, size: 18),
@@ -57,15 +49,17 @@ class AllTasksScreen extends StatelessWidget {
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${pending.length} ${s.get('active_quests').toLowerCase()}',
                           style: TextStyle(
-                            color: _neonCyan.withOpacity(0.7),
+                            color: AppColors.neonCyan.withOpacity(0.7),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -76,7 +70,6 @@ class AllTasksScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Neon divider
             Container(
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -84,8 +77,8 @@ class AllTasksScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    _neonCyan.withOpacity(0.4),
-                    _primaryPurple.withOpacity(0.6),
+                    AppColors.neonCyan.withOpacity(0.4),
+                    AppColors.primaryPurple.withOpacity(0.6),
                     Colors.transparent,
                   ],
                 ),
@@ -94,7 +87,6 @@ class AllTasksScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Task list
             Expanded(
               child: pending.isEmpty
                   ? Center(
@@ -118,7 +110,7 @@ class AllTasksScreen extends StatelessWidget {
                       itemCount: pending.length,
                       itemBuilder: (context, index) {
                         final task = pending[index];
-                        return _buildTaskItem(context, task, taskVM, s);
+                        return _buildTaskItem(context, task, s);
                       },
                     ),
             ),
@@ -131,27 +123,26 @@ class AllTasksScreen extends StatelessWidget {
   Widget _buildTaskItem(
     BuildContext context,
     TaskModel task,
-    TasksViewModel taskVM,
     AppStrings s,
   ) {
     final taskColor = _parseColor(task.color);
     final priorityColor = task.priority == 'HIGH'
-        ? _neonPink
+        ? AppColors.neonPink
         : task.priority == 'MED'
-            ? Colors.orange
-            : Colors.grey;
+            ? AppColors.priorityMed
+            : AppColors.priorityLow;
     final dueDateColor =
-        task.isOverdue ? Colors.redAccent : Colors.grey.shade500;
+        task.isOverdue ? AppColors.error : Colors.grey.shade500;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: taskColor?.withOpacity(0.4) ??
               (task.isOverdue
-                  ? Colors.redAccent.withOpacity(0.3)
+                  ? AppColors.error.withOpacity(0.3)
                   : Colors.white.withOpacity(0.04)),
         ),
         boxShadow: taskColor != null
@@ -167,7 +158,6 @@ class AllTasksScreen extends StatelessWidget {
       child: IntrinsicHeight(
         child: Row(
           children: [
-            // Color bar
             Container(
               width: 4,
               decoration: BoxDecoration(
@@ -194,6 +184,7 @@ class AllTasksScreen extends StatelessWidget {
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (task.subtitle.isNotEmpty) ...[
                             const SizedBox(height: 4),
@@ -215,10 +206,13 @@ class AllTasksScreen extends StatelessWidget {
                                 Icon(Icons.schedule,
                                     size: 12, color: dueDateColor),
                                 const SizedBox(width: 3),
-                                Text(
-                                  task.formattedDueDate,
-                                  style: TextStyle(
-                                      color: dueDateColor, fontSize: 11),
+                                Expanded(
+                                  child: Text(
+                                    task.formattedDueDate,
+                                    style: TextStyle(
+                                        color: dueDateColor, fontSize: 11),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ],
@@ -226,18 +220,19 @@ class AllTasksScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _cyanAccent.withOpacity(0.1),
+                        color: AppColors.cyanAccent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _cyanAccent.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.cyanAccent.withOpacity(0.3)),
                       ),
                       child: Text(
                         '+${task.xpReward} XP',
                         style: const TextStyle(
-                          color: _cyanAccent,
+                          color: AppColors.cyanAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),

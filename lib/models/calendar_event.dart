@@ -1,5 +1,6 @@
 import 'package:googleapis/calendar/v3.dart' as gcal;
 
+/// Representa un evento de Google Calendar asociado a un calendario concreto.
 class CalendarEvent {
   final String id;
   final String calendarId;
@@ -23,6 +24,8 @@ class CalendarEvent {
     required this.isOwned,
   });
 
+  /// Construye un [CalendarEvent] a partir de un [gcal.Event] de la API de
+  /// Google Calendar, normalizando fechas de todo el día y eventos con hora.
   factory CalendarEvent.fromGoogleEvent(
     gcal.Event e,
     String calendarId,
@@ -50,6 +53,8 @@ class CalendarEvent {
     );
   }
 
+  /// Retorna la hora de inicio formateada en formato 12 horas con meridiano,
+  /// o la cadena `'Todo el día'` si el evento abarca todo el día.
   String get formattedTime {
     if (isAllDay) return 'Todo el día';
     if (start == null) return '';
@@ -60,6 +65,8 @@ class CalendarEvent {
     return '$displayH:$m $period';
   }
 
+  /// Retorna únicamente la hora de inicio sin meridiano, o `'--'` si el
+  /// evento es de todo el día o no tiene hora de inicio definida.
   String get formattedHour {
     if (isAllDay || start == null) return '--';
     final h = start!.hour;
@@ -68,12 +75,13 @@ class CalendarEvent {
     return '$displayH:$m';
   }
 
+  /// Retorna `'AM'` o `'PM'` según la hora de inicio del evento.
   String get meridian {
     if (isAllDay || start == null) return '';
     return start!.hour >= 12 ? 'PM' : 'AM';
   }
 
-  /// Rango horario formateado: "10:00 - 11:30 AM"
+  /// Retorna el rango horario formateado del evento, por ejemplo `'10:00 - 11:30 AM'`.
   String get formattedTimeRange {
     if (isAllDay) return 'Todo el día';
     if (start == null) return '';

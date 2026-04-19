@@ -4,6 +4,12 @@ import '../repositories/auth_repository.dart';
 import '../repositories/local_task_repository.dart';
 import '../repositories/user_repository.dart';
 
+/// Gestiona la autenticación del usuario mediante Google, email/contraseña
+/// y recuperación de contraseña.
+///
+/// Delega las operaciones de autenticación a [AuthRepository] y la creación
+/// del perfil inicial a [UserRepository]. Expone [isLoading] y [errorMessage]
+/// para que la vista refleje el estado de cada operación.
 class AuthViewModel extends ChangeNotifier {
   late final AuthRepository _repository;
   late final UserRepository _userRepository;
@@ -27,9 +33,11 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // =========================================================
-  // 1. AUTENTICACIÓN CON GOOGLE
-  // =========================================================
+  /// Inicia sesión con la cuenta de Google del usuario.
+  ///
+  /// Retorna `true` si la autenticación fue exitosa o `false` si el usuario
+  /// canceló el diálogo o se produjo un error. En caso de error, establece
+  /// [errorMessage] con un mensaje descriptivo.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
 
@@ -55,9 +63,10 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // =========================================================
-  // 2. INICIAR SESIÓN CON EMAIL Y CONTRASEÑA
-  // =========================================================
+  /// Inicia sesión con las credenciales de correo electrónico y contraseña proporcionadas.
+  ///
+  /// Retorna `true` si la autenticación fue exitosa. En caso de fallo,
+  /// establece [errorMessage] y retorna `false`.
   Future<bool> signInWithEmail(String email, String password) async {
     _setLoading(true);
 
@@ -76,9 +85,11 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // =========================================================
-  // 3. REGISTRARSE CON EMAIL Y CONTRASEÑA
-  // =========================================================
+  /// Registra un nuevo usuario con correo electrónico y contraseña.
+  ///
+  /// Crea el perfil inicial en Firestore mediante [UserRepository] si el
+  /// registro es exitoso. Retorna `true` en caso de éxito o `false` si
+  /// ocurre un error, estableciendo [errorMessage].
   Future<bool> registerWithEmail(String email, String password) async {
     _setLoading(true);
 
@@ -101,9 +112,10 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // =========================================================
-  // 4. RECUPERAR CONTRASEÑA
-  // =========================================================
+  /// Envía un correo de recuperación de contraseña a la dirección proporcionada.
+  ///
+  /// Retorna `true` si el correo se envió correctamente o `false` en caso
+  /// de error, estableciendo [errorMessage].
   Future<bool> sendPasswordReset(String email) async {
     _setLoading(true);
 
@@ -122,17 +134,15 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // =========================================================
-  // 5. CERRAR SESIÓN
-  // =========================================================
+  /// Cierra la sesión del usuario actual.
+  ///
+  /// Limpia la caché local de tareas mediante [LocalTaskRepository] y
+  /// delega el cierre de sesión a [AuthRepository].
   Future<void> signOut() async {
     await _localTaskRepository.clearLocalCache();
     await _repository.signOut();
   }
 
-  // =========================================================
-  // 6. CREACIÓN DEL PERFIL EN FIRESTORE
-  // =========================================================
   Future<void> _createInitialUserProfile(User user) async {
     await _userRepository.createIfNotExists(user);
   }

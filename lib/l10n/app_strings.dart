@@ -13,12 +13,14 @@ class AppStrings extends ChangeNotifier {
     _load();
   }
 
+  /// Carga el idioma guardado desde [SharedPreferences] al inicializar.
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     _locale = prefs.getString(_key) ?? 'es';
     notifyListeners();
   }
 
+  /// Establece el idioma activo y lo persiste en [SharedPreferences].
   Future<void> setLocale(String locale) async {
     _locale = locale;
     final prefs = await SharedPreferences.getInstance();
@@ -26,20 +28,18 @@ class AppStrings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Alterna entre español e inglés y persiste el cambio.
   Future<void> toggle() async {
     await setLocale(_locale == 'es' ? 'en' : 'es');
   }
 
-  /// Acceso rápido a un string por clave.
+  /// Retorna el string localizado para [key] en el idioma activo.
+  ///
+  /// Si la clave no existe, retorna la propia [key] como fallback.
   String get(String key) => (_strings[_locale]?[key]) ?? key;
-
-  // ═══════════════════════════════════════════════════════════════════════
-  //  Strings por idioma
-  // ═══════════════════════════════════════════════════════════════════════
 
   static const _strings = {
     'es': {
-      // General
       'app_name': 'Notova',
       'loading': 'Cargando…',
       'cancel': 'Cancelar',
@@ -49,7 +49,6 @@ class AppStrings extends ChangeNotifier {
       'error': 'Error',
       'great': '¡Genial!',
 
-      // Auth
       'login': 'Iniciar sesión',
       'register': 'Registrarse',
       'email': 'Correo electrónico',
@@ -71,11 +70,9 @@ class AppStrings extends ChangeNotifier {
       'reset_email_failed': 'No se pudo enviar el correo.',
       'or_continue_with': 'O CONTINUAR CON',
 
-      // Splash
       'hello': 'Hola',
       'splash_subtitle': 'Potencia tu productividad',
 
-      // Onboarding
       'onboarding_title_1': 'Bienvenido a Notova',
       'onboarding_sub_1': 'Convierte tus tareas en Quests.\nGana XP, sube de nivel y construye hábitos duraderos.',
       'onboarding_title_2': 'Sistema de Rangos',
@@ -86,13 +83,11 @@ class AppStrings extends ChangeNotifier {
       'next': 'Siguiente',
       'start': 'Comenzar',
 
-      // Navigation
       'nav_home': 'Inicio',
       'nav_calendar': 'Agenda',
       'nav_quests': 'Quests',
       'nav_profile': 'Perfil',
 
-      // Home
       'good_morning': 'Buenos días',
       'good_afternoon': 'Buenas tardes',
       'good_evening': 'Buenas noches',
@@ -110,18 +105,19 @@ class AppStrings extends ChangeNotifier {
       'view_all': 'Ver Todas',
       'in_minutes': 'EN %d MINUTOS',
       'at_time': 'A LAS %s',
+      'today': 'HOY',
+      'tomorrow': 'MAÑANA',
+      'no_upcoming_week': 'Sin eventos en los próximos días',
       'xp_to_next': '%s XP para alcanzar el Nivel %d. ¡Sigue así!',
       'level': 'NIVEL',
       'streak': 'RACHA',
       'ranking': 'Ranking',
       'days': 'días',
 
-      // Priorities
       'priority_high': 'ALTA',
       'priority_med': 'MEDIA',
       'priority_low': 'BAJA',
 
-      // Tasks
       'my_quests': 'Mis Quests',
       'all': 'Todas',
       'high_priority': 'Alta Prioridad',
@@ -142,7 +138,6 @@ class AppStrings extends ChangeNotifier {
       'keep_completing': '¡Sigue completando quests para avanzar!',
       'level_up': '¡Subiste de Nivel!',
 
-      // Calendar
       'calendar': 'Calendario',
       'my_calendars': 'Mis Calendarios',
       'connect_calendar': 'CONECTAR GOOGLE CALENDAR',
@@ -168,14 +163,12 @@ class AppStrings extends ChangeNotifier {
       'not_connected': 'SIN CONECTAR',
       'accounts_visible': '%d CUENTA%s · %d VISIBLES',
 
-      // Notifications
       'notifications': 'Notificaciones',
       'notifications_on': 'Notificaciones activadas',
       'notifications_off': 'Notificaciones desactivadas',
       'task_reminder_title': 'Quest por vencer',
       'task_reminder_body': '"%s" vence en 1 hora',
 
-      // Profile
       'profile': 'Perfil de Notova',
       'experience': 'EXPERIENCIA',
       'next_level': '¡PRÓXIMO NIVEL!',
@@ -192,7 +185,6 @@ class AppStrings extends ChangeNotifier {
       'edit_name_subtitle': 'Cambia tu nombre de perfil',
       'your_name': 'Tu nombre',
 
-      // Settings
       'settings': 'AJUSTES',
       'export_quests': 'Exportar Quests',
       'export_subtitle': 'Descarga tu historial en .csv / .txt',
@@ -216,7 +208,6 @@ class AppStrings extends ChangeNotifier {
       'preparing_file': 'Preparando archivo…',
       'export_failed': 'No se pudo exportar el archivo. Inténtalo de nuevo.',
 
-      // Badge names
       'badge_first_quest': 'Primera Quest',
       'badge_streak_3': 'Racha x3',
       'badge_streak_7': 'Racha x7',
@@ -224,7 +215,6 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_5': 'Maestro',
       'badge_nivel_7': 'SuperNotova',
 
-      // Months / Days (for date formatting)
       'months_short': 'Ene,Feb,Mar,Abr,May,Jun,Jul,Ago,Sep,Oct,Nov,Dic',
       'months_long': 'ENERO,FEBRERO,MARZO,ABRIL,MAYO,JUNIO,JULIO,AGOSTO,SEPTIEMBRE,OCTUBRE,NOVIEMBRE,DICIEMBRE',
       'days_short': 'Lun,Mar,Mié,Jue,Vie,Sáb,Dom',
@@ -232,7 +222,6 @@ class AppStrings extends ChangeNotifier {
     },
 
     'en': {
-      // General
       'app_name': 'Notova',
       'loading': 'Loading…',
       'cancel': 'Cancel',
@@ -242,7 +231,6 @@ class AppStrings extends ChangeNotifier {
       'error': 'Error',
       'great': 'Awesome!',
 
-      // Auth
       'login': 'Sign In',
       'register': 'Sign Up',
       'email': 'Email',
@@ -264,11 +252,9 @@ class AppStrings extends ChangeNotifier {
       'reset_email_failed': 'Could not send the email.',
       'or_continue_with': 'OR CONTINUE WITH',
 
-      // Splash
       'hello': 'Hello',
       'splash_subtitle': 'Level up your productivity',
 
-      // Onboarding
       'onboarding_title_1': 'Welcome to Notova',
       'onboarding_sub_1': 'Turn your tasks into Quests.\nEarn XP, level up and build lasting habits.',
       'onboarding_title_2': 'Rank System',
@@ -279,13 +265,11 @@ class AppStrings extends ChangeNotifier {
       'next': 'Next',
       'start': 'Get Started',
 
-      // Navigation
       'nav_home': 'Home',
       'nav_calendar': 'Calendar',
       'nav_quests': 'Quests',
       'nav_profile': 'Profile',
 
-      // Home
       'good_morning': 'Good morning',
       'good_afternoon': 'Good afternoon',
       'good_evening': 'Good evening',
@@ -303,18 +287,19 @@ class AppStrings extends ChangeNotifier {
       'view_all': 'View All',
       'in_minutes': 'IN %d MINUTES',
       'at_time': 'AT %s',
+      'today': 'TODAY',
+      'tomorrow': 'TOMORROW',
+      'no_upcoming_week': 'No upcoming events',
       'xp_to_next': '%s XP to reach Level %d. Keep it up!',
       'level': 'LEVEL',
       'streak': 'STREAK',
       'ranking': 'Ranking',
       'days': 'days',
 
-      // Priorities
       'priority_high': 'HIGH',
       'priority_med': 'MED',
       'priority_low': 'LOW',
 
-      // Tasks
       'my_quests': 'My Quests',
       'all': 'All',
       'high_priority': 'High Priority',
@@ -335,7 +320,6 @@ class AppStrings extends ChangeNotifier {
       'keep_completing': 'Keep completing quests to level up!',
       'level_up': 'Level Up!',
 
-      // Calendar
       'calendar': 'Calendar',
       'my_calendars': 'My Calendars',
       'connect_calendar': 'CONNECT GOOGLE CALENDAR',
@@ -361,14 +345,12 @@ class AppStrings extends ChangeNotifier {
       'not_connected': 'NOT CONNECTED',
       'accounts_visible': '%d ACCOUNT%s · %d VISIBLE',
 
-      // Notifications
       'notifications': 'Notifications',
       'notifications_on': 'Notifications enabled',
       'notifications_off': 'Notifications disabled',
       'task_reminder_title': 'Quest due soon',
       'task_reminder_body': '"%s" is due in 1 hour',
 
-      // Profile
       'profile': 'Notova Profile',
       'experience': 'EXPERIENCE',
       'next_level': 'NEXT LEVEL!',
@@ -385,7 +367,6 @@ class AppStrings extends ChangeNotifier {
       'edit_name_subtitle': 'Change your profile name',
       'your_name': 'Your name',
 
-      // Settings
       'settings': 'SETTINGS',
       'export_quests': 'Export Quests',
       'export_subtitle': 'Download your history as .csv / .txt',
@@ -409,7 +390,6 @@ class AppStrings extends ChangeNotifier {
       'preparing_file': 'Preparing file…',
       'export_failed': 'Could not export the file. Try again.',
 
-      // Badge names
       'badge_first_quest': 'First Quest',
       'badge_streak_3': 'Streak x3',
       'badge_streak_7': 'Streak x7',
@@ -417,7 +397,6 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_5': 'Master',
       'badge_nivel_7': 'SuperNotova',
 
-      // Months / Days (for date formatting)
       'months_short': 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
       'months_long': 'JANUARY,FEBRUARY,MARCH,APRIL,MAY,JUNE,JULY,AUGUST,SEPTEMBER,OCTOBER,NOVEMBER,DECEMBER',
       'days_short': 'Mon,Tue,Wed,Thu,Fri,Sat,Sun',

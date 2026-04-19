@@ -38,6 +38,22 @@ class TasksViewModel extends ChangeNotifier {
   bool isLoading = true;
   String? errorMessage;
 
+  /// Devuelve las tareas completadas el día de hoy
+  List<TaskModel> get completedToday {
+    final now = DateTime.now();
+    return completed.where((t) =>
+        t.completedAt != null &&
+        t.completedAt!.year == now.year &&
+        t.completedAt!.month == now.month &&
+        t.completedAt!.day == now.day).toList();
+  }
+
+  /// Calcula el progreso diario (completadas hoy / (pendientes + completadas hoy))
+  double get dailyProgress {
+    final total = pending.length + completedToday.length;
+    return total > 0 ? completedToday.length / total : 0.0;
+  }
+
   TasksViewModel({
     TasksRepository? repository,
     UserRepository? userRepository,
@@ -56,13 +72,12 @@ class TasksViewModel extends ChangeNotifier {
     });
   }
 
-  // ── Carga: local primero, Firestore en background con MERGE ──────────────
-
+  /// Carga inmediatamente desde SQLite y luego sincroniza con Firestore en
+  /// segundo plano mediante [_backgroundSync].
   Future<void> _loadFromLocalThenSync() async {
     isLoading = true;
     notifyListeners();
 
-    // 1. Lectura inmediata desde SQLite (fuente de verdad).
     try {
       final localPending = await _db.getPendingTasks();
       final localCompleted = await _db.getCompletedTasks();
@@ -75,14 +90,12 @@ class TasksViewModel extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
 
-    // 2. Sync en background: empujar pendientes + traer cambios remotos.
     unawaited(_backgroundSync());
   }
 
   /// Sincronización en segundo plano. Nunca lanza ni modifica `errorMessage`
   /// si la red no está disponible — el modo offline es funcional al 100%.
   Future<void> _backgroundSync() async {
-    // 2a. Empujar mutaciones locales pendientes.
     try {
       final pendingPush = await _db.getPendingPushTasks();
       for (final row in pendingPush) {
@@ -102,20 +115,17 @@ class TasksViewModel extends ChangeNotifier {
           await _db.clearPendingPush(row.id);
         } catch (e) {
           debugPrint('[TasksVM] push pending failed for ${row.id}: $e');
-          // Lo dejamos como pendingPush=true; reintentamos al siguiente sync.
         }
       }
     } catch (e) {
       debugPrint('[TasksVM] background push failed: $e');
     }
 
-    // 2b. Bajar de Firestore y mergear sin pisar lo local.
     try {
       final remote = await _repository.getAllTasks();
       final companions = remote.map(_modelToCompanion).toList();
       await _db.mergeFromFirestore(companions);
 
-      // Recargar UI desde SQLite tras merge.
       final localPending = await _db.getPendingTasks();
       final localCompleted = await _db.getCompletedTasks();
       pending = localPending.map(_localToModel).toList();
@@ -126,10 +136,15 @@ class TasksViewModel extends ChangeNotifier {
     }
   }
 
+  /// Recarga las tareas desde SQLite y dispara una sincronización en
+  /// segundo plano.
   Future<void> refresh() => _loadFromLocalThenSync();
 
-  // ── Crear tarea (SQLite primero, Firestore en background) ────────────────
-
+  /// Crea una nueva tarea y la persiste en SQLite como fuente de verdad.
+  ///
+  /// El ID se genera localmente para no depender de la red. La tarea se
+  /// empuja a Firestore en background marcada con `pendingPush`. Retorna
+  /// `true` si la operación local fue exitosa.
   Future<bool> createTask(
     String title,
     String subtitle,
@@ -140,7 +155,6 @@ class TasksViewModel extends ChangeNotifier {
   }) async {
     errorMessage = null;
 
-    // 1. Generar ID localmente (sin tocar la red).
     final taskId = _repository.generateTaskId();
     if (taskId == null) {
       errorMessage = 'Tienes que iniciar sesión para crear quests.';
@@ -160,7 +174,6 @@ class TasksViewModel extends ChangeNotifier {
       color: color,
     );
 
-    // 2. Escribir en SQLite (fuente de verdad) marcado como pendingPush.
     try {
       await _db.upsertTask(_modelToCompanion(task, pendingPush: true));
     } catch (e) {
@@ -169,11 +182,9 @@ class TasksViewModel extends ChangeNotifier {
       return false;
     }
 
-    // 3. Actualizar UI inmediatamente.
     pending.insert(0, task);
     notifyListeners();
 
-    // 4. Efectos secundarios (cada uno aislado — nunca rompen la creación).
     _safeNotify(
       title: '🎯 Nueva Quest añadida',
       body: '"$title" — ¡a por ella!',
@@ -183,14 +194,15 @@ class TasksViewModel extends ChangeNotifier {
       _safeScheduleReminder(taskId: taskId, title: title, dueDate: dueDate);
     }
 
-    // 5. Push a Firestore en background.
     unawaited(_pushTask(task));
 
     return true;
   }
 
-  // ── Editar tarea ─────────────────────────────────────────────────────────
-
+  /// Actualiza los campos de una tarea existente, persiste el cambio en
+  /// SQLite y empuja a Firestore en background.
+  ///
+  /// Retorna `true` si la actualización local fue exitosa.
   Future<bool> updateTask(
     String taskId,
     String title,
@@ -233,8 +245,6 @@ class TasksViewModel extends ChangeNotifier {
     return true;
   }
 
-  // ── Completar tarea ──────────────────────────────────────────────────────
-
   /// Marca la tarea como completada. SQLite + UI son la fuente de verdad;
   /// Firestore y efectos secundarios viajan en segundo plano y nunca
   /// causan rollback (era el bug).
@@ -247,7 +257,6 @@ class TasksViewModel extends ChangeNotifier {
       completedAt: DateTime.now(),
     );
 
-    // 1. Escribir SQLite. Si falla, no movemos nada en la UI.
     try {
       await _db.markCompleted(taskId, needsPush: true);
     } catch (e) {
@@ -256,24 +265,18 @@ class TasksViewModel extends ChangeNotifier {
       return false;
     }
 
-    // 2. UI optimista — local ya tiene la verdad.
     pending.removeAt(idx);
     completed.insert(0, completedTask);
     notifyListeners();
 
-    // 3. Push a Firestore + XP en background. Si falla, queda pendingPush.
     bool didLevelUp = false;
     try {
       didLevelUp = await _repository.completeTask(taskId, xpReward);
       await _db.clearPendingPush(taskId);
     } catch (e) {
       debugPrint('[TasksVM] Firestore complete failed (offline?): $e');
-      // Dejamos pendingPush=true; sync futura lo empujará.
-      // El XP NO se sumó si Firestore falló — lo intentamos sumar local-only
-      // sólo si tenemos conexión. Para offline, el XP llegará al sincronizar.
     }
 
-    // 4. Efectos secundarios — aislados. Nunca causan rollback.
     _safeCancelReminder(taskId);
     _safeUpdateStreak();
     _safePlayTaskComplete();
@@ -287,12 +290,53 @@ class TasksViewModel extends ChangeNotifier {
     return didLevelUp;
   }
 
-  // ── Utilidades ───────────────────────────────────────────────────────────
+  /// Elimina permanentemente una tarea completada de SQLite y de Firestore.
+  ///
+  /// La eliminación local es inmediata; Firestore se actualiza en background.
+  Future<void> deleteTask(String taskId) async {
+    try {
+      await _db.deleteTask(taskId);
+    } catch (e) {
+      debugPrint('[TasksVM] deleteTask local failed: $e');
+      return;
+    }
+    completed.removeWhere((t) => t.id == taskId);
+    notifyListeners();
+    unawaited(() async {
+      try {
+        await _repository.deleteTask(taskId);
+      } catch (e) {
+        debugPrint('[TasksVM] deleteTask Firestore failed: $e');
+      }
+    }());
+  }
 
+  /// Elimina todas las tareas completadas de SQLite y de Firestore.
+  Future<void> deleteAllCompleted() async {
+    final ids = completed.map((t) => t.id).toList();
+    for (final id in ids) {
+      try {
+        await _db.deleteTask(id);
+      } catch (_) {}
+    }
+    completed.clear();
+    notifyListeners();
+    for (final id in ids) {
+      unawaited(() async {
+        try {
+          await _repository.deleteTask(id);
+        } catch (_) {}
+      }());
+    }
+  }
+
+  /// Verifica y actualiza la racha diaria del usuario.
   Future<void> checkStreakOnView() async {
     await _userRepository.checkAndUpdateStreak();
   }
 
+  /// Empuja una [TaskModel] a Firestore y, si tiene éxito, limpia la marca
+  /// `pendingPush` en SQLite.
   Future<void> _pushTask(TaskModel task) async {
     try {
       await _repository.setTask(
@@ -313,8 +357,7 @@ class TasksViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Wrappers seguros para efectos secundarios ────────────────────────────
-
+  /// Muestra una notificación instantánea sin propagar el error si falla.
   void _safeNotify({required String title, required String body, int? id}) {
     unawaited(() async {
       try {
@@ -326,6 +369,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
+  /// Programa un recordatorio para la tarea sin propagar el error si falla.
   void _safeScheduleReminder({
     required String taskId,
     required String title,
@@ -341,6 +385,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
+  /// Cancela el recordatorio de la tarea sin propagar el error si falla.
   void _safeCancelReminder(String taskId) {
     unawaited(() async {
       try {
@@ -351,6 +396,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
+  /// Actualiza la racha diaria sin propagar el error si falla.
   void _safeUpdateStreak() {
     unawaited(() async {
       try {
@@ -361,6 +407,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
+  /// Reproduce el sonido de tarea completada sin propagar el error si falla.
   void _safePlayTaskComplete() {
     unawaited(() async {
       try {
@@ -371,6 +418,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
+  /// Reproduce el sonido de subida de nivel sin propagar el error si falla.
   void _safePlayLevelUp() {
     unawaited(() async {
       try {
@@ -381,8 +429,7 @@ class TasksViewModel extends ChangeNotifier {
     }());
   }
 
-  // ── Conversiones TaskModel ↔ SQLite ──────────────────────────────────────
-
+  /// Convierte una fila [LocalTask] de SQLite a un [TaskModel] de dominio.
   TaskModel _localToModel(LocalTask row) {
     return TaskModel(
       id: row.id,
@@ -398,6 +445,10 @@ class TasksViewModel extends ChangeNotifier {
     );
   }
 
+  /// Convierte un [TaskModel] en un [LocalTasksCompanion] para drift.
+  ///
+  /// Si [pendingPush] es `true`, la fila queda marcada para ser enviada a
+  /// Firestore en la siguiente sincronización.
   LocalTasksCompanion _modelToCompanion(TaskModel task,
       {bool pendingPush = false}) {
     return LocalTasksCompanion(

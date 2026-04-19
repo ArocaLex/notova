@@ -56,6 +56,30 @@ lib/
 
 **Flujo de datos:** `Page` → observa `ViewModel` → llama a `Repository` → Firebase / SQLite / API
 
+## Guía de documentación de código
+
+El estándar de documentación para Dart (`///`, estilo de comentarios y cobertura por capa) está en:
+
+- `docs/GUIA_DOCUMENTACION_CODIGO.md`
+
+### Generar y abrir DartDoc (con buscador funcional)
+
+Para consultar la documentación de API con la barra de búsqueda activa:
+
+1. Genera la documentación en `doc/api`.
+2. Levanta un servidor HTTP local apuntando a esa carpeta.
+3. Abre la URL local en el navegador.
+
+```bash
+flutter pub get
+dart doc --output doc/api
+python -m http.server 8080 --directory doc/api
+```
+
+Abre: `http://localhost:8080`
+
+> Importante: no abras `doc/api/index.html` con doble clic (`file://...`), porque el buscador puede quedarse en "Loading search...". DartDoc necesita servirse por HTTP para cargar correctamente el índice de búsqueda.
+
 ---
 
 ## Estructura del proyecto
@@ -74,8 +98,10 @@ notova/
 │   │   ├── task_repository.dart
 │   │   ├── local_task_repository.dart  # Caché SQLite
 │   │   ├── calendar_repository.dart
+│   │   ├── notification_repository.dart
 │   │   ├── audio_repository.dart
-│   │   └── export_repository.dart
+│   │   ├── export_repository.dart
+│   │   └── api_client.dart
 │   ├── viewmodel/
 │   │   ├── auth_viewmodel.dart
 │   │   ├── user_viewmodel.dart
@@ -89,7 +115,9 @@ notova/
 │   │   ├── home_screen.dart
 │   │   ├── task_screen.dart
 │   │   ├── calendar_screen.dart
-│   │   └── profile_screen.dart
+│   │   ├── profile_screen.dart
+│   │   ├── all_tasks_screen.dart
+│   │   └── all_events_screen.dart
 │   ├── database/
 │   │   ├── app_database.dart
 │   │   └── app_database.g.dart       # generado por build_runner
@@ -198,7 +226,7 @@ Authorization: Bearer <Firebase ID Token>
 
 ## Tests
 
-El proyecto tiene 52 tests unitarios sin dependencias de Firebase ni de red.
+El proyecto tiene tests unitarios sin dependencias de Firebase ni de red.
 
 ```bash
 flutter test test/unit/
@@ -206,16 +234,16 @@ flutter test test/unit/
 
 | Archivo | Tests | Qué cubre |
 |---|---|---|
-| `user_model_test.dart` | 23 | Todos los umbrales XP→nivel, 7 rangos, `xpProgress`, `xpRemaining` |
-| `task_model_test.dart` | 8 | `isOverdue` (4 casos), `formattedDueDate` (padding horas/minutos) |
-| `task_viewmodel_test.dart` | 8 | `createTask`, `updateTask`, `toggleTaskCompletion` con y sin level-up |
-| `auth_viewmodel_test.dart` | 7 | `signOut` verifica orden clearCache→signOut, `signInWithEmail`, `sendPasswordReset` |
+| `user_model_test.dart` | - | Todos los umbrales XP→nivel, 7 rangos, `xpProgress`, `xpRemaining` |
+| `task_model_test.dart` | - | `isOverdue` (4 casos), `formattedDueDate` (padding horas/minutos) |
+| `task_viewmodel_test.dart` | - | `createTask`, `updateTask`, `toggleTaskCompletion` con y sin level-up |
+| `auth_viewmodel_test.dart` | - | `signOut` verifica orden clearCache→signOut, `signInWithEmail`, `sendPasswordReset` |
 
 ---
 
 ## Sistema de niveles
 
-| Nivel | Rango | XP mínimo | XP máximo |
+| Nivel | Rango | XP mínima | XP máxima |
 |---|---|---|---|
 | 1 | Novato | 0 | 150 |
 | 2 | Aspirante | 151 | 500 |

@@ -3,6 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+/// Repositorio de notificaciones locales para Notova.
+///
+/// Singleton que encapsula [FlutterLocalNotificationsPlugin] para mostrar
+/// notificaciones instantáneas y programar recordatorios vinculados a las
+/// tareas del usuario. Respeta la preferencia de activación almacenada en
+/// [SharedPreferences].
 class NotificationRepository {
   static const _prefKey = 'notifications_enabled';
   static final NotificationRepository _instance = NotificationRepository._();
@@ -12,8 +18,9 @@ class NotificationRepository {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
+  /// Inicializa el plugin de notificaciones y configura la zona horaria.
+  ///
+  /// Es idempotente: las llamadas sucesivas no tienen efecto.
   Future<void> init() async {
     if (_initialized) return;
 
@@ -36,13 +43,14 @@ class NotificationRepository {
     _initialized = true;
   }
 
-  // ── Preference ────────────────────────────────────────────────────────────
-
+  /// Indica si las notificaciones están activadas por el usuario.
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_prefKey) ?? false;
   }
 
+  /// Activa o desactiva las notificaciones y cancela todas las pendientes
+  /// si [value] es `false`.
   Future<void> setEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, value);
@@ -51,12 +59,13 @@ class NotificationRepository {
     }
   }
 
-  // ── Request permission (Android 13+ / iOS) ───────────────────────────────
-
+  /// Solicita permiso de notificaciones al sistema operativo.
+  ///
+  /// Retorna `true` si el permiso fue concedido. En plataformas que no
+  /// requieren permiso explícito, retorna `true` directamente.
   Future<bool> requestPermission() async {
     await init();
 
-    // Android 13+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
@@ -64,7 +73,6 @@ class NotificationRepository {
       return granted ?? false;
     }
 
-    // iOS
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
     if (ios != null) {
@@ -79,8 +87,6 @@ class NotificationRepository {
     return true;
   }
 
-  // ── Schedule / Cancel ─────────────────────────────────────────────────────
-
   static const _notifDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       'task_reminders',
@@ -93,7 +99,7 @@ class NotificationRepository {
     iOS: DarwinNotificationDetails(),
   );
 
-  /// Muestra notificación inmediata (tarea creada, completada, etc.)
+  /// Muestra una notificación instantánea si las notificaciones están activadas.
   Future<void> showInstant({
     required String title,
     required String body,
@@ -111,7 +117,10 @@ class NotificationRepository {
     );
   }
 
-  /// Programa notificación 1 hora antes de [dueDate].
+  /// Programa recordatorios 1 hora y 1 día antes de [dueDate] para la tarea.
+  ///
+  /// Solo programa una notificación si la fecha calculada es posterior al
+  /// momento actual. No tiene efecto si las notificaciones están desactivadas.
   Future<void> scheduleTaskReminder({
     required String taskId,
     required String title,
@@ -121,7 +130,6 @@ class NotificationRepository {
     if (!enabled) return;
     await init();
 
-    // 1-hour reminder
     final oneHourBefore = dueDate.subtract(const Duration(hours: 1));
     if (oneHourBefore.isAfter(DateTime.now())) {
       final tzTime = tz.TZDateTime.from(oneHourBefore, tz.local);
@@ -135,7 +143,6 @@ class NotificationRepository {
       );
     }
 
-    // 1-day reminder
     final oneDayBefore = dueDate.subtract(const Duration(days: 1));
     if (oneDayBefore.isAfter(DateTime.now())) {
       final tzTime = tz.TZDateTime.from(oneDayBefore, tz.local);
@@ -150,7 +157,8 @@ class NotificationRepository {
     }
   }
 
-  /// Cancela las notificaciones programadas para una tarea.
+  /// Cancela las notificaciones programadas para la tarea identificada por
+  /// [taskId] (recordatorio de 1 hora y de 1 día).
   Future<void> cancelTaskReminder(String taskId) async {
     await init();
     await _plugin.cancel(id: taskId.hashCode);

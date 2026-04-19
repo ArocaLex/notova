@@ -4,19 +4,51 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../theme/app_colors.dart';
+import '../viewmodel/calendar_viewmodel.dart';
 import 'calendar_screen.dart';
 import 'home_screen.dart';
 import 'task_screen.dart';
 import 'profile_screen.dart';
 
+/// Contenedor principal de la app con navegación inferior.
+///
+/// Aloja las pantallas base (Home, Calendar, Quests y Profile) y mantiene el
+/// estado de navegación usando un `IndexedStack` para preservar el estado de
+/// cada pestaña.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
+
+  /// Altura total de la cápsula de navegación desde la parte inferior
+  /// de la pantalla, incluyendo el inset del sistema (home indicator /
+  /// barra de 3 botones).
+  static double navBarHeight(BuildContext context) {
+    final sys = MediaQuery.of(context).viewPadding.bottom;
+    return _capsuleHeight + (sys > 0 ? sys + 16.0 : 24.0);
+  }
+
+  /// Distancia desde la parte inferior de la pantalla a la que debe
+  /// posicionarse la parte inferior de un FAB para quedar por encima
+  /// de la cápsula con un margen de 12 px.
+  static double fabBottom(BuildContext context) =>
+      navBarHeight(context) + 12.0;
+
+  /// Altura del contenedor de la cápsula de navegación.
+  static const double _capsuleHeight = 66.0;
 
   @override
   MainScreenState createState() => MainScreenState();
 }
 
-class MainScreenState extends State<MainScreen> {
+/// Estado de [MainScreen].
+///
+/// Usa [WidgetsBindingObserver] para detectar el retorno de la app desde
+/// background y reposicionar el calendario en el día de hoy cuando la
+/// pestaña activa es la de calendario.
+class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
+  /// Índice de la pestaña del calendario dentro de [_screens].
+  static const int _calendarTabIndex = 1;
+
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -27,76 +59,108 @@ class MainScreenState extends State<MainScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Al volver a primer plano con la pestaña calendario activa, reposiciona
+  /// el calendario en el día de hoy para que no quede "atascado" en una
+  /// fecha previamente seleccionada.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _currentIndex == _calendarTabIndex) {
+      context.read<CalendarViewModel>().resetToToday();
+    }
+  }
+
+  /// Cambia la pestaña activa y, al entrar al calendario desde otra pestaña,
+  /// reposiciona la vista en el día de hoy.
+  void _onTabTap(int index) {
+    if (index == _calendarTabIndex && _currentIndex != _calendarTabIndex) {
+      context.read<CalendarViewModel>().resetToToday();
+    }
+    setState(() => _currentIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    // Detecta el espacio que ocupan los botones del sistema (si el usuario los tiene)
-    final systemBottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final sys = MediaQuery.of(context).viewPadding.bottom;
+    final navBottom = sys > 0 ? sys + 16.0 : 24.0;
 
     return Scaffold(
-      extendBody: true,
-      backgroundColor: const Color(0xFF120E1A),
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: _screens),
 
-      bottomNavigationBar: Padding(
-        padding: EdgeInsets.only(
-          bottom: systemBottomPadding > 0 ? systemBottomPadding + 16 : 24,
-        ),
-        child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center, // Centra la cápsula en la pantalla
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFF1E1E1E,
-                ).withOpacity(0.95), // Gris muy oscuro casi opaco
-                borderRadius: BorderRadius.circular(40), // Forma de cápsula
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.6),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                  // Brillo sutil superior para efecto cristal
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.05),
-                    blurRadius: 1,
-                    offset: const Offset(0, -1),
-                  ),
-                ],
-              ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: navBottom),
               child: Row(
-                mainAxisSize: MainAxisSize
-                    .min, // Hace que la caja solo ocupe lo necesario
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildNavItem(0, Icons.home_rounded, s.get('nav_home')),
-                  const SizedBox(width: 4),
-                  _buildNavItem(1, Icons.calendar_month_rounded, s.get('nav_calendar')),
-                  const SizedBox(width: 4),
-                  _buildNavItem(2, Icons.check_circle_rounded, s.get('nav_quests')),
-                  const SizedBox(width: 4),
-                  _buildNavItem(3, Icons.person_rounded, s.get('nav_profile')),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.card.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(40),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.6),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.05),
+                          blurRadius: 1,
+                          offset: const Offset(0, -1),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildNavItem(0, Icons.home_rounded, s.get('nav_home')),
+                        const SizedBox(width: 4),
+                        _buildNavItem(
+                            1, Icons.calendar_month_rounded, s.get('nav_calendar')),
+                        const SizedBox(width: 4),
+                        _buildNavItem(
+                            2, Icons.check_circle_rounded, s.get('nav_quests')),
+                        const SizedBox(width: 4),
+                        _buildNavItem(
+                            3, Icons.person_rounded, s.get('nav_profile')),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // --- WIDGET DEL BOTÓN ANIMADO ---
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
-    const primaryPurple = Color(0xFF8A2BE2);
+    const primaryPurple = AppColors.primaryPurple;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
+      onTap: () => _onTabTap(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -106,12 +170,10 @@ class MainScreenState extends State<MainScreen> {
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          // Fondo morado semitransparente si está seleccionado
           color: isSelected
               ? primaryPurple.withOpacity(0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
-          // Borde morado sutil si está seleccionado
           border: isSelected
               ? Border.all(color: primaryPurple.withOpacity(0.5), width: 1)
               : Border.all(color: Colors.transparent, width: 1),
@@ -123,7 +185,6 @@ class MainScreenState extends State<MainScreen> {
               color: isSelected ? primaryPurple : Colors.grey.shade600,
               size: 26,
             ),
-            // La magia de la expansión: El texto aparece o desaparece
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
@@ -139,7 +200,7 @@ class MainScreenState extends State<MainScreen> {
                         ),
                       ),
                     )
-                  : const SizedBox.shrink(), // No ocupa espacio si no está seleccionado
+                  : const SizedBox.shrink(),
             ),
           ],
         ),

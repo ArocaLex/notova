@@ -25,24 +25,37 @@ class AudioRepository {
     _initialized = true;
   }
 
+  /// Reproduce el SFX asociado a completar una quest.
+  ///
+  /// No tiene efecto si el usuario desactivó los sonidos mediante
+  /// [setSfxEnabled].
   Future<void> playTaskComplete() async {
     await _ensureInit();
     if (!_sfxEnabled) return;
     await _player.play(AssetSource('audio/task_complete.mp3'));
   }
 
+  /// Reproduce el SFX asociado a subir de nivel.
+  ///
+  /// No tiene efecto si el usuario desactivó los sonidos mediante
+  /// [setSfxEnabled].
   Future<void> playLevelUp() async {
     await _ensureInit();
     if (!_sfxEnabled) return;
     await _player.play(AssetSource('audio/level_up.mp3'));
   }
 
+  /// Activa o desactiva los efectos de sonido.
+  ///
+  /// Persiste la preferencia en [SharedPreferences] bajo la clave
+  /// `sfx_enabled`.
   Future<void> setSfxEnabled(bool value) async {
     _sfxEnabled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('sfx_enabled', value);
   }
 
+  /// Indica si los efectos de sonido están activos en esta sesión.
   bool get sfxEnabled => _sfxEnabled;
 
   /// Carga la preferencia actual (útil para leer antes de mostrar el toggle en UI).

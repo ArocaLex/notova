@@ -6,6 +6,16 @@ Auth:      Firebase Admin SDK (verificación de ID tokens)
 DB:        Cloud Firestore (lectura/escritura de tareas)
 Despliegue: PythonAnywhere (arocaalex.pythonanywhere.com)
 
+Este servicio expone endpoints para:
+
+- CRUD de tareas bajo `/tareas`.
+- Exportación de tareas a TXT y CSV bajo `/exportar/*`.
+
+Autenticación:
+
+- Los endpoints protegidos requieren el header `Authorization: Bearer <token>`,
+  donde `<token>` es un Firebase ID Token emitido por Firebase Auth.
+"""
 
 import csv
 import io
@@ -66,7 +76,12 @@ db = firestore.client()
 # ═══════════════════════════════════════════════════════════════════════
 
 def require_auth(f):
-    """Verifica el Firebase ID Token del header Authorization."""
+    """Protege un endpoint verificando el Firebase ID Token.
+
+    Lee el header `Authorization` con formato `Bearer <token>`. Si el token es
+    válido, guarda el UID verificado en `flask.g.uid` para que las funciones de
+    endpoint puedan resolver el árbol Firestore `/users/{uid}`.
+    """
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         header = request.headers.get("Authorization", "")
@@ -88,18 +103,22 @@ def require_auth(f):
 
 @app.errorhandler(400)
 def bad_request(e):
+    """Manejador global para errores 400 (validación / entrada inválida)."""
     return jsonify({"error": "Petición incorrecta", "detalle": str(e)}), 400
 
 @app.errorhandler(404)
 def not_found(e):
+    """Manejador global para errores 404 (ruta o recurso inexistente)."""
     return jsonify({"error": "Recurso no encontrado"}), 404
 
 @app.errorhandler(405)
 def method_not_allowed(e):
+    """Manejador global para errores 405 (método HTTP no permitido)."""
     return jsonify({"error": "Método HTTP no permitido"}), 405
 
 @app.errorhandler(500)
 def server_error(e):
+    """Manejador global para errores 500 (excepción no controlada)."""
     return jsonify({"error": "Error interno del servidor"}), 500
 
 

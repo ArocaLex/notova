@@ -1,19 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Modelo de tarea (Quest) de Notova.
+/// Representa una tarea (Quest) dentro de Notova.
 ///
-/// Firestore: /users/{uid}/tasks/{taskId}
+/// Cada tarea posee una prioridad (`'HIGH'`, `'MED'` o `'LOW'`), una
+/// recompensa en XP y, opcionalmente, un color hexadecimal (por ejemplo,
+/// `'#FF5252'`) para personalizar su apariencia en la interfaz.
+///
+/// Firestore: `/users/{uid}/tasks/{taskId}`.
 class TaskModel {
   final String id;
   final String title;
   final String subtitle;
-  final String priority; // 'HIGH' | 'MED' | 'LOW'
+  final String priority;
   final int xpReward;
   final bool isCompleted;
   final DateTime? dueDate;
   final DateTime? createdAt;
   final DateTime? completedAt;
-  final String? color; // Hex color string e.g. '#FF5252'
+  final String? color;
 
   const TaskModel({
     required this.id,
@@ -28,6 +32,8 @@ class TaskModel {
     this.color,
   });
 
+  /// Crea una instancia de [TaskModel] a partir de un [QueryDocumentSnapshot]
+  /// de Firestore, aplicando valores por defecto cuando los campos son nulos.
   factory TaskModel.fromFirestore(QueryDocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return TaskModel(
@@ -44,6 +50,8 @@ class TaskModel {
     );
   }
 
+  /// Retorna una copia de este [TaskModel] con los campos indicados
+  /// reemplazados por los nuevos valores proporcionados.
   TaskModel copyWith({
     bool? isCompleted,
     DateTime? completedAt,
@@ -68,7 +76,8 @@ class TaskModel {
     );
   }
 
-  /// True si la tarea tiene fecha de vencimiento pasada y no está completada.
+  /// Indica si la tarea tiene una fecha de vencimiento pasada y aun no ha
+  /// sido completada.
   bool get isOverdue =>
       dueDate != null && !isCompleted && dueDate!.isBefore(DateTime.now());
 

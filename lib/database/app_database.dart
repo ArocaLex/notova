@@ -12,8 +12,8 @@ part 'app_database.g.dart';
 /// Usa drift como ORM: las columnas se definen como propiedades Dart
 /// y drift genera el SQL, las clases de datos y los DAOs automáticamente.
 class LocalTasks extends Table {
-  // Clave primaria: el ID del documento de Firestore (o UUID local cuando se
-  // crea offline antes de que Firestore le asigne uno).
+  /// Clave primaria: identificador del documento Firestore o UUID asignado
+  /// localmente cuando la tarea se crea sin conexión.
   TextColumn get id => text()();
   TextColumn get title => text().withLength(min: 1)();
   TextColumn get subtitle => text().withDefault(const Constant(''))();
@@ -97,8 +97,6 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  // ── Tasks: lectura ──────────────────────────────────────────────────
-
   /// Todas las tareas pendientes, ordenadas por fecha de creación.
   Future<List<LocalTask>> getPendingTasks() {
     return (select(localTasks)
@@ -148,8 +146,6 @@ class AppDatabase extends _$AppDatabase {
   Future<List<LocalTask>> getPendingPushTasks() {
     return (select(localTasks)..where((t) => t.pendingPush.equals(true))).get();
   }
-
-  // ── Tasks: escritura ────────────────────────────────────────────────
 
   /// Inserta o reemplaza una tarea (upsert).
   Future<void> upsertTask(LocalTasksCompanion task) {
@@ -204,8 +200,6 @@ class AppDatabase extends _$AppDatabase {
     return delete(localTasks).go();
   }
 
-  // ── Calendar accounts: lectura ──────────────────────────────────────
-
   /// Todas las cuentas de calendario guardadas.
   Future<List<LocalCalendarAccount>> getAllCalendarAccounts() {
     return (select(localCalendarAccounts)
@@ -219,8 +213,6 @@ class AppDatabase extends _$AppDatabase {
           ..where((c) => c.accountEmail.equals(email)))
         .get();
   }
-
-  // ── Calendar accounts: escritura ────────────────────────────────────
 
   /// Inserta o actualiza una cuenta.
   Future<void> upsertCalendarAccount(LocalCalendarAccountsCompanion acc) {

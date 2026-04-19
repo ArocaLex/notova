@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+/// Excepción de dominio para errores de autenticación en la app.
 class AuthException implements Exception {
   final String message;
   AuthException(this.message);
@@ -10,46 +11,44 @@ class AuthException implements Exception {
   String toString() => message;
 }
 
+/// Repositorio de autenticación de Notova.
+///
+/// Encapsula el acceso a [FirebaseAuth] y [GoogleSignIn], traduce códigos de
+/// error técnicos a mensajes legibles para la UI y expone operaciones de
+/// sesión (login, registro, recuperación y cierre de sesión).
 class AuthRepository {
   final FirebaseAuth _auth;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  bool _isGoogleInitialized = false;
 
   AuthRepository({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
 
+  /// Usuario autenticado en la sesión actual, o `null` si no hay sesión.
   User? get currentUser => _auth.currentUser;
 
+  /// Stream reactivo de cambios de autenticación de Firebase.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  Future<void> _ensureGoogleInitialized() async {
-    if (!_isGoogleInitialized) {
-      await _googleSignIn.initialize();
-      _isGoogleInitialized = true;
-    }
-  }
-
+  /// Inicia sesión con Google y autentica esa cuenta en Firebase.
+  ///
+  /// Retorna el [User] autenticado o lanza [AuthException] si ocurre un fallo
+  /// de autenticación o de conectividad.
   Future<User?> signInWithGoogle() async {
     try {
-      await _ensureGoogleInitialized();
 
-      // 2. La nueva API usa authenticate() en lugar de signIn()
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
 
-      // 3. Obtener el idToken de la autenticación
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       final scopes = <String>['email', 'profile'];
       final authorization = await googleUser.authorizationClient
           .authorizationForScopes(scopes);
 
-      // 5. Crear credencial para Firebase combinando ambos tokens
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: authorization?.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // 6. Iniciar sesión en Firebase (Firebase guardará la sesión en el dispositivo)
       final UserCredential userCredential = await _auth.signInWithCredential(
         credential,
       );
@@ -62,7 +61,7 @@ class AuthRepository {
     }
   }
 
-  /// Iniciar sesión con Email y Contraseña
+  /// Inicia sesión con [email] y [password].
   Future<User?> signInWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.signInWithEmailAndPassword(
@@ -77,7 +76,7 @@ class AuthRepository {
     }
   }
 
-  /// Registrar nuevo usuario
+  /// Registra un nuevo usuario con [email] y [password].
   Future<User?> registerWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
@@ -92,7 +91,7 @@ class AuthRepository {
     }
   }
 
-  /// Enviar email de recuperación de contraseña
+  /// Envía un correo de recuperación de contraseña a [email].
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
@@ -103,18 +102,19 @@ class AuthRepository {
     }
   }
 
-  /// Cerrar sesión
+  /// Cierra la sesión local de Firebase y desconecta Google Sign-In.
   Future<void> signOut() async {
     try {
-      if (_isGoogleInitialized) {
+      try {
         await _googleSignIn.disconnect();
-      }
-      await _auth.signOut(); // Esto borra la sesión persistente de Firebase
+      } catch (_) {}
+      await _auth.signOut();
     } catch (e) {
       throw AuthException('Error al cerrar sesión.');
     }
   }
 
+  /// Traduce códigos de error de Firebase a mensajes en español.
   String _translateAuthError(String errorCode) {
     switch (errorCode) {
       case 'user-not-found':

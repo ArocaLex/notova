@@ -1,16 +1,36 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../repositories/notification_repository.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
+import '../viewmodel/task_viewmodel.dart';
 import '../models/calendar_event.dart';
+import '../theme/app_colors.dart';
 import 'all_events_screen.dart';
 import 'all_tasks_screen.dart';
+import 'main_screen.dart';
+
+/// Devuelve la imagen apropiada para el avatar dando prioridad al archivo
+/// local (para reflejar cambios al instante y funcionar sin conexión) y, como
+/// fallback, al `avatarUrl` remoto.
+ImageProvider? _avatarImageProvider(String? localPath, String? remoteUrl) {
+  if (localPath != null) {
+    final file = File(localPath);
+    if (file.existsSync()) return FileImage(file);
+  }
+  if (remoteUrl == null || remoteUrl.isEmpty) return null;
+  if (remoteUrl.startsWith('file://')) {
+    final path = remoteUrl.substring('file://'.length);
+    final file = File(path);
+    if (file.existsSync()) return FileImage(file);
+    return null;
+  }
+  return NetworkImage(remoteUrl);
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,13 +64,28 @@ class HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() => _notificationsOn = newValue);
     final s = context.read<AppStrings>();
+    
+    // Premium Toast-like Notification
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          newValue ? s.get('notifications_on') : s.get('notifications_off'),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        content: Row(
+          children: [
+            Icon(
+              newValue ? Icons.notifications_active : Icons.notifications_off,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                newValue ? s.get('notifications_on') : s.get('notifications_off'),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ],
         ),
-        backgroundColor: const Color(0xFF7B2CBF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: AppColors.primaryPurple,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -58,26 +93,23 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userVM = context.watch<UserViewModel>();
+    // Escuchamos el estado global de carga del usuario, pero delegamos los 
+    // datos específicos a Selectors para optimizar el rendimiento.
+    final isLoading = context.select((UserViewModel vm) => vm.isLoading);
+    final hasUser = context.select((UserViewModel vm) => vm.user != null);
     final s = context.watch<AppStrings>();
+    final navHeight = MainScreen.navBarHeight(context);
 
-    const bgColor = Color(0xFF120E1A);
-    const cardColor = Color(0xFF1E1926);
-    const primaryPurple = Color(0xFF7B2CBF);
-    const accentPurple = Color(0xFF8A2BE2);
-    const cyanAccent = Color(0xFFDEB7FF);
-
-    if (userVM.isLoading) {
+    if (isLoading) {
       return const Scaffold(
-        backgroundColor: bgColor,
-        body: Center(child: CircularProgressIndicator(color: primaryPurple)),
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primaryPurple)),
       );
     }
 
-    final user = userVM.user;
-    if (user == null) {
+    if (!hasUser) {
       return Scaffold(
-        backgroundColor: bgColor,
+        backgroundColor: AppColors.background,
         body: Center(
           child: Text(s.get('creating_profile'),
               style: const TextStyle(color: Colors.grey)),
@@ -85,263 +117,37 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- HEADER ---
-              Row(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [primaryPurple, cyanAccent],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryPurple.withOpacity(0.4),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Color(0xFF2A223E),
-                      child: Icon(Icons.person, color: Colors.white70, size: 28),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_greeting(s)}, ${user.name}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatDate(DateTime.now(), s),
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _toggleNotifications,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _notificationsOn
-                            ? primaryPurple.withOpacity(0.2)
-                            : cardColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _notificationsOn
-                              ? primaryPurple.withOpacity(0.5)
-                              : Colors.white10,
-                        ),
-                      ),
-                      child: Icon(
-                        _notificationsOn
-                            ? Icons.notifications_active
-                            : Icons.notifications_outlined,
-                        color: _notificationsOn
-                            ? primaryPurple
-                            : Colors.white70,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
+              _UserHeader(
+                notificationsOn: _notificationsOn,
+                onToggleNotifications: _toggleNotifications,
               ),
               const SizedBox(height: 24),
-
-              // --- TARJETA XP ---
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF5C1A99), primaryPurple],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryPurple.withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.flash_on, color: Colors.white, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              s.get('xp_progress'),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${_formatNumber(user.totalXpEver)} / ${_formatNumber(user.currentLevelMaxXp)} XP',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      height: 8,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: user.xpProgress,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      s.get('xp_to_next')
-                          .replaceFirst('%s', _formatNumber(user.xpRemaining))
-                          .replaceFirst('%d', '${user.level + 1}'),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const _XpCard(),
               const SizedBox(height: 28),
-
-              // --- UP NEXT ---
               _buildSectionHeader(s.get('up_next'), s.get('view_schedule'),
                 onAction: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const AllEventsScreen())),
               ),
               const SizedBox(height: 14),
-              _buildUpNextCard(context, s, cardColor, accentPurple, primaryPurple),
+              const _UpcomingEventsList(),
               const SizedBox(height: 28),
-
-              // --- TOP PENDING TASKS ---
               _buildSectionHeader(s.get('pending_quests'), s.get('view_all'),
                 onAction: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const AllTasksScreen())),
               ),
               const SizedBox(height: 14),
-              if (firebaseUid != null)
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(firebaseUid)
-                      .collection('tasks')
-                      .where('isCompleted', isEqualTo: false)
-                      .orderBy('createdAt', descending: true)
-                      .limit(3)
-                      .snapshots(),
-                  builder: (context, taskSnap) {
-                    if (!taskSnap.hasData || taskSnap.data!.docs.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        child: Text(
-                          s.get('no_pending_home'),
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      );
-                    }
-                    return Column(
-                      children: taskSnap.data!.docs.asMap().entries.map((entry) {
-                        final data = entry.value.data() as Map<String, dynamic>;
-                        final priority = data['priority'] as String? ?? 'MED';
-                        Color priorityColor = accentPurple;
-                        if (priority == 'HIGH') priorityColor = const Color(0xFFDEB7FF);
-                        if (priority == 'LOW') priorityColor = Colors.grey;
-                        return Column(
-                          children: [
-                            _buildTaskCard(
-                              data['title'] ?? '',
-                              data['subtitle'] ?? '',
-                              priority,
-                              priorityColor,
-                              s,
-                            ),
-                            if (entry.key < taskSnap.data!.docs.length - 1)
-                              const SizedBox(height: 10),
-                          ],
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
+              const _PendingTasksList(),
               const SizedBox(height: 28),
-
-              // --- STATS ---
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      Icons.local_fire_department,
-                      '${user.dayStreak} ${s.get('days')}',
-                      s.get('streak'),
-                      Colors.orangeAccent,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      Icons.emoji_events,
-                      user.rank,
-                      s.get('ranking'),
-                      cyanAccent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 100),
+              const _StatsRow(),
+              SizedBox(height: navHeight + 24),
             ],
           ),
         ),
@@ -349,17 +155,144 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _priorityLabel(String priority, AppStrings s) {
-    switch (priority) {
-      case 'HIGH':
-        return s.get('priority_high');
-      case 'MED':
-        return s.get('priority_med');
-      case 'LOW':
-        return s.get('priority_low');
-      default:
-        return priority;
-    }
+  Widget _buildSectionHeader(String title, String actionText, {VoidCallback? onAction}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        TextButton(
+          onPressed: onAction,
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(50, 30),
+          ),
+          child: Text(
+            actionText,
+            style: const TextStyle(
+              color: AppColors.primaryPurple,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UserHeader extends StatelessWidget {
+  final bool notificationsOn;
+  final VoidCallback onToggleNotifications;
+
+  const _UserHeader({
+    required this.notificationsOn,
+    required this.onToggleNotifications,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final user = context.select((UserViewModel vm) => vm.user!);
+    final localAvatar =
+        context.select((UserViewModel vm) => vm.localAvatarPath);
+    final avatarVersion =
+        context.select((UserViewModel vm) => vm.avatarVersion);
+    final avatarImage = _avatarImageProvider(localAvatar, user.avatarUrl);
+
+    return Row(
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [AppColors.primaryPurple, AppColors.cyanAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryPurple.withOpacity(0.4),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            key: ValueKey('home_avatar_$avatarVersion'),
+            radius: 24,
+            backgroundColor: const Color(0xFF2A223E),
+            backgroundImage: avatarImage,
+            child: avatarImage == null
+                ? const Icon(Icons.person, color: Colors.white70, size: 28)
+                : null,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${_greeting(s)}, ${user.name}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatDate(DateTime.now(), s),
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        GestureDetector(
+          onTap: onToggleNotifications,
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: notificationsOn
+                  ? AppColors.primaryPurple.withOpacity(0.2)
+                  : AppColors.card,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: notificationsOn
+                    ? AppColors.primaryPurple.withOpacity(0.5)
+                    : Colors.white10,
+              ),
+            ),
+            child: Icon(
+              notificationsOn
+                  ? Icons.notifications_active
+                  : Icons.notifications_outlined,
+              color: notificationsOn
+                  ? AppColors.primaryPurple
+                  : Colors.white70,
+              size: 20,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   String _greeting(AppStrings s) {
@@ -376,6 +309,104 @@ class HomeScreenState extends State<HomeScreen> {
         ? '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]}'
         : '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
   }
+}
+
+class _XpCard extends StatelessWidget {
+  const _XpCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.select((UserViewModel vm) => vm.user!);
+    final s = context.watch<AppStrings>();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5C1A99), AppColors.primaryPurple],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryPurple.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.flash_on, color: Colors.white, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    s.get('xp_progress'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${_formatNumber(user.totalXpEver)} / ${_formatNumber(user.currentLevelMaxXp)} XP',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 8,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: user.xpProgress,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.5),
+                      blurRadius: 6,
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            s.get('xp_to_next')
+                .replaceFirst('%s', _formatNumber(user.xpRemaining))
+                .replaceFirst('%d', '${user.level + 1}'),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
@@ -383,35 +414,250 @@ class HomeScreenState extends State<HomeScreen> {
       (Match m) => '${m[1]},',
     );
   }
+}
 
-  Widget _buildSectionHeader(String title, String actionText, {VoidCallback? onAction}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+/// Lista compacta de los próximos eventos agregados de todas las cuentas
+/// conectadas. Cada item muestra el día, el rango horario y la cuenta
+/// asociada en texto pequeño.
+class _UpcomingEventsList extends StatelessWidget {
+  const _UpcomingEventsList();
+
+  static const int _maxItems = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final upcoming =
+        context.select((CalendarViewModel vm) => vm.upcomingEvents);
+
+    if (!isSignedIn) {
+      return _infoCard(
+        icon: Icons.calendar_month_outlined,
+        message: s.get('connect_calendar_home'),
+      );
+    }
+
+    final now = DateTime.now();
+    final visible = upcoming
+        .where((e) => e.start != null && e.start!.isAfter(now))
+        .take(_maxItems)
+        .toList();
+
+    if (visible.isEmpty) {
+      return _infoCard(
+        icon: Icons.event_available,
+        message: s.get('no_upcoming_week'),
+      );
+    }
+
+    return Column(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        TextButton(
-          onPressed: onAction,
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(50, 30),
-          ),
-          child: Text(
-            actionText,
-            style: const TextStyle(
-              color: Color(0xFF7B2CBF),
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+        for (int i = 0; i < visible.length; i++) ...[
+          _UpcomingEventTile(event: visible[i]),
+          if (i < visible.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _infoCard({required IconData icon, required String message}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey.shade600, size: 32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Item compacto que representa un evento próximo en la lista de agenda
+/// del Home. Muestra una barra con el color de la cuenta, el título del
+/// evento, una etiqueta de día (HOY/MAÑANA/`LUN 21 ABR`), el rango horario
+/// y el email de la cuenta en texto pequeño.
+class _UpcomingEventTile extends StatelessWidget {
+  final CalendarEvent event;
+
+  const _UpcomingEventTile({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final accountColor = context.select(
+      (CalendarViewModel vm) => vm.calendarColor(event.calendarId),
+    );
+
+    final dayLabel = _dayLabel(event.start!, s);
+    final timeLabel = event.isAllDay
+        ? s.get('all_day')
+        : _formatTimeRange(event.start, event.end);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: 4,
+            decoration: BoxDecoration(
+              color: accountColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    height: 1.25,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      dayLabel,
+                      style: TextStyle(
+                        color: accountColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    Text(
+                      '  ·  ',
+                      style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+                    ),
+                    Flexible(
+                      child: Text(
+                        timeLabel,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  event.accountEmail,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 10,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Devuelve la etiqueta de día para [date]: `HOY`, `MAÑANA` o una
+  /// combinación de día de semana abreviado + número + mes (por ejemplo
+  /// `LUN 21 ABR` en español, `MON APR 21` en inglés).
+  String _dayLabel(DateTime date, AppStrings s) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = d.difference(today).inDays;
+    if (diff == 0) return s.get('today');
+    if (diff == 1) return s.get('tomorrow');
+    final days = s.get('days_short').split(',');
+    final months = s.get('months_short').split(',');
+    final weekday = days[date.weekday - 1].toUpperCase();
+    final month = months[date.month - 1].toUpperCase();
+    return s.isSpanish
+        ? '$weekday ${date.day} $month'
+        : '$weekday $month ${date.day}';
+  }
+
+  /// Formatea el rango horario del evento como `H:MM - H:MM AM/PM`, o sólo
+  /// `H:MM AM/PM` si no hay hora de fin.
+  String _formatTimeRange(DateTime? start, DateTime? end) {
+    if (start == null) return '';
+    String fmt(DateTime d) {
+      final h = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+      final m = d.minute.toString().padLeft(2, '0');
+      return '$h:$m';
+    }
+
+    String period(DateTime d) => d.hour >= 12 ? 'PM' : 'AM';
+
+    if (end == null) return '${fmt(start)} ${period(start)}';
+    return '${fmt(start)} - ${fmt(end)} ${period(end)}';
+  }
+}
+
+class _PendingTasksList extends StatelessWidget {
+  const _PendingTasksList();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final pendingTasks = context.select((TasksViewModel vm) => vm.pending);
+    
+    final tasksToShow = pendingTasks.take(3).toList();
+
+    if (tasksToShow.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        child: Text(
+          s.get('no_pending_home'),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
-      ],
+      );
+    }
+
+    return Column(
+      children: tasksToShow.asMap().entries.map((entry) {
+        final task = entry.value;
+        Color priorityColor = AppColors.accentPurple;
+        if (task.priority == 'HIGH') priorityColor = AppColors.cyanAccent;
+        if (task.priority == 'LOW') priorityColor = Colors.grey;
+        
+        return Column(
+          children: [
+            _buildTaskCard(task.title, task.subtitle, task.priority, priorityColor, s),
+            if (entry.key < tasksToShow.length - 1) const SizedBox(height: 10),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -425,7 +671,7 @@ class HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1926),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withOpacity(0.04)),
       ),
@@ -436,7 +682,7 @@ class HomeScreenState extends State<HomeScreen> {
             height: 22,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFF7B2CBF), width: 2),
+              border: Border.all(color: AppColors.primaryPurple, width: 2),
             ),
           ),
           const SizedBox(width: 14),
@@ -451,15 +697,21 @@ class HomeScreenState extends State<HomeScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -481,146 +733,48 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildUpNextCard(
-    BuildContext context,
-    AppStrings s,
-    Color cardColor,
-    Color accentPurple,
-    Color primaryPurple,
-  ) {
-    final calendarVM = context.watch<CalendarViewModel>();
-
-    if (!calendarVM.isSignedIn) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_month_outlined, color: Colors.grey.shade600, size: 32),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                s.get('connect_calendar_home'),
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-      );
+  String _priorityLabel(String priority, AppStrings s) {
+    switch (priority) {
+      case 'HIGH':
+        return s.get('priority_high');
+      case 'MED':
+        return s.get('priority_med');
+      case 'LOW':
+        return s.get('priority_low');
+      default:
+        return priority;
     }
+  }
+}
 
-    final now = DateTime.now();
-    CalendarEvent? nextEvent;
-    for (final event in calendarVM.events) {
-      if (event.isAllDay) continue;
-      if (event.start != null && event.start!.isAfter(now)) {
-        nextEvent = event;
-        break;
-      }
-    }
+class _StatsRow extends StatelessWidget {
+  const _StatsRow();
 
-    if (nextEvent == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.event_available, color: Colors.grey.shade600, size: 32),
-            const SizedBox(width: 16),
-            Text(
-              s.get('no_upcoming'),
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    final user = context.select((UserViewModel vm) => vm.user!);
+    final s = context.watch<AppStrings>();
 
-    final minutesUntil = nextEvent.start!.difference(now).inMinutes;
-    final timeLabel = minutesUntil <= 60
-        ? s.get('in_minutes').replaceFirst('%d', '$minutesUntil')
-        : s.get('at_time').replaceFirst('%s', nextEvent.formattedTime);
-
-    String endFormatted = '';
-    if (nextEvent.end != null) {
-      final h = nextEvent.end!.hour;
-      final m = nextEvent.end!.minute.toString().padLeft(2, '0');
-      final period = h >= 12 ? 'PM' : 'AM';
-      final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      endFormatted = '$displayH:$m $period';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  timeLabel,
-                  style: TextStyle(
-                    color: accentPurple,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  nextEvent.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  endFormatted.isNotEmpty
-                      ? '${nextEvent.formattedTime} - $endFormatted'
-                      : nextEvent.formattedTime,
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            Icons.local_fire_department,
+            '${user.dayStreak} ${s.get('days')}',
+            s.get('streak'),
+            Colors.orangeAccent,
           ),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: primaryPurple.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.event,
-              color: Color(0xFF7B2CBF),
-              size: 38,
-            ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            Icons.emoji_events,
+            user.rank,
+            s.get('ranking'),
+            AppColors.cyanAccent,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -628,7 +782,7 @@ class HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1926),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.04)),
       ),
@@ -644,11 +798,15 @@ class HomeScreenState extends State<HomeScreen> {
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

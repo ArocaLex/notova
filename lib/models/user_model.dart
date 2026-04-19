@@ -1,19 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// ============================================================================
-/// MODELO DE USUARIO — UserModel
-/// ============================================================================
+/// Representa al usuario autenticado en Notova.
 ///
-/// Sistema de niveles según el PRD v1.0 (basado en XP total acumulada):
-///   Nivel 1 (Novato):       0    - 150 XP
-///   Nivel 2 (Aspirante):    151  - 500 XP
-///   Nivel 3 (Táctico):      501  - 1.200 XP
-///   Nivel 4 (Ninja):        1.201 - 2.500 XP
-///   Nivel 5 (Maestro):      2.501 - 4.500 XP
-///   Nivel 6 (Leyenda):      4.501 - 7.500 XP
-///   Nivel 7 (SuperNotova):  +7.500 XP (end-game)
+/// Implementa el sistema de niveles definido en el PRD v1.0, donde el nivel
+/// se calcula a partir del XP total acumulado:
 ///
-/// Firestore: /users/{uid}
+/// | Nivel | Rango        | XP requerida    |
+/// |-------|------------- |-----------------|
+/// | 1     | Novato       | 0 -- 150        |
+/// | 2     | Aspirante    | 151 -- 500      |
+/// | 3     | Tactico      | 501 -- 1 200    |
+/// | 4     | Ninja        | 1 201 -- 2 500  |
+/// | 5     | Maestro      | 2 501 -- 4 500  |
+/// | 6     | Leyenda      | 4 501 -- 7 500  |
+/// | 7     | SuperNotova  | 7 501+          |
+///
+/// Firestore: `/users/{uid}`.
 class UserModel {
   final String uid;
   final String email;
@@ -43,8 +45,9 @@ class UserModel {
     this.avatarUrl,
   });
 
-  // ── Tabla de niveles PRD ──────────────────────────────────────────────────
-  // Cada entrada: (nivel, xpMínimo, xpMáximo)
+  /// Tabla de umbrales de nivel definida en el PRD.
+  ///
+  /// Cada entrada es una tupla `(nivel, xpMinimo, xpMaximo)`.
   static const List<(int, int, int)> _thresholds = [
     (1, 0, 150),
     (2, 151, 500),
@@ -55,6 +58,7 @@ class UserModel {
     (7, 7501, 99999999),
   ];
 
+  /// Nombres de rango ordenados por nivel (indice 0 = nivel 1).
   static const List<String> _rankNames = [
     'Novato',
     'Aspirante',
@@ -79,9 +83,8 @@ class UserModel {
     return _rankNames[idx];
   }
 
-  // ── Propiedades calculadas ────────────────────────────────────────────────
-
-  /// Progreso hacia el siguiente nivel (0.0 – 1.0).
+  /// Progreso hacia el siguiente nivel, expresado como un valor entre
+  /// `0.0` y `1.0`.
   double get xpProgress {
     if (level >= 7) return 1.0;
     final (_, min, max) = _thresholds[level - 1];
@@ -90,21 +93,21 @@ class UserModel {
     return ((totalXpEver - min) / range).clamp(0.0, 1.0);
   }
 
-  /// XP restante para subir de nivel.
+  /// Retorna la cantidad de XP restante para alcanzar el siguiente nivel.
   int get xpRemaining {
     if (level >= 7) return 0;
     final (_, _, max) = _thresholds[level - 1];
     return (max - totalXpEver).clamp(0, max);
   }
 
-  /// XP mínima del nivel actual (para mostrar en barras de progreso).
+  /// Obtiene la XP minima requerida para el nivel actual.
   int get currentLevelMinXp => _thresholds[(level - 1).clamp(0, 6)].$2;
 
-  /// XP máxima del nivel actual.
+  /// Obtiene la XP maxima del nivel actual.
   int get currentLevelMaxXp => _thresholds[(level - 1).clamp(0, 6)].$3;
 
-  // ── Factory: Firestore → UserModel ────────────────────────────────────────
-
+  /// Crea una instancia de [UserModel] a partir de un [DocumentSnapshot]
+  /// de Firestore, recalculando el nivel con [levelFromXp].
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final totalXpEver = data['totalXpEver'] as int? ?? 0;
@@ -125,8 +128,8 @@ class UserModel {
     );
   }
 
-  // ── JSON: caché local (SharedPreferences) ─────────────────────────────────
-
+  /// Serializa este [UserModel] a un mapa JSON, utilizado para la cache
+  /// local en SharedPreferences.
   Map<String, dynamic> toJson() => {
         'uid': uid,
         'email': email,
@@ -142,6 +145,8 @@ class UserModel {
         'avatarUrl': avatarUrl,
       };
 
+  /// Reconstruye un [UserModel] desde un mapa JSON serializado previamente
+  /// con [toJson], recalculando el nivel con [levelFromXp].
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final totalXpEver = json['totalXpEver'] as int? ?? 0;
     final level = levelFromXp(totalXpEver);
@@ -166,8 +171,8 @@ class UserModel {
     );
   }
 
-  // ── Datos iniciales para Firestore ────────────────────────────────────────
-
+  /// Genera el mapa de datos iniciales para crear el documento del usuario en
+  /// Firestore. Utiliza `FieldValue.serverTimestamp()` para el campo `createdAt`.
   static Map<String, dynamic> initialData({
     required String email,
     required String? displayName,
