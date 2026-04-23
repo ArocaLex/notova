@@ -1,5 +1,5 @@
 """
-Tests de la API REST de Notova (RA3.f).
+Tests de la API REST de Notova.
 
 Ejecutar con:  pytest tests/ -v
 """
@@ -89,7 +89,7 @@ class TestHealthCheck:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Tests — Autenticación (RA3.d)
+#  Tests — Autenticación 
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestAuth:
@@ -121,7 +121,7 @@ class TestAuth:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Tests — CRUD de Tareas (RA3.a, RA3.b)
+#  Tests — CRUD de Tareas 
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestListarTareas:
@@ -337,7 +337,7 @@ class TestExportarCsv:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Tests — Validación de entrada (RA3.e)
+#  Tests — Validación de entrada 
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestValidacion:

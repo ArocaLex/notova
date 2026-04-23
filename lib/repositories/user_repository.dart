@@ -73,26 +73,47 @@ class UserRepository {
   /// disparar efectos visuales o de sonido en la UI.
   Future<bool> addXp(int amount) async {
     if (_uid == null || amount <= 0) return false;
+    final uid = _uid!;
+    final userRef = _userDoc(uid);
+    late int newTotalXpEver;
+    late int newLevel;
+    late bool didLevelUp;
+    late int dayStreak;
+    late List<String> existingBadges;
 
-    final user = await getUser(_uid!);
-    if (user == null) return false;
+    final applied = await _db.runTransaction<bool>((tx) async {
+      final snap = await tx.get(userRef);
+      if (!snap.exists) return false;
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final currentTotal = (data['totalXpEver'] as num?)?.toInt() ?? 0;
+      final currentLevel = (data['level'] as num?)?.toInt() ?? 1;
+      final currentDayStreak = (data['dayStreak'] as num?)?.toInt() ?? 0;
+      final badges = (data['badges'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<String>()
+          .toList();
 
-    final newTotalXpEver = user.totalXpEver + amount;
-    final newLevel = UserModel.levelFromXp(newTotalXpEver);
-    final newRank = UserModel.rankForLevel(newLevel);
-    final didLevelUp = newLevel > user.level;
+      newTotalXpEver = currentTotal + amount;
+      newLevel = UserModel.levelFromXp(newTotalXpEver);
+      final newRank = UserModel.rankForLevel(newLevel);
+      didLevelUp = newLevel > currentLevel;
+      dayStreak = currentDayStreak;
+      existingBadges = badges;
 
-    await _userDoc(_uid!).update({
-      'totalXpEver': newTotalXpEver,
-      'level': newLevel,
-      'rank': newRank,
+      tx.update(userRef, {
+        'totalXpEver': newTotalXpEver,
+        'level': newLevel,
+        'rank': newRank,
+      });
+      return true;
     });
+
+    if (!applied) return false;
 
     await checkAndAwardBadges(
       totalXpEver: newTotalXpEver,
       level: newLevel,
-      dayStreak: user.dayStreak,
-      existingBadges: user.badges,
+      dayStreak: dayStreak,
+      existingBadges: existingBadges,
     );
 
     return didLevelUp;
@@ -239,5 +260,40 @@ class UserRepository {
   Future<void> clearCachedUser() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userCacheKey);
+  }
+
+  /// Obtiene los datos actuales del usuario y evalúa si hay badges nuevos.
+  ///
+  /// Útil para llamar tras completar una tarea, cuando el XP se actualiza
+  /// directamente en Firestore sin pasar por [addXp].
+  Future<void> refreshAndCheckBadges() async {
+    if (_uid == null) return;
+    final user = await getUser(_uid!);
+    if (user == null) return;
+    await checkAndAwardBadges(
+      totalXpEver: user.totalXpEver,
+      level: user.level,
+      dayStreak: user.dayStreak,
+      existingBadges: user.badges,
+    );
+  }
+
+  /// Elimina los datos del usuario en Firestore y su avatar en Storage.
+  Future<void> deleteUserData(String uid) async {
+    final userRef = _userDoc(uid);
+
+    final tasks = await userRef.collection('tasks').get();
+    if (tasks.docs.isNotEmpty) {
+      final batch = _db.batch();
+      for (final doc in tasks.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+
+    await userRef.delete();
+    try {
+      await FirebaseStorage.instance.ref('avatars/$uid.jpg').delete();
+    } catch (_) {}
   }
 }

@@ -40,7 +40,13 @@ class CalendarViewModel extends ChangeNotifier {
   /// agenda del Home.
   List<CalendarEvent> upcomingEvents = [];
 
-  static const int _upcomingDays = 7;
+  /// Calcula los días que quedan hasta el próximo domingo (inclusive).
+  /// Si hoy es domingo devuelve 1 (solo hoy). Usado para "próximos eventos".
+  static int get _daysUntilEndOfWeek {
+    final now = DateTime.now();
+    final daysToSunday = (DateTime.sunday - now.weekday) % 7;
+    return daysToSunday + 1;
+  }
 
   /// Mapa día-del-mes → colores de las cuentas que tienen eventos ese día.
   /// Se usa para pintar los "puntitos" en el grid.
@@ -284,7 +290,7 @@ class CalendarViewModel extends ChangeNotifier {
     }
     try {
       upcomingEvents =
-          await _repository.fetchUpcomingEvents(accounts, _upcomingDays);
+          await _repository.fetchUpcomingEvents(accounts, _daysUntilEndOfWeek);
       notifyListeners();
     } catch (_) {}
   }

@@ -5,14 +5,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_strings.dart';
 import '../repositories/local_task_repository.dart';
 import '../repositories/user_repository.dart';
-import 'auth_screen.dart';
 import 'main_screen.dart';
-import 'onboarding_screen.dart';
+import 'welcome_screen.dart';
 
 /// Pantalla inicial con animación de carga y enrutado.
 ///
@@ -128,28 +126,20 @@ class SplashScreenState extends State<SplashScreen>
       unawaited(_updateStreakSilently());
     }
 
-    Widget destination;
-    if (user == null) {
-      destination = const AuthScreen();
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final seen = prefs.getBool('onboarding_seen') ?? false;
-      destination = seen ? const MainScreen() : const OnboardingScreen();
-    }
+    final Widget destination =
+        user == null ? const WelcomeScreen() : const MainScreen();
 
     await minDisplay;
     if (!mounted) return;
 
-    final isOnboarding = destination is OnboardingScreen;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, a1, a2) => destination,
-        transitionDuration:
-            isOnboarding ? Duration.zero : const Duration(milliseconds: 500),
-        transitionsBuilder: isOnboarding
-            ? (ctx, a, s, child) => child
-            : (context, animation, secondary, child) =>
-                FadeTransition(opacity: animation, child: child),
+        pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
+            destination,
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder:
+            (pageContext, primaryAnimation, secondaryAnimation, child) =>
+                FadeTransition(opacity: primaryAnimation, child: child),
       ),
     );
   }

@@ -38,6 +38,10 @@ class TasksViewModel extends ChangeNotifier {
   bool isLoading = true;
   String? errorMessage;
 
+  /// Contador de tareas completadas hoy. Solo aumenta, nunca baja al eliminar,
+  /// para que borrar una tarea completada no reduzca el progreso diario.
+  int _completedTodayCount = 0; // ignore: prefer_final_fields
+
   /// Devuelve las tareas completadas el día de hoy
   List<TaskModel> get completedToday {
     final now = DateTime.now();
@@ -48,11 +52,18 @@ class TasksViewModel extends ChangeNotifier {
         t.completedAt!.day == now.day).toList();
   }
 
-  /// Calcula el progreso diario (completadas hoy / (pendientes + completadas hoy))
+  /// Calcula el progreso diario. Usa [_completedTodayCount] como numerador
+  /// para que eliminar tareas completadas no reduzca el progreso.
   double get dailyProgress {
-    final total = pending.length + completedToday.length;
-    return total > 0 ? completedToday.length / total : 0.0;
+    final total = _completedTodayCount + pending.length;
+    return total > 0 ? _completedTodayCount / total : 0.0;
   }
+
+  /// Numerador estable del progreso diario mostrado en UI.
+  int get completedTodayProgressCount => _completedTodayCount;
+
+  /// Denominador estable del progreso diario mostrado en UI.
+  int get totalDailyProgressCount => _completedTodayCount + pending.length;
 
   TasksViewModel({
     TasksRepository? repository,
@@ -83,6 +94,7 @@ class TasksViewModel extends ChangeNotifier {
       final localCompleted = await _db.getCompletedTasks();
       pending = localPending.map(_localToModel).toList();
       completed = localCompleted.map(_localToModel).toList();
+      _completedTodayCount = completedToday.length;
     } catch (e) {
       debugPrint('[TasksVM] Error reading local DB: $e');
     }
@@ -100,18 +112,22 @@ class TasksViewModel extends ChangeNotifier {
       final pendingPush = await _db.getPendingPushTasks();
       for (final row in pendingPush) {
         try {
-          await _repository.setTask(
-            taskId: row.id,
-            title: row.title,
-            subtitle: row.subtitle,
-            priority: row.priority,
-            xpReward: row.xpReward,
-            isCompleted: row.isCompleted,
-            dueDate: row.dueDate,
-            createdAt: row.createdAt,
-            completedAt: row.completedAt,
-            color: row.color,
-          );
+          if (row.isCompleted) {
+            await _repository.completeTask(row.id, row.xpReward);
+          } else {
+            await _repository.setTask(
+              taskId: row.id,
+              title: row.title,
+              subtitle: row.subtitle,
+              priority: row.priority,
+              xpReward: row.xpReward,
+              isCompleted: row.isCompleted,
+              dueDate: row.dueDate,
+              createdAt: row.createdAt,
+              completedAt: row.completedAt,
+              color: row.color,
+            );
+          }
           await _db.clearPendingPush(row.id);
         } catch (e) {
           debugPrint('[TasksVM] push pending failed for ${row.id}: $e');
@@ -130,6 +146,7 @@ class TasksViewModel extends ChangeNotifier {
       final localCompleted = await _db.getCompletedTasks();
       pending = localPending.map(_localToModel).toList();
       completed = localCompleted.map(_localToModel).toList();
+      _completedTodayCount = completedToday.length;
       notifyListeners();
     } catch (e) {
       debugPrint('[TasksVM] Firestore pull failed (offline?): $e');
@@ -267,6 +284,7 @@ class TasksViewModel extends ChangeNotifier {
 
     pending.removeAt(idx);
     completed.insert(0, completedTask);
+    _completedTodayCount++;
     notifyListeners();
 
     bool didLevelUp = false;
@@ -279,6 +297,7 @@ class TasksViewModel extends ChangeNotifier {
 
     _safeCancelReminder(taskId);
     _safeUpdateStreak();
+    _safeCheckBadges();
     _safePlayTaskComplete();
     if (didLevelUp) _safePlayLevelUp();
     _safeNotify(
@@ -339,18 +358,22 @@ class TasksViewModel extends ChangeNotifier {
   /// `pendingPush` en SQLite.
   Future<void> _pushTask(TaskModel task) async {
     try {
-      await _repository.setTask(
-        taskId: task.id,
-        title: task.title,
-        subtitle: task.subtitle,
-        priority: task.priority,
-        xpReward: task.xpReward,
-        isCompleted: task.isCompleted,
-        dueDate: task.dueDate,
-        createdAt: task.createdAt,
-        completedAt: task.completedAt,
-        color: task.color,
-      );
+      if (task.isCompleted) {
+        await _repository.completeTask(task.id, task.xpReward);
+      } else {
+        await _repository.setTask(
+          taskId: task.id,
+          title: task.title,
+          subtitle: task.subtitle,
+          priority: task.priority,
+          xpReward: task.xpReward,
+          isCompleted: task.isCompleted,
+          dueDate: task.dueDate,
+          createdAt: task.createdAt,
+          completedAt: task.completedAt,
+          color: task.color,
+        );
+      }
       await _db.clearPendingPush(task.id);
     } catch (e) {
       debugPrint('[TasksVM] _pushTask failed for ${task.id}: $e');
@@ -392,6 +415,17 @@ class TasksViewModel extends ChangeNotifier {
         await _notificationRepository.cancelTaskReminder(taskId);
       } catch (e) {
         debugPrint('[TasksVM] cancel reminder failed: $e');
+      }
+    }());
+  }
+
+  /// Verifica y otorga badges tras completar una tarea.
+  void _safeCheckBadges() {
+    unawaited(() async {
+      try {
+        await _userRepository.refreshAndCheckBadges();
+      } catch (e) {
+        debugPrint('[TasksVM] badge check failed: $e');
       }
     }());
   }

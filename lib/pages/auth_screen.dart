@@ -5,13 +5,15 @@ import 'package:notova/pages/main_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
+import 'onboarding_screen.dart';
 
 /// Pantalla de autenticación (login/registro) de Notova.
 ///
 /// Consume [AuthViewModel] para iniciar sesión con Google o con email/contraseña,
 /// registrar nuevas cuentas y enviar correos de recuperación de contraseña.
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool initialIsLogin;
+  const AuthScreen({super.key, this.initialIsLogin = true});
 
   @override
   AuthScreenState createState() => AuthScreenState();
@@ -19,7 +21,7 @@ class AuthScreen extends StatefulWidget {
 
 class AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
-  bool isLogin = true;
+  late bool isLogin;
   bool _obscurePassword = true;
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -37,6 +39,7 @@ class AuthScreenState extends State<AuthScreen>
   @override
   void initState() {
     super.initState();
+    isLogin = widget.initialIsLogin;
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -186,14 +189,29 @@ class AuthScreenState extends State<AuthScreen>
   void _handleAuthResult(bool success, AuthViewModel viewModel) {
     if (success) {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, a1, a2) => const MainScreen(),
-            transitionDuration: const Duration(milliseconds: 400),
-            transitionsBuilder: (context, animation, secondary, child) =>
-                FadeTransition(opacity: animation, child: child),
-          ),
-        );
+        if (viewModel.wasNewUser) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
+                  const OnboardingScreen(),
+              transitionDuration: Duration.zero,
+              transitionsBuilder:
+                  (pageContext, primaryAnimation, secondaryAnimation, child) =>
+                      child,
+            ),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
+                  const MainScreen(),
+              transitionDuration: const Duration(milliseconds: 400),
+              transitionsBuilder:
+                  (pageContext, primaryAnimation, secondaryAnimation, child) =>
+                      FadeTransition(opacity: primaryAnimation, child: child),
+            ),
+          );
+        }
       }
     } else if (viewModel.errorMessage != null) {
       if (mounted) {

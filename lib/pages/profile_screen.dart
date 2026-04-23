@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -13,8 +14,8 @@ import '../repositories/export_repository.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
 import '../theme/app_colors.dart';
-import 'auth_screen.dart';
 import 'main_screen.dart';
+import 'welcome_screen.dart';
 
 /// Pantalla de perfil del usuario.
 ///
@@ -129,10 +130,10 @@ class ProfileScreenState extends State<ProfileScreen> {
     final s = context.read<AppStrings>();
     showDialog(
       context: context,
-      builder: (ctx) {
+      builder: (dialogContext) {
         bool sfxOn = current;
         return StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
+          builder: (builderContext, setDialogState) => AlertDialog(
             backgroundColor: _cardColor,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20)),
@@ -155,7 +156,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text(s.get('close'),
                     style: const TextStyle(color: _primaryPurple)),
               ),
@@ -175,7 +176,7 @@ class ProfileScreenState extends State<ProfileScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: _cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(s.get('edit_name'),
@@ -197,7 +198,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(s.get('cancel'), style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
@@ -210,13 +211,123 @@ class ProfileScreenState extends State<ProfileScreen> {
               final name = nameCtrl.text.trim();
               if (name.isNotEmpty) {
                 await context.read<UserViewModel>().updateName(name);
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx);
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
               }
             },
             child: Text(s.get('save'),
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguageDialog() {
+    final s = context.read<AppStrings>();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _primaryPurple.withOpacity(0.25)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                s.get('language'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _LanguageOption(
+                flag: '🇪🇸',
+                label: 'Español',
+                isSelected: s.isSpanish,
+                onTap: () {
+                  context.read<AppStrings>().setLocale('es');
+                  Navigator.pop(dialogContext);
+                },
+              ),
+              const SizedBox(height: 10),
+              _LanguageOption(
+                flag: '🇬🇧',
+                label: 'English',
+                isSelected: !s.isSpanish,
+                onTap: () {
+                  context.read<AppStrings>().setLocale('en');
+                  Navigator.pop(dialogContext);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    final s = context.read<AppStrings>();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          s.get('delete_account'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          s.get('delete_account_confirm'),
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(s.get('cancel'), style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await context.read<AuthViewModel>().deleteAccount();
+                if (!mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  PageRouteBuilder(
+                    pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
+                        const WelcomeScreen(),
+                    transitionDuration: const Duration(milliseconds: 400),
+                    transitionsBuilder:
+                        (pageContext, primaryAnimation, secondaryAnimation, child) =>
+                            FadeTransition(opacity: primaryAnimation, child: child),
+                  ),
+                  (route) => false,
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('${s.get('delete_account_error')} $e'),
+                  backgroundColor: Colors.redAccent,
+                ));
+              }
+            },
+            child: Text(
+              s.get('delete_account'),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -301,10 +412,37 @@ class ProfileScreenState extends State<ProfileScreen> {
                 try {
                   final picked = await ImagePicker().pickImage(
                     source: ImageSource.gallery,
-                    imageQuality: 80,
-                    maxWidth: 512,
+                    imageQuality: 90,
+                    maxWidth: 1024,
                   );
                   if (picked == null || !mounted) return;
+
+                  final cropped = await ImageCropper().cropImage(
+                    sourcePath: picked.path,
+                    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+                    uiSettings: [
+                      AndroidUiSettings(
+                        toolbarTitle: s.isSpanish ? 'Recortar Foto' : 'Crop Photo',
+                        toolbarColor: const Color(0xFF120E1A),
+                        toolbarWidgetColor: Colors.white,
+                        activeControlsWidgetColor: const Color(0xFF7B2CBF),
+                        backgroundColor: const Color(0xFF120E1A),
+                        dimmedLayerColor: const Color(0xFF120E1A),
+                        initAspectRatio: CropAspectRatioPreset.square,
+                        lockAspectRatio: true,
+                        statusBarColor: const Color(0xFF120E1A),
+                      ),
+                      IOSUiSettings(
+                        title: s.isSpanish ? 'Recortar' : 'Crop',
+                        cancelButtonTitle: s.isSpanish ? 'Cancelar' : 'Cancel',
+                        doneButtonTitle: s.isSpanish ? 'Listo' : 'Done',
+                        aspectRatioLockEnabled: true,
+                        resetAspectRatioEnabled: false,
+                      ),
+                    ],
+                  );
+                  if (cropped == null || !mounted) return;
+
                   final messenger = ScaffoldMessenger.of(context);
                   messenger.showSnackBar(SnackBar(
                     content: Text(s.get('uploading_avatar')),
@@ -313,7 +451,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   ));
                   await context
                       .read<UserViewModel>()
-                      .uploadAvatar(File(picked.path));
+                      .uploadAvatar(File(cropped.path));
                   if (!mounted) return;
                   messenger.showSnackBar(SnackBar(
                     content: Text(s.get('avatar_updated')),
@@ -333,10 +471,10 @@ class ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.language,
               iconColor: Colors.blueAccent,
               label: s.get('language'),
-              subtitle: s.isSpanish ? 'Español → English' : 'English → Español',
+              subtitle: s.isSpanish ? 'Español / English' : 'English / Español',
               onTap: () {
-                context.read<AppStrings>().toggle();
                 Navigator.pop(context);
+                _showLanguageDialog();
               },
             ),
             const Padding(
@@ -345,7 +483,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             _SettingsTile(
               icon: Icons.logout,
-              iconColor: Colors.redAccent,
+              iconColor: Colors.orangeAccent,
               label: s.get('logout'),
               subtitle: s.get('logout_subtitle'),
               onTap: () async {
@@ -354,13 +492,26 @@ class ProfileScreenState extends State<ProfileScreen> {
                 if (!mounted) return;
                 Navigator.of(context).pushAndRemoveUntil(
                   PageRouteBuilder(
-                    pageBuilder: (ctx, a1, a2) => const AuthScreen(),
+                    pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
+                        const WelcomeScreen(),
                     transitionDuration: const Duration(milliseconds: 400),
-                    transitionsBuilder: (ctx, anim, sec, child) =>
-                        FadeTransition(opacity: anim, child: child),
+                    transitionsBuilder:
+                        (pageContext, primaryAnimation, secondaryAnimation, child) =>
+                            FadeTransition(opacity: primaryAnimation, child: child),
                   ),
                   (route) => false,
                 );
+              },
+            ),
+            const SizedBox(height: 4),
+            _SettingsTile(
+              icon: Icons.delete_forever_outlined,
+              iconColor: Colors.redAccent,
+              label: s.get('delete_account'),
+              subtitle: s.get('delete_account_subtitle'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteAccountDialog();
               },
             ),
           ],
@@ -407,10 +558,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: _bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFDEB7FF)),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+        automaticallyImplyLeading: false,
         centerTitle: true,
         title: Text(s.get('profile'),
             style: const TextStyle(
@@ -432,51 +580,80 @@ class ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Center(
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [_primaryPurple, _cyanAccent],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+              child: GestureDetector(
+                onLongPress: () {
+                  final img = _avatarImage(userVM.localAvatarPath, user.avatarUrl);
+                  if (img == null) return;
+                  showDialog(
+                    context: context,
+                    barrierColor: Colors.black87,
+                    builder: (dialogContext) => GestureDetector(
+                      onTap: () => Navigator.pop(dialogContext),
+                      child: Dialog(
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        child: Hero(
+                          tag: 'profile_avatar',
+                          child: CircleAvatar(
+                            key: ValueKey('avatar_full_${userVM.avatarVersion}'),
+                            radius: 140,
+                            backgroundColor: const Color(0xFF2A223E),
+                            backgroundImage: img,
+                          ),
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                            color: _primaryPurple.withOpacity(0.4),
-                            blurRadius: 20,
-                            spreadRadius: 2),
-                        BoxShadow(
-                            color: _cyanAccent.withOpacity(0.2),
-                            blurRadius: 30,
-                            spreadRadius: 4),
-                      ],
                     ),
-                    child: CircleAvatar(
-                      key: ValueKey('avatar_${userVM.avatarVersion}'),
-                      radius: 56,
-                      backgroundColor: const Color(0xFF2A223E),
-                      backgroundImage: _avatarImage(
-                          userVM.localAvatarPath, user.avatarUrl),
-                      child: _avatarImage(
-                                  userVM.localAvatarPath, user.avatarUrl) ==
-                              null
-                          ? const Icon(Icons.person,
-                              size: 60, color: _textSecondary)
-                          : null,
+                  );
+                },
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Hero(
+                      tag: 'profile_avatar',
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [_primaryPurple, _cyanAccent],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                                color: _primaryPurple.withOpacity(0.4),
+                                blurRadius: 20,
+                                spreadRadius: 2),
+                            BoxShadow(
+                                color: _cyanAccent.withOpacity(0.2),
+                                blurRadius: 30,
+                                spreadRadius: 4),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          key: ValueKey('avatar_${userVM.avatarVersion}'),
+                          radius: 56,
+                          backgroundColor: const Color(0xFF2A223E),
+                          backgroundImage: _avatarImage(
+                              userVM.localAvatarPath, user.avatarUrl),
+                          child: _avatarImage(
+                                      userVM.localAvatarPath, user.avatarUrl) ==
+                                  null
+                              ? const Icon(Icons.person,
+                                  size: 60, color: _textSecondary)
+                              : null,
+                        ),
+                      ),
                     ),
-                  ),
-                  Container(
-                    decoration: const BoxDecoration(
-                        color: _primaryPurple, shape: BoxShape.circle),
-                    padding: const EdgeInsets.all(5),
-                    child: const Icon(Icons.check,
-                        size: 14, color: Colors.white),
-                  ),
-                ],
+                    Container(
+                      decoration: const BoxDecoration(
+                          color: _primaryPurple, shape: BoxShape.circle),
+                      padding: const EdgeInsets.all(5),
+                      child: const Icon(Icons.check,
+                          size: 14, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -546,7 +723,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                               ),
                               if (user.level < 7)
                                 TextSpan(
-                                  text: ' / ${_formatNumber(user.currentLevelMaxXp)} XP',
+                                  text: ' / ${_formatNumber(user.nextLevelMinXp)} XP',
                                   style: const TextStyle(
                                       color: _textSecondary,
                                       fontSize: 14),
@@ -830,6 +1007,65 @@ class _ExportButton extends StatelessWidget {
             const Spacer(),
             Icon(Icons.chevron_right,
                 color: color.withOpacity(0.5), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Opción de idioma con bandera para el diálogo de selección de idioma.
+class _LanguageOption extends StatelessWidget {
+  final String flag;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.flag,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  static const _primaryPurple = AppColors.primaryPurple;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _primaryPurple.withOpacity(0.15)
+              : Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? _primaryPurple.withOpacity(0.5)
+                : Colors.white.withOpacity(0.08),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey.shade400,
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: _primaryPurple, size: 22),
           ],
         ),
       ),

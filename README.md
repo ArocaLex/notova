@@ -2,7 +2,7 @@
 
 > Gestor de tareas y productividad gamificado construido en Flutter. Convierte tus tareas diarias en misiones, gana XP, sube de nivel y mantén rachas de actividad diaria.
 
-**Público objetivo:** Estudiantes, freelancers y opositores (16–35 años) · Versión `0.2.0`
+**Público objetivo:** Estudiantes, freelancers y opositores (16–35 años) · Versión `0.3.1`
 
 ---
 
@@ -12,7 +12,7 @@
 - **Tareas (Quests)** — Crear, editar y completar tareas con prioridad Alta / Media / Baja, fecha límite y recompensa de XP
 - **Sistema de XP y niveles** — 7 niveles progresivos con umbrales fijos de XP
 - **Rachas diarias** — Se incrementa al completar una tarea, se mantiene si visitas sin pendientes, se resetea si pasa más de 1 día
-- **Badges** — Desbloqueables por racha (3 y 7 días) y por nivel (3, 5 y 7)
+- **Badges** — Desbloqueables por primera tarea completada, racha (3 y 7 días) y por nivel (3, 5 y 7)
 - **Notificación de level-up** — Dialog celebratorio con el nuevo rango al subir de nivel
 - **Efectos de sonido** — SFX al completar tarea y al subir de nivel (activable/desactivable)
 - **Google Calendar** — Sincronización bidireccional con OAuth 2.0; calendarios de Classroom en modo solo lectura
@@ -51,6 +51,7 @@ lib/
 ├── viewmodel/       # Lógica de negocio y estado de la UI (ChangeNotifier)
 ├── pages/           # Widgets de pantalla — solo código visual
 ├── database/        # Schema Drift y código generado (app_database.dart)
+├── theme/           # Paleta de colores y constantes de diseño (AppColors)
 └── l10n/            # Strings de internacionalización
 ```
 
@@ -109,6 +110,7 @@ notova/
 │   │   └── calendar_viewmodel.dart
 │   ├── pages/
 │   │   ├── splash_screen.dart
+│   │   ├── welcome_screen.dart       # Pantalla inicial (Login / Registro)
 │   │   ├── onboarding_screen.dart
 │   │   ├── auth_screen.dart
 │   │   ├── main_screen.dart          # Shell con BottomNavigationBar
@@ -121,6 +123,8 @@ notova/
 │   ├── database/
 │   │   ├── app_database.dart
 │   │   └── app_database.g.dart       # generado por build_runner
+│   ├── theme/
+│   │   └── app_colors.dart           # Paleta de colores centralizada
 │   └── l10n/
 │       └── app_strings.dart
 ├── backend/
@@ -262,11 +266,11 @@ flutter test test/unit/
 | Token | Hex | Uso |
 |---|---|---|
 | Background | `#120E1A` | Fondo principal |
-| Card | `#1E1A29` | Tarjetas y contenedores |
+| Card | `#1E1926` | Tarjetas y contenedores |
 | Primary | `#7B2CBF` | Botones, selección activa |
 | Accent | `#8A2BE2` | Highlights secundarios |
-| Cyan | `#00E5FF` | Badges XP, indicadores |
-| Text accent | `#DEB7FF` | Links, texto destacado |
+| Neon Cyan | `#00E5FF` | Indicadores, bordes de énfasis |
+| Text accent | `#DEB7FF` | Links, texto destacado, badges XP |
 
 ---
 

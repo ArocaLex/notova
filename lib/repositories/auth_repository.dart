@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'user_repository.dart';
 
 /// Excepción de dominio para errores de autenticación en la app.
 class AuthException implements Exception {
@@ -18,6 +19,7 @@ class AuthException implements Exception {
 /// sesión (login, registro, recuperación y cierre de sesión).
 class AuthRepository {
   final FirebaseAuth _auth;
+  final UserRepository _userRepository = UserRepository();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
@@ -31,15 +33,12 @@ class AuthRepository {
 
   /// Inicia sesión con Google y autentica esa cuenta en Firebase.
   ///
-  /// Retorna el [User] autenticado o lanza [AuthException] si ocurre un fallo
-  /// de autenticación o de conectividad.
-  Future<User?> signInWithGoogle() async {
+  /// Retorna `(user, isNewUser)`. [isNewUser] es `true` cuando es la primera
+  /// vez que este usuario inicia sesión con Google en la app.
+  Future<(User?, bool)> signInWithGoogle() async {
     try {
-
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
-
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-
       final scopes = <String>['email', 'profile'];
       final authorization = await googleUser.authorizationClient
           .authorizationForScopes(scopes);
@@ -49,11 +48,14 @@ class AuthRepository {
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
-
-      return userCredential.user;
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final isNew = userCredential.additionalUserInfo?.isNewUser ?? false;
+      return (userCredential.user, isNew);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return (null, false);
+      }
+      throw AuthException('Error de Google Sign-In: ${e.description ?? e.code.name}');
     } on FirebaseAuthException catch (e) {
       throw AuthException(_translateAuthError(e.code));
     } catch (e) {
@@ -102,6 +104,24 @@ class AuthRepository {
     }
   }
 
+  /// Elimina permanentemente la cuenta del usuario actual de Firebase Auth.
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw AuthException('No hay sesión activa.');
+      await _userRepository.deleteUserData(user.uid);
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {}
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_translateAuthError(e.code));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('Error al eliminar la cuenta.');
+    }
+  }
+
   /// Cierra la sesión local de Firebase y desconecta Google Sign-In.
   Future<void> signOut() async {
     try {
@@ -134,6 +154,8 @@ class AuthRepository {
         return 'Introduce un correo electrónico.';
       case 'too-many-requests':
         return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+      case 'requires-recent-login':
+        return 'Por seguridad, vuelve a iniciar sesión antes de eliminar tu cuenta.';
       default:
         return 'Error de autenticación ($errorCode). Inténtalo de nuevo.';
     }

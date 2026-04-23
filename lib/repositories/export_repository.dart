@@ -15,7 +15,7 @@ import 'api_client.dart';
 /// Flujo principal (online):
 ///   1. Recoge las tareas del usuario.
 ///   2. Las envía al microservicio REST en PythonAnywhere vía [ApiClient]
-///      (RA3.c — llamada HTTP a otra API). El servidor procesa los datos
+///      (— llamada HTTP a otra API). El servidor procesa los datos
 ///      y genera el fichero.
 ///   3. Se guarda la respuesta en local y se abre el menú de compartir.
 ///

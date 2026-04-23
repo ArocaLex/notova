@@ -34,10 +34,8 @@ from firebase_admin import credentials, auth, firestore
 
 app = Flask(__name__)
 
-# RA3.c — CORS: permite peticiones desde cualquier origen (app móvil)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# RA3.g — Swagger/OpenAPI con Flasgger
 swagger_template = {
     "info": {
         "title": "Notova API",
@@ -72,7 +70,7 @@ db = firestore.client()
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Middleware de autenticación (RA3.d)
+#  Middleware de autenticación 
 # ═══════════════════════════════════════════════════════════════════════
 
 def require_auth(f):
@@ -98,7 +96,7 @@ def require_auth(f):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Gestión global de errores (RA3.e)
+#  Gestión global de errores 
 # ═══════════════════════════════════════════════════════════════════════
 
 @app.errorhandler(400)
@@ -154,7 +152,7 @@ def home():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  CRUD de Tareas  (RA3.a — GET, POST, PUT, DELETE)
+#  CRUD de Tareas  
 # ═══════════════════════════════════════════════════════════════════════
 
 def _tasks_ref():
@@ -286,7 +284,7 @@ def crear_tarea():
     """
     datos = request.get_json(silent=True)
 
-    # RA3.e — Validación de datos de entrada
+    # — Validación de datos de entrada
     if not datos:
         return jsonify({"error": "El cuerpo de la petición debe ser JSON válido"}), 400
 

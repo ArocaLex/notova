@@ -26,6 +26,7 @@ class AuthViewModel extends ChangeNotifier {
 
   bool isLoading = false;
   String? errorMessage;
+  bool wasNewUser = false;
 
   void _setLoading(bool value) {
     isLoading = value;
@@ -42,15 +43,16 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      final User? user = await _repository.signInWithGoogle();
+      final (user, isNew) = await _repository.signInWithGoogle();
 
       if (user != null) {
+        wasNewUser = isNew;
         await _createInitialUserProfile(user);
         _setLoading(false);
-        return true; // Éxito
+        return true;
       } else {
         _setLoading(false);
-        return false; // Cancelado por el usuario
+        return false;
       }
     } on AuthException catch (e) {
       errorMessage = e.message;
@@ -72,8 +74,9 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       await _repository.signInWithEmail(email, password);
+      wasNewUser = false;
       _setLoading(false);
-      return true; // Éxito
+      return true;
     } on AuthException catch (e) {
       errorMessage = e.message;
       _setLoading(false);
@@ -97,10 +100,11 @@ class AuthViewModel extends ChangeNotifier {
       final User? user = await _repository.registerWithEmail(email, password);
 
       if (user != null) {
+        wasNewUser = true;
         await _createInitialUserProfile(user);
       }
       _setLoading(false);
-      return true; // Éxito
+      return true;
     } on AuthException catch (e) {
       errorMessage = e.message;
       _setLoading(false);
@@ -141,6 +145,26 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> signOut() async {
     await _localTaskRepository.clearLocalCache();
     await _repository.signOut();
+  }
+
+  /// Elimina permanentemente la cuenta del usuario actual de Firebase Auth
+  /// y limpia la caché local.
+  Future<void> deleteAccount() async {
+    _setLoading(true);
+    try {
+      await _repository.deleteAccount();
+      await _localTaskRepository.clearLocalCache();
+      await _userRepository.clearCachedUser();
+      _setLoading(false);
+    } catch (e) {
+      if (e is AuthException) {
+        errorMessage = e.message;
+      } else {
+        errorMessage = 'No se pudo eliminar la cuenta. Inténtalo de nuevo.';
+      }
+      _setLoading(false);
+      rethrow;
+    }
   }
 
   Future<void> _createInitialUserProfile(User user) async {

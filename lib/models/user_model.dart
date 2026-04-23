@@ -87,8 +87,9 @@ class UserModel {
   /// `0.0` y `1.0`.
   double get xpProgress {
     if (level >= 7) return 1.0;
-    final (_, min, max) = _thresholds[level - 1];
-    final range = max - min;
+    final (_, min, _) = _thresholds[level - 1];
+    final target = nextLevelMinXp;
+    final range = target - min;
     if (range <= 0) return 1.0;
     return ((totalXpEver - min) / range).clamp(0.0, 1.0);
   }
@@ -96,15 +97,17 @@ class UserModel {
   /// Retorna la cantidad de XP restante para alcanzar el siguiente nivel.
   int get xpRemaining {
     if (level >= 7) return 0;
-    final (_, _, max) = _thresholds[level - 1];
-    return (max - totalXpEver).clamp(0, max);
+    return (nextLevelMinXp - totalXpEver).clamp(0, 9999999);
   }
 
   /// Obtiene la XP minima requerida para el nivel actual.
   int get currentLevelMinXp => _thresholds[(level - 1).clamp(0, 6)].$2;
 
-  /// Obtiene la XP maxima del nivel actual.
-  int get currentLevelMaxXp => _thresholds[(level - 1).clamp(0, 6)].$3;
+  /// Obtiene la XP requerida para alcanzar el siguiente nivel.
+  int get nextLevelMinXp {
+    if (level >= 7) return _thresholds[6].$3; // Nivel maximo
+    return _thresholds[level].$2;
+  }
 
   /// Crea una instancia de [UserModel] a partir de un [DocumentSnapshot]
   /// de Firestore, recalculando el nivel con [levelFromXp].

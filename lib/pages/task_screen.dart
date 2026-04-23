@@ -140,9 +140,9 @@ class TasksScreenState extends State<TasksScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (ctx, setDialogState) {
+          builder: (builderContext, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.card,
               shape: RoundedRectangleBorder(
@@ -194,11 +194,11 @@ class TasksScreenState extends State<TasksScreen> {
                       onTap: () async {
                         final now = DateTime.now();
                         final date = await showDatePicker(
-                          context: ctx,
+                          context: dialogContext,
                           initialDate: now,
                           firstDate: now,
                           lastDate: now.add(const Duration(days: 365 * 2)),
-                          builder: (c, child) => Theme(
+                          builder: (pickerContext, child) => Theme(
                             data: ThemeData.dark().copyWith(
                               colorScheme: const ColorScheme.dark(
                                 primary: AppColors.primaryPurple,
@@ -209,11 +209,11 @@ class TasksScreenState extends State<TasksScreen> {
                           ),
                         );
                         if (date == null) return;
-                        if (!ctx.mounted) return;
+                        if (!dialogContext.mounted) return;
                         final time = await showTimePicker(
-                          context: ctx,
+                          context: dialogContext,
                           initialTime: TimeOfDay.now(),
-                          builder: (c, child) => Theme(
+                          builder: (pickerContext, child) => Theme(
                             data: ThemeData.dark().copyWith(
                               colorScheme: const ColorScheme.dark(
                                 primary: AppColors.primaryPurple,
@@ -285,7 +285,7 @@ class TasksScreenState extends State<TasksScreen> {
 
                     Row(
                       children: ['HIGH', 'MED', 'LOW'].map((p) {
-                        final c = p == 'HIGH'
+                        final priorityAccentColor = p == 'HIGH'
                             ? AppColors.priorityHigh
                             : p == 'MED'
                             ? AppColors.priorityMed
@@ -300,18 +300,22 @@ class TasksScreenState extends State<TasksScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? c.withOpacity(0.2)
+                                    ? priorityAccentColor.withOpacity(0.2)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: isSelected ? c : Colors.grey.shade800,
+                                  color: isSelected
+                                      ? priorityAccentColor
+                                      : Colors.grey.shade800,
                                 ),
                               ),
                               child: Text(
                                 _TasksHelper.priorityLabel(p, s),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: isSelected ? c : Colors.grey.shade600,
+                                  color: isSelected
+                                      ? priorityAccentColor
+                                      : Colors.grey.shade600,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 11,
                                 ),
@@ -393,7 +397,7 @@ class TasksScreenState extends State<TasksScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: Text(
                     s.get('cancel'),
                     style: const TextStyle(color: Colors.grey),
@@ -433,8 +437,8 @@ class TasksScreenState extends State<TasksScreen> {
                           color: selectedColor,
                         );
                       }
-                      if (!ctx.mounted) return;
-                      Navigator.pop(ctx);
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
                       if (!isEditing) {
                         setState(() => _selectedTab = 0);
                       }
@@ -553,10 +557,11 @@ class _DailyProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final completedTodayCount = context.select((TasksViewModel vm) => vm.completedToday.length);
-    final pendingCount = context.select((TasksViewModel vm) => vm.pending.length);
+    final completedTodayCount =
+        context.select((TasksViewModel vm) => vm.completedTodayProgressCount);
+    final totalForProgress =
+        context.select((TasksViewModel vm) => vm.totalDailyProgressCount);
     final progressAll = context.select((TasksViewModel vm) => vm.dailyProgress);
-    final totalForProgress = pendingCount + completedTodayCount;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -834,48 +839,12 @@ class _ActiveTasksSection extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        GestureDetector(
-                          onTap: () async {
-                            final didLevelUp = await taskViewModel
-                                .toggleTaskCompletion(task.id, task.xpReward);
-                            if (!context.mounted) return;
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(Icons.star, color: Colors.amber),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        '${s.get('quest_completed')} +${task.xpReward} XP',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                backgroundColor: AppColors.primaryPurple,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                            
-                            if (didLevelUp) _TasksHelper.showLevelUpDialog(context, s);
-                          },
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: AppColors.primaryPurple,
-                                width: 2,
-                              ),
-                            ),
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: barColor.withOpacity(0.7),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -1018,7 +987,7 @@ class _CompletedTasksSection extends StatelessWidget {
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
                     context: context,
-                    builder: (ctx) => AlertDialog(
+                    builder: (dialogContext) => AlertDialog(
                       backgroundColor: AppColors.card,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -1033,12 +1002,12 @@ class _CompletedTasksSection extends StatelessWidget {
                       ),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
+                          onPressed: () => Navigator.pop(dialogContext, false),
                           child: Text(s.get('cancel'),
                               style: TextStyle(color: Colors.grey.shade400)),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.pop(ctx, true),
+                          onPressed: () => Navigator.pop(dialogContext, true),
                           child: const Text('Borrar',
                               style: TextStyle(color: AppColors.error)),
                         ),
@@ -1209,7 +1178,7 @@ class _TasksHelper {
     if (user == null) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
@@ -1251,7 +1220,7 @@ class _TasksHelper {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(dialogContext),
               child: Text(
                 s.get('great'),
                 style: const TextStyle(

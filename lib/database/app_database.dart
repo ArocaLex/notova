@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 part 'app_database.g.dart';
 
-/// Tabla SQLite para caché offline de tareas (RA2 + RA3 — Acceso a Datos).
+/// Tabla SQLite para caché offline de tareas.
 ///
 /// Usa drift como ORM: las columnas se definen como propiedades Dart
 /// y drift genera el SQL, las clases de datos y los DAOs automáticamente.

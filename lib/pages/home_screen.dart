@@ -202,7 +202,9 @@ class _UserHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final user = context.select((UserViewModel vm) => vm.user!);
+    final user = context.select((UserViewModel vm) => vm.user);
+    if (user == null) return const SizedBox.shrink();
+
     final localAvatar =
         context.select((UserViewModel vm) => vm.localAvatarPath);
     final avatarVersion =
@@ -316,7 +318,9 @@ class _XpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.select((UserViewModel vm) => vm.user!);
+    final user = context.select((UserViewModel vm) => vm.user);
+    if (user == null) return const SizedBox.shrink();
+
     final s = context.watch<AppStrings>();
 
     return Container(
@@ -357,7 +361,7 @@ class _XpCard extends StatelessWidget {
                 ],
               ),
               Text(
-                '${_formatNumber(user.totalXpEver)} / ${_formatNumber(user.currentLevelMaxXp)} XP',
+                '${_formatNumber(user.totalXpEver)} / ${_formatNumber(user.nextLevelMinXp)} XP',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -422,8 +426,6 @@ class _XpCard extends StatelessWidget {
 class _UpcomingEventsList extends StatelessWidget {
   const _UpcomingEventsList();
 
-  static const int _maxItems = 4;
-
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
@@ -441,7 +443,6 @@ class _UpcomingEventsList extends StatelessWidget {
     final now = DateTime.now();
     final visible = upcoming
         .where((e) => e.start != null && e.start!.isAfter(now))
-        .take(_maxItems)
         .toList();
 
     if (visible.isEmpty) {
@@ -752,7 +753,9 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.select((UserViewModel vm) => vm.user!);
+    final user = context.select((UserViewModel vm) => vm.user);
+    if (user == null) return const SizedBox.shrink();
+
     final s = context.watch<AppStrings>();
 
     return Row(
