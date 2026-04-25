@@ -229,7 +229,7 @@ class CalendarRepository {
       final visibleCals = account.calendars.where((c) => c.isVisible).toList();
       
       for (final cal in visibleCals) {
-        futures.add(_fetchEventsForCalendar(api, cal, account.email, dayStart, dayEnd));
+        futures.add(_fetchEventsForCalendar(api, cal, account, dayStart, dayEnd));
       }
     }
 
@@ -247,12 +247,12 @@ class CalendarRepository {
   Future<List<CalendarEvent>> _fetchEventsForCalendar(
     gcal.CalendarApi api,
     CalendarInfo cal,
-    String accountEmail,
+    CalendarAccount account,
     DateTime timeMin,
     DateTime timeMax,
   ) async {
-    try {
-      final result = await api.events.list(
+    Future<List<CalendarEvent>> doFetch(gcal.CalendarApi client) async {
+      final result = await client.events.list(
         cal.id,
         timeMin: timeMin,
         timeMax: timeMax,
@@ -263,12 +263,24 @@ class CalendarRepository {
           .map((e) => CalendarEvent.fromGoogleEvent(
                 e,
                 cal.id,
-                accountEmail,
+                account.email,
                 cal.isOwned,
               ))
           .toList();
-    } catch (_) {
-      return [];
+    }
+
+    try {
+      return await doFetch(api);
+    } catch (e) {
+      if (!e.toString().contains('401')) return [];
+      // Token vencido antes de los 55 min estimados: refrescar y reintentar.
+      final newToken = await refreshToken(account);
+      if (newToken == null) return [];
+      try {
+        return await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -292,7 +304,7 @@ class CalendarRepository {
       await _ensureValidToken(account);
       final api = gcal.CalendarApi(_AuthClient(account.accessToken));
       for (final cal in account.calendars.where((c) => c.isVisible)) {
-        futures.add(_fetchEventsForCalendar(api, cal, account.email, timeMin, timeMax));
+        futures.add(_fetchEventsForCalendar(api, cal, account, timeMin, timeMax));
       }
     }
 
@@ -342,8 +354,8 @@ class CalendarRepository {
     DateTime monthEnd,
     Map<int, List<Color>> result,
   ) async {
-    try {
-      final res = await api.events.list(
+    Future<void> doFetch(gcal.CalendarApi client) async {
+      final res = await client.events.list(
         cal.id,
         timeMin: monthStart,
         timeMax: monthEnd,
@@ -356,15 +368,22 @@ class CalendarRepository {
                 ? DateTime.tryParse(e.start!.date.toString())
                 : null);
         if (start == null) continue;
-        if (start.month != month.month || start.year != month.year) {
-          continue;
-        }
+        if (start.month != month.month || start.year != month.year) continue;
         final list = result.putIfAbsent(start.day, () => <Color>[]);
-        if (!list.contains(account.color)) {
-          list.add(account.color);
-        }
+        if (!list.contains(account.color)) list.add(account.color);
       }
-    } catch (_) {}
+    }
+
+    try {
+      await doFetch(api);
+    } catch (e) {
+      if (!e.toString().contains('401')) return;
+      final newToken = await refreshToken(account);
+      if (newToken == null) return;
+      try {
+        await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
+      } catch (_) {}
+    }
   }
 
   /// Crea un evento en el calendario identificado por [calendarId].

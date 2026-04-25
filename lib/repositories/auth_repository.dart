@@ -22,8 +22,15 @@ class AuthRepository {
   final UserRepository _userRepository = UserRepository();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleSignInInitialized = false;
 
   AuthRepository({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await _googleSignIn.initialize();
+    _googleSignInInitialized = true;
+  }
 
   /// Usuario autenticado en la sesión actual, o `null` si no hay sesión.
   User? get currentUser => _auth.currentUser;
@@ -31,20 +38,30 @@ class AuthRepository {
   /// Stream reactivo de cambios de autenticación de Firebase.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Stream de eventos de autenticación de Google Sign-In.
+  Stream<GoogleSignInAuthenticationEvent> get googleAuthEvents => _googleSignIn.authenticationEvents;
+
   /// Inicia sesión con Google y autentica esa cuenta en Firebase.
   ///
   /// Retorna `(user, isNewUser)`. [isNewUser] es `true` cuando es la primera
   /// vez que este usuario inicia sesión con Google en la app.
   Future<(User?, bool)> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      await _ensureGoogleSignInInitialized();
+      GoogleSignInAccount? googleUser;
+
+      // Usar authenticate()
+      if (_googleSignIn.supportsAuthenticate()) {
+        googleUser = await _googleSignIn.authenticate();
+      } else {
+        // En la práctica, todas las plataformas modernas deberían soportar authenticate()
+        throw AuthException('La plataforma no soporta autenticación de Google.');
+      }
+      
+      // Obtener tokens de autenticación (solo idToken en v7.x)
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      final scopes = <String>['email', 'profile'];
-      final authorization = await googleUser.authorizationClient
-          .authorizationForScopes(scopes);
 
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: authorization?.accessToken,
         idToken: googleAuth.idToken,
       );
 
@@ -122,11 +139,11 @@ class AuthRepository {
     }
   }
 
-  /// Cierra la sesión local de Firebase y desconecta Google Sign-In.
+  /// Cierra la sesión local de Firebase y de Google Sign-In.
   Future<void> signOut() async {
     try {
       try {
-        await _googleSignIn.disconnect();
+        await _googleSignIn.signOut();
       } catch (_) {}
       await _auth.signOut();
     } catch (e) {

@@ -36,6 +36,7 @@ class TasksScreenState extends State<TasksScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           SafeArea(
             bottom: false,
@@ -69,6 +70,7 @@ class TasksScreenState extends State<TasksScreen> {
               ),
             ),
           ),
+          if (_selectedTab != 2)
           Positioned(
             bottom: fabBottom,
             right: 16,

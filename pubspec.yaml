@@ -16,7 +16,7 @@ dependencies:
   google_fonts: ^6.2.1
   google_sign_in: ^7.1.0
   image_picker: ^1.1.2
-  image_cropper: ^9.1.0
+  crop: ^0.5.5
   googleapis: ^13.2.0
   http: ^1.2.2
   provider: ^6.1.5+1
@@ -43,9 +43,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logoapp.png"
+  image_path: "assets/images/logoapp_preview.png"
   adaptive_icon_background: "#120E1A"
-  adaptive_icon_foreground: "assets/images/logo_sinfondo.png"
+  adaptive_icon_foreground: "assets/images/logoapp_preview.png"
 
 flutter:
   uses-material-design: true

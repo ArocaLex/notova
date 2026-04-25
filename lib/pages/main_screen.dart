@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
@@ -90,13 +91,61 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     setState(() => _currentIndex = index);
   }
 
+  Future<bool?> _showExitDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Salir de Notova',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        content: const Text(
+          '¿Seguro que quieres salir?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Salir',
+              style: TextStyle(
+                color: AppColors.primaryPurple,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
     final sys = MediaQuery.of(context).viewPadding.bottom;
     final navBottom = sys > 0 ? sys + 16.0 : 24.0;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldExit = await _showExitDialog(context);
+        if (shouldExit == true) SystemNavigator.pop();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
@@ -152,6 +201,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    ),
     );
   }
 

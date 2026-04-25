@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
+import '../models/task_model.dart';
 import '../repositories/notification_repository.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
@@ -654,7 +655,7 @@ class _PendingTasksList extends StatelessWidget {
         
         return Column(
           children: [
-            _buildTaskCard(task.title, task.subtitle, task.priority, priorityColor, s),
+            _buildTaskCard(context, task, priorityColor, s),
             if (entry.key < tasksToShow.length - 1) const SizedBox(height: 10),
           ],
         );
@@ -663,9 +664,8 @@ class _PendingTasksList extends StatelessWidget {
   }
 
   Widget _buildTaskCard(
-    String title,
-    String subtitle,
-    String priority,
+    BuildContext context,
+    TaskModel task,
     Color priorityColor,
     AppStrings s,
   ) {
@@ -678,12 +678,47 @@ class _PendingTasksList extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.primaryPurple, width: 2),
+          GestureDetector(
+            onTap: () async {
+              final taskVm = context.read<TasksViewModel>();
+              final didLevelUp = await taskVm.toggleTaskCompletion(
+                task.id,
+                task.xpReward,
+              );
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${s.get('quest_completed')} +${task.xpReward} XP',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: AppColors.primaryPurple,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              if (didLevelUp) _showLevelUpDialog(context, s);
+            },
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.primaryPurple, width: 2),
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -692,7 +727,7 @@ class _PendingTasksList extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  task.title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -700,10 +735,10 @@ class _PendingTasksList extends StatelessWidget {
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (subtitle.isNotEmpty) ...[
+                if (task.subtitle.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
-                    subtitle,
+                    task.subtitle,
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -720,12 +755,66 @@ class _PendingTasksList extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              _priorityLabel(priority, s),
+              _priorityLabel(task.priority, s),
               style: TextStyle(
                 color: priorityColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLevelUpDialog(BuildContext context, AppStrings s) {
+    final user = context.read<UserViewModel>().user;
+    if (user == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '🎉 ${s.get('level_up')}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.military_tech, color: AppColors.cyanAccent, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              '${s.get('level')} ${user.level} · ${user.rank}',
+              style: const TextStyle(
+                color: AppColors.cyanAccent,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              s.get('keep_completing'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              s.get('continue'),
+              style: const TextStyle(
+                color: AppColors.primaryPurple,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),

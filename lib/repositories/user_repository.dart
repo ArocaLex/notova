@@ -279,19 +279,30 @@ class UserRepository {
   }
 
   /// Elimina los datos del usuario en Firestore y su avatar en Storage.
+  ///
+  /// Las tareas se eliminan primero en batches. El documento principal del
+  /// usuario solo se borra si todos los batches se completan correctamente,
+  /// evitando dejar tareas huérfanas en caso de fallo parcial.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid);
 
-    final tasks = await userRef.collection('tasks').get();
-    if (tasks.docs.isNotEmpty) {
+    final tasksSnap = await userRef.collection('tasks').get();
+    final taskDocs = tasksSnap.docs;
+
+    const batchSize = 500;
+    for (var i = 0; i < taskDocs.length; i += batchSize) {
       final batch = _db.batch();
-      for (final doc in tasks.docs) {
-        batch.delete(doc.reference);
+      final end = (i + batchSize < taskDocs.length) ? i + batchSize : taskDocs.length;
+      for (var j = i; j < end; j++) {
+        batch.delete(taskDocs[j].reference);
       }
+      // Si este commit falla lanza excepción y el userDoc no se borra,
+      // preservando la integridad referencial.
       await batch.commit();
     }
 
     await userRef.delete();
+
     try {
       await FirebaseStorage.instance.ref('avatars/$uid.jpg').delete();
     } catch (_) {}

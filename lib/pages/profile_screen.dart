@@ -3,8 +3,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_cropper/image_cropper.dart';
+import 'dart:ui' as ui;
+
+import 'package:crop/crop.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../models/user_model.dart';
@@ -407,64 +410,9 @@ class ProfileScreenState extends State<ProfileScreen> {
               iconColor: const Color(0xFFDEB7FF),
               label: s.get('configure_avatar'),
               subtitle: s.get('avatar_subtitle'),
-              onTap: () async {
+              onTap: () {
                 Navigator.pop(context);
-                try {
-                  final picked = await ImagePicker().pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 90,
-                    maxWidth: 1024,
-                  );
-                  if (picked == null || !mounted) return;
-
-                  final cropped = await ImageCropper().cropImage(
-                    sourcePath: picked.path,
-                    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-                    uiSettings: [
-                      AndroidUiSettings(
-                        toolbarTitle: s.isSpanish ? 'Recortar Foto' : 'Crop Photo',
-                        toolbarColor: const Color(0xFF120E1A),
-                        toolbarWidgetColor: Colors.white,
-                        activeControlsWidgetColor: const Color(0xFF7B2CBF),
-                        backgroundColor: const Color(0xFF120E1A),
-                        dimmedLayerColor: const Color(0xFF120E1A),
-                        initAspectRatio: CropAspectRatioPreset.square,
-                        lockAspectRatio: true,
-                        statusBarColor: const Color(0xFF120E1A),
-                      ),
-                      IOSUiSettings(
-                        title: s.isSpanish ? 'Recortar' : 'Crop',
-                        cancelButtonTitle: s.isSpanish ? 'Cancelar' : 'Cancel',
-                        doneButtonTitle: s.isSpanish ? 'Listo' : 'Done',
-                        aspectRatioLockEnabled: true,
-                        resetAspectRatioEnabled: false,
-                      ),
-                    ],
-                  );
-                  if (cropped == null || !mounted) return;
-
-                  final messenger = ScaffoldMessenger.of(context);
-                  messenger.showSnackBar(SnackBar(
-                    content: Text(s.get('uploading_avatar')),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: const Color(0xFF1E1A29),
-                  ));
-                  await context
-                      .read<UserViewModel>()
-                      .uploadAvatar(File(cropped.path));
-                  if (!mounted) return;
-                  messenger.showSnackBar(SnackBar(
-                    content: Text(s.get('avatar_updated')),
-                    backgroundColor: Colors.green,
-                  ));
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('${s.get('avatar_error')} $e'),
-                    backgroundColor: Colors.redAccent,
-                    duration: const Duration(seconds: 5),
-                  ));
-                }
+                _pickAndCropAvatar();
               },
             ),
             _SettingsTile(
@@ -896,6 +844,51 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _pickAndCropAvatar() async {
+    final s = context.read<AppStrings>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+        maxWidth: 1024,
+      );
+      if (picked == null || !mounted) return;
+
+      if (!mounted) return;
+      final croppedFile = await Navigator.push<File>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _CropPage(imageFile: File(picked.path)),
+        ),
+      );
+
+      if (croppedFile == null || !mounted) return;
+
+      messenger.showSnackBar(SnackBar(
+        content: Text(s.get('uploading_avatar')),
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF1E1A29),
+      ));
+
+      await context.read<UserViewModel>().uploadAvatar(croppedFile);
+      if (!mounted) return;
+
+      messenger.showSnackBar(SnackBar(
+        content: Text(s.get('avatar_updated')),
+        backgroundColor: Colors.green,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('${s.get('avatar_error')} $e'),
+        backgroundColor: Colors.redAccent,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+  }
+
   Widget _buildStatCard({
     required String title,
     required String value,
@@ -1127,6 +1120,60 @@ class _SettingsTile extends StatelessWidget {
             Icon(Icons.chevron_right,
                 color: Colors.grey.shade700, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CropPage extends StatefulWidget {
+  const _CropPage({required this.imageFile});
+  final File imageFile;
+
+  @override
+  State<_CropPage> createState() => _CropPageState();
+}
+
+class _CropPageState extends State<_CropPage> {
+  final _controller = CropController(aspectRatio: 1.0);
+
+  Future<void> _confirm() async {
+    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final uiImage = await _controller.crop(pixelRatio: pixelRatio);
+    if (uiImage == null || !mounted) return;
+    final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null || !mounted) return;
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/avatar_crop.png');
+    await file.writeAsBytes(byteData.buffer.asUint8List());
+    if (mounted) Navigator.pop(context, file);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF120E1A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF120E1A),
+        foregroundColor: Colors.white,
+        title: const Text('Recortar foto'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: _confirm,
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Crop(
+          controller: _controller,
+          overlay: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFF7B2CBF), width: 2),
+              shape: BoxShape.rectangle,
+            ),
+          ),
+          child: Image.file(widget.imageFile, fit: BoxFit.cover),
         ),
       ),
     );

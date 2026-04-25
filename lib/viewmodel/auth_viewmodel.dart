@@ -140,11 +140,22 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Cierra la sesión del usuario actual.
   ///
-  /// Limpia la caché local de tareas mediante [LocalTaskRepository] y
-  /// delega el cierre de sesión a [AuthRepository].
+  /// Limpia la caché local de tareas y datos de usuario mediante [LocalTaskRepository]
+  /// y [UserRepository]. Delega el cierre de sesión a [AuthRepository].
   Future<void> signOut() async {
-    await _localTaskRepository.clearLocalCache();
-    await _repository.signOut();
+    try {
+      await _repository.signOut();
+      await _localTaskRepository.clearLocalCache();
+      await _userRepository.clearCachedUser();
+    } catch (e) {
+      // Si falla el signOut de Firebase, igual limpiamos la cache local
+      // para evitar datos huérfanos
+      try {
+        await _localTaskRepository.clearLocalCache();
+        await _userRepository.clearCachedUser();
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   /// Elimina permanentemente la cuenta del usuario actual de Firebase Auth
@@ -163,7 +174,7 @@ class AuthViewModel extends ChangeNotifier {
         errorMessage = 'No se pudo eliminar la cuenta. Inténtalo de nuevo.';
       }
       _setLoading(false);
-      rethrow;
+      // No rethrow - el error ya está manejado en errorMessage
     }
   }
 

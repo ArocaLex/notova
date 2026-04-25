@@ -42,9 +42,24 @@ class TasksViewModel extends ChangeNotifier {
   /// para que borrar una tarea completada no reduzca el progreso diario.
   int _completedTodayCount = 0; // ignore: prefer_final_fields
 
+  /// Fecha del último reset del contador diario (para evitar desincronización).
+  DateTime? _lastDailyReset;
+
   /// Devuelve las tareas completadas el día de hoy
   List<TaskModel> get completedToday {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Reset automático del contador si cambió el día
+    if (_lastDailyReset == null || !_isSameDay(_lastDailyReset!, today)) {
+      _completedTodayCount = completed.where((t) =>
+          t.completedAt != null &&
+          t.completedAt!.year == today.year &&
+          t.completedAt!.month == today.month &&
+          t.completedAt!.day == today.day).length;
+      _lastDailyReset = today;
+    }
+
     return completed.where((t) =>
         t.completedAt != null &&
         t.completedAt!.year == now.year &&
@@ -498,6 +513,11 @@ class TasksViewModel extends ChangeNotifier {
       color: Value(task.color),
       pendingPush: Value(pendingPush),
     );
+  }
+
+  /// Verifica si dos fechas corresponden al mismo día.
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   @override

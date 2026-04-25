@@ -25,7 +25,15 @@ class NotificationRepository {
     if (_initialized) return;
 
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('America/Mexico_City'));
+    // Intenta usar la zona horaria del dispositivo (funciona en iOS y Android
+    // moderno que devuelve nombres IANA). Si el nombre no es reconocido, usa
+    // America/Mexico_City como fallback para el mercado principal.
+    try {
+      final deviceTz = DateTime.now().timeZoneName;
+      tz.setLocalLocation(tz.getLocation(deviceTz));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('America/Mexico_City'));
+    }
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(

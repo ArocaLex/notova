@@ -194,7 +194,7 @@ class CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = context.watch<AppStrings>();
+    //final s = context.watch<AppStrings>();
     final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
     final isAccountsEmpty = context.select((CalendarViewModel vm) => vm.accounts.isEmpty);
     final errorMessage = context.select((CalendarViewModel vm) => vm.errorMessage);
@@ -599,9 +599,9 @@ class _CalendarsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
-    final accounts = context.select((CalendarViewModel vm) => vm.accounts);
-    final vm = context.read<CalendarViewModel>();
+    final vm = context.watch<CalendarViewModel>();
+    final isSignedIn = vm.isSignedIn;
+    final accounts = vm.accounts;
 
     if (!isSignedIn) return const SizedBox.shrink();
 
@@ -940,6 +940,41 @@ class _ScheduleSection extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (event.isOwned) ...[
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: AppColors.card,
+                                    title: const Text('Eliminar evento',
+                                        style: TextStyle(color: AppColors.textPrimary)),
+                                    content: Text('¿Eliminar "${event.title}"?',
+                                        style: const TextStyle(color: AppColors.textSecondary)),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('Cancelar',
+                                            style: TextStyle(color: AppColors.textMuted)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Eliminar',
+                                            style: TextStyle(color: Colors.redAccent)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) vm.deleteEvent(event);
+                              },
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                                size: 18,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       if (event.end != null && !event.isAllDay) ...[

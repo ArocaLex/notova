@@ -424,7 +424,8 @@ class CalendarViewModel extends ChangeNotifier {
         break;
       }
     }
-    _reloadEverything().then((_) => notifyListeners());
+    notifyListeners();
+    unawaited(_reloadEverything().then((_) => notifyListeners()));
   }
 
   /// Crea un evento en el calendario propio identificado por [calendarId].
