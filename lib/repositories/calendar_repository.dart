@@ -40,6 +40,14 @@ class _AuthClient extends http.BaseClient {
 /// cuando se requiere autorización inicial.
 class CalendarRepository {
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static bool _initialized = false;
+
+  static Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+    await _googleSignIn.initialize();
+    _initialized = true;
+  }
+
   /// Paleta de colores para asignar aleatoriamente a cada cuenta conectada.
   static const List<Color> _accountPalette = [
     Color(0xFF7B2CBF),
@@ -54,7 +62,7 @@ class CalendarRepository {
 
   final _rand = Random();
 
-  Color _pickColor(Set<int> used) {
+  ({int index, Color color}) _pickColor(Set<int> used) {
     final unused = <int>[];
     for (var i = 0; i < _accountPalette.length; i++) {
       if (!used.contains(i)) unused.add(i);
@@ -63,7 +71,7 @@ class CalendarRepository {
         ? unused[_rand.nextInt(unused.length)]
         : _rand.nextInt(_accountPalette.length);
     used.add(idx);
-    return _accountPalette[idx];
+    return (index: idx, color: _accountPalette[idx]);
   }
 
   /// Inicia sesión con Google y devuelve una nueva [CalendarAccount] cargada
@@ -71,10 +79,10 @@ class CalendarRepository {
   ///
   /// [usedColorIndices] se pasa para evitar repetir colores cuando ya hay
   /// otras cuentas conectadas.
-  Future<CalendarAccount> connectAccount({
+  Future<({CalendarAccount account, int colorIndex})> connectAccount({
     required Set<int> usedColorIndices,
   }) async {
-
+    await _ensureInitialized();
     final GoogleSignInAccount account;
     try {
       account = await _googleSignIn.authenticate(
@@ -100,19 +108,55 @@ class CalendarRepository {
           'No se pudo obtener permiso para Google Calendar.');
     }
 
-    final color = _pickColor(usedColorIndices);
+    final picked = _pickColor(usedColorIndices);
 
     final calendars = await _fetchCalendars(
       accessToken: auth.accessToken,
       email: account.email,
     );
 
-    return CalendarAccount(
-      email: account.email,
-      color: color,
-      accessToken: auth.accessToken,
-      calendars: calendars,
-      tokenExpiry: DateTime.now().add(const Duration(minutes: 55)),
+    return (
+      account: CalendarAccount(
+        email: account.email,
+        color: picked.color,
+        accessToken: auth.accessToken,
+        calendars: calendars,
+        tokenExpiry: DateTime.now().add(const Duration(minutes: 55)),
+      ),
+      colorIndex: picked.index,
+    );
+  }
+
+  /// Adjunta una cuenta de Google Calendar reusando la sesión obtenida durante
+  /// el login con Google (sin abrir el selector de cuentas).
+  ///
+  /// Lanza [CalendarException] si la API de Google Calendar rechaza el token.
+  Future<({CalendarAccount account, int colorIndex})> attachFromAuthSession({
+    required String email,
+    required String accessToken,
+    required DateTime expiry,
+    required Set<int> usedColorIndices,
+  }) async {
+    final picked = _pickColor(usedColorIndices);
+    final List<CalendarInfo> calendars;
+    try {
+      calendars = await _fetchCalendars(
+        accessToken: accessToken,
+        email: email,
+      );
+    } catch (_) {
+      throw CalendarException(
+          'No se pudieron cargar los calendarios de $email.');
+    }
+    return (
+      account: CalendarAccount(
+        email: email,
+        color: picked.color,
+        accessToken: accessToken,
+        calendars: calendars,
+        tokenExpiry: expiry,
+      ),
+      colorIndex: picked.index,
     );
   }
 
@@ -136,7 +180,8 @@ class CalendarRepository {
   Future<({String email, String accessToken, DateTime expiry})?>
       attemptSilentRestore() async {
     try {
-        final acc = await _googleSignIn.attemptLightweightAuthentication();
+      await _ensureInitialized();
+      final acc = await _googleSignIn.attemptLightweightAuthentication();
       if (acc == null) return null;
       final auth = await acc.authorizationClient
           .authorizationForScopes([gcal.CalendarApi.calendarScope]);

@@ -1,10 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:notova/pages/main_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
+import '../viewmodel/calendar_viewmodel.dart';
 import 'onboarding_screen.dart';
 
 /// Pantalla de autenticación (login/registro) de Notova.
@@ -89,7 +92,21 @@ class AuthScreenState extends State<AuthScreen>
 
   Future<void> _googleSignIn() async {
     final viewModel = context.read<AuthViewModel>();
+    final calendarVm = context.read<CalendarViewModel>();
     final success = await viewModel.signInWithGoogle();
+    if (success) {
+      final primary = viewModel.lastGooglePrimary;
+      if (primary != null) {
+        // Auto-conecta el calendario con el scope ya concedido al iniciar
+        // sesión, para que el usuario no tenga que pasar dos veces por el
+        // selector de cuentas.
+        unawaited(calendarVm.attachGoogleAccountFromAuth(
+          email: primary.email,
+          accessToken: primary.accessToken,
+          expiry: primary.expiry,
+        ));
+      }
+    }
     _handleAuthResult(success, viewModel);
   }
 

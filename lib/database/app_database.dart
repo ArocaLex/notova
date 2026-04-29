@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -105,11 +107,12 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  /// Todas las tareas completadas.
-  Future<List<LocalTask>> getCompletedTasks() {
+  /// Últimas tareas completadas (límite para no sobrecargar RAM).
+  Future<List<LocalTask>> getCompletedTasks({int limit = 100}) {
     return (select(localTasks)
           ..where((t) => t.isCompleted.equals(true))
-          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
+          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)])
+          ..limit(limit))
         .get();
   }
 
@@ -271,11 +274,35 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-/// Abre la conexión a la base de datos SQLite en el directorio de documentos.
+/// Genera o recupera la clave AES-256 del Keystore del dispositivo.
+///
+/// En el primer arranque se genera una clave aleatoria de 32 bytes y se
+/// persiste en [FlutterSecureStorage] (respaldado por Android Keystore /
+/// iOS Keychain). Las siguientes veces se recupera la misma clave.
+Future<String> _getOrCreateDbKey() async {
+  const storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  const keyAlias = 'notova_db_key';
+  var key = await storage.read(key: keyAlias);
+  if (key == null) {
+    final rng = Random.secure();
+    final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+    key = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    await storage.write(key: keyAlias, value: key);
+  }
+  return key;
+}
+
+/// Abre la conexión cifrada con SQLCipher (AES-256) a [notova.db].
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
+    final dbKey = await _getOrCreateDbKey();
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'notova.db'));
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (db) => db.execute("PRAGMA key = '$dbKey';"),
+    );
   });
 }

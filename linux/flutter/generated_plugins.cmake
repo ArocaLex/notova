@@ -5,7 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
   file_selector_linux
-  sqlite3_flutter_libs
+  flutter_secure_storage_linux
   url_launcher_linux
 )
 

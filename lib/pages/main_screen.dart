@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -143,7 +145,11 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldExit = await _showExitDialog(context);
-        if (shouldExit == true) SystemNavigator.pop();
+        if (shouldExit == true) {
+          if (Platform.isAndroid) {
+            SystemNavigator.pop();
+          }
+        }
       },
       child: Scaffold(
       backgroundColor: AppColors.background,

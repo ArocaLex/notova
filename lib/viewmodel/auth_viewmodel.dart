@@ -28,6 +28,11 @@ class AuthViewModel extends ChangeNotifier {
   String? errorMessage;
   bool wasNewUser = false;
 
+  /// Sesión de Google obtenida en el último login con Google con scope de
+  /// Calendar concedido. La pantalla de autenticación la lee tras un
+  /// `signInWithGoogle()` exitoso para auto-adjuntar el calendario.
+  GooglePrimaryAccount? lastGooglePrimary;
+
   void _setLoading(bool value) {
     isLoading = value;
     if (value) errorMessage = null; 
@@ -41,12 +46,14 @@ class AuthViewModel extends ChangeNotifier {
   /// [errorMessage] con un mensaje descriptivo.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
+    lastGooglePrimary = null;
 
     try {
-      final (user, isNew) = await _repository.signInWithGoogle();
+      final (user, isNew, primary) = await _repository.signInWithGoogle();
 
       if (user != null) {
         wasNewUser = isNew;
+        lastGooglePrimary = primary;
         await _createInitialUserProfile(user);
         _setLoading(false);
         return true;

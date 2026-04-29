@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'user_repository.dart';
 
 /// Excepción de dominio para errores de autenticación en la app.
@@ -10,6 +11,20 @@ class AuthException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Sesión de Google obtenida durante el login con scope de Calendar concedido.
+/// Permite que CalendarViewModel adjunte la cuenta sin volver a abrir el picker.
+class GooglePrimaryAccount {
+  final String email;
+  final String accessToken;
+  final DateTime expiry;
+
+  const GooglePrimaryAccount({
+    required this.email,
+    required this.accessToken,
+    required this.expiry,
+  });
 }
 
 /// Repositorio de autenticación de Notova.
@@ -45,20 +60,17 @@ class AuthRepository {
   ///
   /// Retorna `(user, isNewUser)`. [isNewUser] es `true` cuando es la primera
   /// vez que este usuario inicia sesión con Google en la app.
-  Future<(User?, bool)> signInWithGoogle() async {
+  Future<(User?, bool, GooglePrimaryAccount?)> signInWithGoogle() async {
     try {
       await _ensureGoogleSignInInitialized();
       GoogleSignInAccount? googleUser;
 
-      // Usar authenticate()
       if (_googleSignIn.supportsAuthenticate()) {
         googleUser = await _googleSignIn.authenticate();
       } else {
-        // En la práctica, todas las plataformas modernas deberían soportar authenticate()
         throw AuthException('La plataforma no soporta autenticación de Google.');
       }
-      
-      // Obtener tokens de autenticación (solo idToken en v7.x)
+
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -67,10 +79,28 @@ class AuthRepository {
 
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
       final isNew = userCredential.additionalUserInfo?.isNewUser ?? false;
-      return (userCredential.user, isNew);
+
+      // Pedir el scope de Calendar reusando la cuenta ya seleccionada — así
+      // luego no hace falta volver a abrir el selector de cuentas. Si el
+      // usuario rechaza el consent, devolvemos primary=null y el flujo
+      // manual sigue disponible desde la pantalla de Calendar.
+      GooglePrimaryAccount? primary;
+      try {
+        final auth = await googleUser.authorizationClient
+            .authorizeScopes([gcal.CalendarApi.calendarScope]);
+        primary = GooglePrimaryAccount(
+          email: googleUser.email,
+          accessToken: auth.accessToken,
+          expiry: DateTime.now().add(const Duration(minutes: 55)),
+        );
+      } catch (_) {
+        primary = null;
+      }
+
+      return (userCredential.user, isNew, primary);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
-        return (null, false);
+        return (null, false, null);
       }
       throw AuthException('Error de Google Sign-In: ${e.description ?? e.code.name}');
     } on FirebaseAuthException catch (e) {

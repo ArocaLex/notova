@@ -32,7 +32,7 @@ class NotificationRepository {
       final deviceTz = DateTime.now().timeZoneName;
       tz.setLocalLocation(tz.getLocation(deviceTz));
     } catch (_) {
-      tz.setLocalLocation(tz.getLocation('America/Mexico_City'));
+      tz.setLocalLocation(tz.getLocation('Europe/Madrid'));
     }
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -139,12 +139,25 @@ class NotificationRepository {
     await init();
 
     final oneHourBefore = dueDate.subtract(const Duration(hours: 1));
-    if (oneHourBefore.isAfter(DateTime.now())) {
+    final thirtyMinBefore = dueDate.subtract(const Duration(minutes: 30));
+    final now = DateTime.now();
+
+    if (oneHourBefore.isAfter(now)) {
       final tzTime = tz.TZDateTime.from(oneHourBefore, tz.local);
       await _plugin.zonedSchedule(
         id: taskId.hashCode,
         title: '⏰ Quest por vencer',
         body: '"$title" vence en 1 hora',
+        scheduledDate: tzTime,
+        notificationDetails: _notifDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    } else if (thirtyMinBefore.isAfter(now)) {
+      final tzTime = tz.TZDateTime.from(thirtyMinBefore, tz.local);
+      await _plugin.zonedSchedule(
+        id: taskId.hashCode,
+        title: '⏰ Quest por vencer',
+        body: '"$title" vence en 30 minutos',
         scheduledDate: tzTime,
         notificationDetails: _notifDetails,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

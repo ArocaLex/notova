@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -43,8 +44,9 @@ class CalendarScreenState extends State<CalendarScreen> {
 
     final titleController = TextEditingController();
     CalendarInfo selectedCal = ownedCals.first;
+    DateTime selectedDate = vm.selectedDate;
     TimeOfDay startTime = const TimeOfDay(hour: 9, minute: 0);
-    TimeOfDay endTime = const TimeOfDay(hour: 10, minute: 0);
+    TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
 
     showModalBottomSheet(
       context: context,
@@ -107,15 +109,23 @@ class CalendarScreenState extends State<CalendarScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
+                  isExpanded: true,
                   items: ownedCals
-                      .map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(
-                              '${c.summary}  ·  ${c.accountEmail}',
-                              style: const TextStyle(color: AppColors.textPrimary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
+                      .map((c) {
+                        final isSameAsEmail = c.summary.trim().toLowerCase() ==
+                            c.accountEmail.trim().toLowerCase();
+                        final label = isSameAsEmail
+                            ? c.accountEmail
+                            : '${c.summary}  ·  ${c.accountEmail}';
+                        return DropdownMenuItem(
+                          value: c,
+                          child: Text(
+                            label,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: AppColors.textPrimary),
+                          ),
+                        );
+                      })
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setSheetState(() => selectedCal = v);
@@ -123,6 +133,50 @@ class CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 14),
               ],
+              GestureDetector(
+                onTap: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                    builder: (context, child) => Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.dark(
+                          primary: AppColors.primaryPurple,
+                          surface: AppColors.card,
+                        ),
+                      ),
+                      child: child!,
+                    ),
+                  );
+                  if (d != null) setSheetState(() => selectedDate = d);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Fecha', style: TextStyle(color: AppColors.textMuted)),
+                      Text(
+                        '${selectedDate.day.toString().padLeft(2, '0')}/'
+                        '${selectedDate.month.toString().padLeft(2, '0')}/'
+                        '${selectedDate.year}',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -161,10 +215,9 @@ class CalendarScreenState extends State<CalendarScreen> {
                   onPressed: () async {
                     final title = titleController.text.trim();
                     if (title.isEmpty) return;
-                    final base = vm.selectedDate;
-                    final start = DateTime(base.year, base.month, base.day,
+                    final start = DateTime(selectedDate.year, selectedDate.month, selectedDate.day,
                         startTime.hour, startTime.minute);
-                    final end = DateTime(base.year, base.month, base.day,
+                    final end = DateTime(selectedDate.year, selectedDate.month, selectedDate.day,
                         endTime.hour, endTime.minute);
                     final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(ctx);
@@ -608,12 +661,50 @@ class _CalendarsSection extends StatelessWidget {
     return Column(
       children: [
         for (final account in accounts)
-          _buildAccountCard(account, vm),
+          _buildAccountCard(context, account, vm),
       ],
     );
   }
 
-  Widget _buildAccountCard(CalendarAccount account, CalendarViewModel vm) {
+  Future<void> _confirmDisconnect(
+    BuildContext context,
+    CalendarAccount account,
+    CalendarViewModel vm,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Desconectar cuenta',
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          '¿Quieres desconectar ${account.email} de Notova?\n\nSus eventos dejarán de aparecer en el calendario.',
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Desconectar',
+              style: TextStyle(color: Color(0xFFFF8A8A), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      vm.disconnectGoogleCalendar(email: account.email);
+    }
+  }
+
+  Widget _buildAccountCard(BuildContext context, CalendarAccount account, CalendarViewModel vm) {
     final color = account.color;
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -650,11 +741,13 @@ class _CalendarsSection extends StatelessWidget {
                   ),
                 ),
               ),
-              GestureDetector(
-                onTap: () =>
-                    vm.disconnectGoogleCalendar(email: account.email),
-                child: const Icon(Icons.link_off,
-                    color: Color(0xFFFF8A8A), size: 16),
+              IconButton(
+                onPressed: () => _confirmDisconnect(context, account, vm),
+                icon: const Icon(Icons.person_remove_rounded,
+                    color: Color(0xFFFF8A8A), size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                tooltip: 'Desconectar cuenta',
               ),
             ],
           ),
@@ -763,9 +856,32 @@ class _ConnectButtonSection extends StatelessWidget {
             letterSpacing: 1.0,
           ),
         ),
-        onPressed: isLoading ? null : vm.connectGoogleCalendar,
+        onPressed: isLoading
+            ? null
+            : () => _onConnectPressed(vm, isSignedIn),
       ),
     );
+  }
+
+  Future<void> _onConnectPressed(
+    CalendarViewModel vm,
+    bool isSignedIn,
+  ) async {
+    // Si el usuario inició sesión con Google y aún no tiene ninguna cuenta de
+    // calendario adjuntada, intentamos restaurar silenciosamente esa misma
+    // sesión (sin selector). Solo abrimos el picker si la restauración falla
+    // o si ya hay cuentas (caso "conectar otra").
+    if (!isSignedIn) {
+      final user = FirebaseAuth.instance.currentUser;
+      final signedInWithGoogle = user?.providerData
+              .any((p) => p.providerId == 'google.com') ??
+          false;
+      if (signedInWithGoogle) {
+        final ok = await vm.attemptSilentAttach();
+        if (ok) return;
+      }
+    }
+    await vm.connectGoogleCalendar();
   }
 }
 

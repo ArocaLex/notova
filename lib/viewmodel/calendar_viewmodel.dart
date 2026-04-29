@@ -207,21 +207,10 @@ class CalendarViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final account = await _repository.connectAccount(
+      final result = await _repository.connectAccount(
         usedColorIndices: _usedColorIndices,
       );
-
-      accounts.removeWhere((a) => a.email == account.email);
-      accounts.add(account);
-
-      for (final idx in _usedColorIndices) {
-        if (!_accountColorIndex.containsValue(idx)) {
-          _accountColorIndex[account.email] = idx;
-          break;
-        }
-      }
-
-      await _persistAccount(account);
+      await _registerAccount(result.account, result.colorIndex);
       _monthCache.clear();
       await _reloadEverything();
     } on CalendarException catch (e) {
@@ -232,6 +221,86 @@ class CalendarViewModel extends ChangeNotifier {
 
     isLoading = false;
     notifyListeners();
+  }
+
+  /// Adjunta la cuenta de Google obtenida durante el login (sin picker).
+  ///
+  /// Llamado desde la pantalla de autenticación tras un Google Sign-In
+  /// exitoso. Si la cuenta ya está registrada, no hace nada.
+  Future<void> attachGoogleAccountFromAuth({
+    required String email,
+    required String accessToken,
+    required DateTime expiry,
+  }) async {
+    final normalized = email.toLowerCase();
+    if (accounts
+        .any((a) => a.email.toLowerCase() == normalized)) {
+      return;
+    }
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _repository.attachFromAuthSession(
+        email: email,
+        accessToken: accessToken,
+        expiry: expiry,
+        usedColorIndices: _usedColorIndices,
+      );
+      await _registerAccount(result.account, result.colorIndex);
+      _monthCache.clear();
+      await _reloadEverything();
+    } on CalendarException catch (e) {
+      errorMessage = e.message;
+    } catch (_) {
+      errorMessage = 'No se pudo conectar con Google Calendar.';
+    }
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  /// Intenta conectar la cuenta de Google del usuario actual sin mostrar
+  /// el selector. Devuelve `true` si lo logra. Solo aplica cuando el usuario
+  /// inició sesión con Google (la sesión sigue viva en GoogleSignIn).
+  Future<bool> attemptSilentAttach() async {
+    try {
+      final restored = await _repository.attemptSilentRestore();
+      if (restored == null) return false;
+      final normalized = restored.email.toLowerCase();
+      if (accounts.any((a) => a.email.toLowerCase() == normalized)) {
+        return true;
+      }
+      isLoading = true;
+      notifyListeners();
+      final result = await _repository.attachFromAuthSession(
+        email: restored.email,
+        accessToken: restored.accessToken,
+        expiry: restored.expiry,
+        usedColorIndices: _usedColorIndices,
+      );
+      await _registerAccount(result.account, result.colorIndex);
+      _monthCache.clear();
+      await _reloadEverything();
+      isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Inserta o reemplaza una cuenta y persiste con el índice de color real.
+  Future<void> _registerAccount(CalendarAccount account, int colorIndex) async {
+    final normalized = account.email.toLowerCase();
+    accounts
+        .removeWhere((a) => a.email.toLowerCase() == normalized);
+    accounts.add(account);
+    _accountColorIndex[account.email] = colorIndex;
+    await _persistAccount(account);
   }
 
   /// Desconecta una cuenta concreta identificada por su email.
@@ -248,8 +317,10 @@ class CalendarViewModel extends ChangeNotifier {
         _accountColorIndex.clear();
         await _db.clearAllCalendarAccounts();
       } else {
-        accounts.removeWhere((a) => a.email == email);
-        final colorIdx = _accountColorIndex.remove(email);
+        final normalized = email.toLowerCase();
+        accounts.removeWhere((a) => a.email.toLowerCase() == normalized);
+        final colorIdx = _accountColorIndex.remove(email) ??
+            _accountColorIndex.remove(normalized);
         if (colorIdx != null) _usedColorIndices.remove(colorIdx);
         await _db.deleteCalendarAccount(email);
         if (accounts.isEmpty) {
