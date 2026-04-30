@@ -17,6 +17,7 @@ import '../repositories/export_repository.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
 import '../theme/app_colors.dart';
+import '../utils/tutorial_keys.dart';
 import 'main_screen.dart';
 import 'welcome_screen.dart';
 
@@ -515,6 +516,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 color: Color(0xFFDEB7FF))),
         actions: [
           IconButton(
+            key: TutorialKeys.profileSettings,
             icon: const Icon(Icons.settings_outlined,
                 color: Color(0xFFDEB7FF)),
             onPressed: _showSettingsSheet,

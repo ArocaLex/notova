@@ -5,9 +5,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+
 
 import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
+import '../utils/tutorial_keys.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import 'calendar_screen.dart';
 import 'home_screen.dart';
@@ -61,10 +65,183 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ProfileScreen(),
   ];
 
+  final List<GlobalKey> _navKeys = List.generate(4, (_) => GlobalKey());
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowTutorial();
+    });
+  }
+
+  Future<void> _checkAndShowTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('hasSeenFullTutorial') ?? false;
+    if (!hasSeen) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() => _currentIndex = 0);
+          _showHomeTutorial();
+        }
+      });
+      await prefs.setBool('hasSeenFullTutorial', true);
+    }
+  }
+
+  void _showHomeTutorial() {
+    TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: "homeXp",
+          keyTarget: TutorialKeys.homeXpCard,
+          alignSkip: Alignment.topRight,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              builder: (context, controller) => _buildTutorialContent(
+                title: "¡Bienvenido a Notova!",
+                desc: "Esta es tu experiencia y nivel actual. ¡Completa misiones para ganar XP y subir de nivel!",
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: AppColors.background,
+      textSkip: "SALTAR",
+      paddingFocus: 10,
+      opacityShadow: 0.9,
+      onFinish: () {
+        setState(() => _currentIndex = 1);
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _showCalendarTutorial();
+        });
+      },
+      onClickSkip: () => true,
+    ).show(context: context);
+  }
+
+  void _showCalendarTutorial() {
+    TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: "calAdd",
+          keyTarget: TutorialKeys.calAddEvent,
+          alignSkip: Alignment.topRight,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              builder: (context, controller) => _buildTutorialContent(
+                title: "Gestión del Calendario",
+                desc: "Crea eventos desde aquí.\n\nPara borrar un evento creado por ti, deslízalo a la izquierda en la lista de abajo o toca su papelera.",
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: AppColors.background,
+      textSkip: "SALTAR",
+      paddingFocus: 10,
+      opacityShadow: 0.9,
+      onFinish: () {
+        setState(() => _currentIndex = 2);
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _showTasksTutorial();
+        });
+      },
+      onClickSkip: () => true,
+    ).show(context: context);
+  }
+
+  void _showTasksTutorial() {
+    TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: "tasksFab",
+          keyTarget: TutorialKeys.tasksFab,
+          alignSkip: Alignment.topRight,
+          contents: [
+            TargetContent(
+              align: ContentAlign.top,
+              builder: (context, controller) => _buildTutorialContent(
+                title: "Tus Misiones",
+                desc: "Añade nuevas misiones aquí. A medida que las completes, ganarás experiencia para desbloquear recompensas e insignias.",
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: AppColors.background,
+      textSkip: "SALTAR",
+      paddingFocus: 10,
+      opacityShadow: 0.9,
+      onFinish: () {
+        setState(() => _currentIndex = 3);
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _showProfileTutorial();
+        });
+      },
+      onClickSkip: () => true,
+    ).show(context: context);
+  }
+
+  void _showProfileTutorial() {
+    TutorialCoachMark(
+      targets: [
+        TargetFocus(
+          identify: "profileSettings",
+          keyTarget: TutorialKeys.profileSettings,
+          alignSkip: Alignment.bottomRight,
+          contents: [
+            TargetContent(
+              align: ContentAlign.bottom,
+              builder: (context, controller) => _buildTutorialContent(
+                title: "Tu Perfil",
+                desc: "Toca el engranaje para abrir los ajustes. Podrás editar tu nombre, cambiar el idioma, silenciar los sonidos y más.",
+              ),
+            ),
+          ],
+        ),
+      ],
+      colorShadow: AppColors.background,
+      textSkip: "FINALIZAR",
+      paddingFocus: 10,
+      opacityShadow: 0.9,
+      onFinish: () {
+        setState(() => _currentIndex = 0);
+      },
+      onClickSkip: () {
+        setState(() => _currentIndex = 0);
+        return true;
+      },
+    ).show(context: context);
+  }
+
+  Widget _buildTutorialContent({required String title, required String desc}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.primaryPurple,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          desc,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -188,16 +365,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildNavItem(0, Icons.home_rounded, s.get('nav_home')),
+                        _buildNavItem(0, Icons.home_rounded, s.get('nav_home'), key: _navKeys[0]),
                         const SizedBox(width: 4),
                         _buildNavItem(
-                            1, Icons.calendar_month_rounded, s.get('nav_calendar')),
+                            1, Icons.calendar_month_rounded, s.get('nav_calendar'), key: _navKeys[1]),
                         const SizedBox(width: 4),
                         _buildNavItem(
-                            2, Icons.check_circle_rounded, s.get('nav_quests')),
+                            2, Icons.check_circle_rounded, s.get('nav_quests'), key: _navKeys[2]),
                         const SizedBox(width: 4),
                         _buildNavItem(
-                            3, Icons.person_rounded, s.get('nav_profile')),
+                            3, Icons.person_rounded, s.get('nav_profile'), key: _navKeys[3]),
                       ],
                     ),
                   ),
@@ -211,11 +388,12 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label, {GlobalKey? key}) {
     final isSelected = _currentIndex == index;
     const primaryPurple = AppColors.primaryPurple;
 
     return GestureDetector(
+      key: key,
       onTap: () => _onTabTap(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(

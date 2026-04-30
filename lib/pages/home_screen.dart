@@ -9,8 +9,8 @@ import '../repositories/notification_repository.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
 import '../viewmodel/task_viewmodel.dart';
-import '../models/calendar_event.dart';
 import '../theme/app_colors.dart';
+import '../utils/tutorial_keys.dart';
 import 'all_events_screen.dart';
 import 'all_tasks_screen.dart';
 import 'main_screen.dart';
@@ -131,7 +131,7 @@ class HomeScreenState extends State<HomeScreen> {
                 onToggleNotifications: _toggleNotifications,
               ),
               const SizedBox(height: 24),
-              const _XpCard(),
+              _XpCard(key: TutorialKeys.homeXpCard),
               const SizedBox(height: 28),
               _buildSectionHeader(s.get('up_next'), s.get('view_schedule'),
                 onAction: () => Navigator.push(context,
@@ -315,7 +315,7 @@ class _UserHeader extends StatelessWidget {
 }
 
 class _XpCard extends StatelessWidget {
-  const _XpCard();
+  const _XpCard({super.key});
 
   @override
   Widget build(BuildContext context) {

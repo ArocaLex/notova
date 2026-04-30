@@ -9,6 +9,7 @@ import '../models/calendar_info.dart';
 import '../l10n/app_strings.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../theme/app_colors.dart';
+import '../utils/tutorial_keys.dart';
 import 'main_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -448,6 +449,7 @@ class _HeaderSection extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Container(
+            key: TutorialKeys.calAddEvent,
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(

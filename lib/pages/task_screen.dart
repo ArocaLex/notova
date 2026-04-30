@@ -7,6 +7,7 @@ import '../models/task_model.dart';
 import '../viewmodel/task_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
 import '../theme/app_colors.dart';
+import '../utils/tutorial_keys.dart';
 import 'main_screen.dart';
 
 class TasksScreen extends StatefulWidget {
@@ -75,6 +76,7 @@ class TasksScreenState extends State<TasksScreen> {
             bottom: fabBottom,
             right: 16,
             child: FloatingActionButton(
+              key: TutorialKeys.tasksFab,
               backgroundColor: AppColors.primaryPurple,
               shape: const CircleBorder(),
               elevation: 8,
