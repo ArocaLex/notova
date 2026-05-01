@@ -91,6 +91,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _showHomeTutorial() {
+    final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
         TargetFocus(
@@ -101,15 +102,15 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             TargetContent(
               align: ContentAlign.bottom,
               builder: (context, controller) => _buildTutorialContent(
-                title: "¡Bienvenido a Notova!",
-                desc: "Esta es tu experiencia y nivel actual. ¡Completa misiones para ganar XP y subir de nivel!",
+                title: s.get('tutorial_home_title'),
+                desc: s.get('tutorial_home_desc'),
               ),
             ),
           ],
         ),
       ],
       colorShadow: AppColors.background,
-      textSkip: "SALTAR",
+      textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
       opacityShadow: 0.9,
       onFinish: () {
@@ -118,11 +119,12 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (mounted) _showCalendarTutorial();
         });
       },
-      onClickSkip: () => true,
+      onSkip: () => true,
     ).show(context: context);
   }
 
   void _showCalendarTutorial() {
+    final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
         TargetFocus(
@@ -133,15 +135,15 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             TargetContent(
               align: ContentAlign.bottom,
               builder: (context, controller) => _buildTutorialContent(
-                title: "Gestión del Calendario",
-                desc: "Crea eventos desde aquí.\n\nPara borrar un evento creado por ti, deslízalo a la izquierda en la lista de abajo o toca su papelera.",
+                title: s.get('tutorial_calendar_title'),
+                desc: s.get('tutorial_calendar_desc'),
               ),
             ),
           ],
         ),
       ],
       colorShadow: AppColors.background,
-      textSkip: "SALTAR",
+      textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
       opacityShadow: 0.9,
       onFinish: () {
@@ -150,11 +152,12 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (mounted) _showTasksTutorial();
         });
       },
-      onClickSkip: () => true,
+      onSkip: () => true,
     ).show(context: context);
   }
 
   void _showTasksTutorial() {
+    final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
         TargetFocus(
@@ -165,15 +168,15 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             TargetContent(
               align: ContentAlign.top,
               builder: (context, controller) => _buildTutorialContent(
-                title: "Tus Misiones",
-                desc: "Añade nuevas misiones aquí. A medida que las completes, ganarás experiencia para desbloquear recompensas e insignias.",
+                title: s.get('tutorial_tasks_title'),
+                desc: s.get('tutorial_tasks_desc'),
               ),
             ),
           ],
         ),
       ],
       colorShadow: AppColors.background,
-      textSkip: "SALTAR",
+      textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
       opacityShadow: 0.9,
       onFinish: () {
@@ -182,11 +185,12 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           if (mounted) _showProfileTutorial();
         });
       },
-      onClickSkip: () => true,
+      onSkip: () => true,
     ).show(context: context);
   }
 
   void _showProfileTutorial() {
+    final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
         TargetFocus(
@@ -197,21 +201,21 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             TargetContent(
               align: ContentAlign.bottom,
               builder: (context, controller) => _buildTutorialContent(
-                title: "Tu Perfil",
-                desc: "Toca el engranaje para abrir los ajustes. Podrás editar tu nombre, cambiar el idioma, silenciar los sonidos y más.",
+                title: s.get('tutorial_profile_title'),
+                desc: s.get('tutorial_profile_desc'),
               ),
             ),
           ],
         ),
       ],
       colorShadow: AppColors.background,
-      textSkip: "FINALIZAR",
+      textSkip: s.get('tutorial_finish'),
       paddingFocus: 10,
       opacityShadow: 0.9,
       onFinish: () {
         setState(() => _currentIndex = 0);
       },
-      onClickSkip: () {
+      onSkip: () {
         setState(() => _currentIndex = 0);
         return true;
       },
@@ -271,36 +275,37 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Future<bool?> _showExitDialog(BuildContext context) {
+    final s = context.read<AppStrings>();
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Salir de Notova',
-          style: TextStyle(
+        title: Text(
+          s.get('exit_dialog_title'),
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
         ),
-        content: const Text(
-          '¿Seguro que quieres salir?',
-          style: TextStyle(color: AppColors.textSecondary),
+        content: Text(
+          s.get('exit_dialog_message'),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: AppColors.textMuted),
+            child: Text(
+              s.get('cancel'),
+              style: const TextStyle(color: AppColors.textMuted),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Salir',
-              style: TextStyle(
+            child: Text(
+              s.get('exit_dialog_exit'),
+              style: const TextStyle(
                 color: AppColors.primaryPurple,
                 fontWeight: FontWeight.bold,
               ),

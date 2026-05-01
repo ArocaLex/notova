@@ -18,6 +18,7 @@ class UserViewModel extends ChangeNotifier {
   bool _isLoading = true;
   String? _localAvatarPath;
   int _avatarVersion = 0;
+  ImageProvider? _avatarImage;
 
   StreamSubscription<UserModel?>? _userSub;
   StreamSubscription<User?>? _authSub;
@@ -34,6 +35,34 @@ class UserViewModel extends ChangeNotifier {
   /// La UI puede usarlo como `ValueKey` para forzar un rebuild sin
   /// depender de la caché de `FileImage`.
   int get avatarVersion => _avatarVersion;
+
+  /// `ImageProvider` cacheado del avatar — calculado una vez por cambio de
+  /// `_localAvatarPath` o `_user.avatarUrl`. Evita ejecutar `existsSync` en
+  /// el hilo de render en cada rebuild.
+  ImageProvider? get avatarImage => _avatarImage;
+
+  void _recomputeAvatarImage() {
+    final localPath = _localAvatarPath;
+    if (localPath != null) {
+      final file = File(localPath);
+      if (file.existsSync()) {
+        _avatarImage = FileImage(file);
+        return;
+      }
+    }
+    final remoteUrl = _user?.avatarUrl;
+    if (remoteUrl == null || remoteUrl.isEmpty) {
+      _avatarImage = null;
+      return;
+    }
+    if (remoteUrl.startsWith('file://')) {
+      final path = remoteUrl.substring('file://'.length);
+      final file = File(path);
+      _avatarImage = file.existsSync() ? FileImage(file) : null;
+      return;
+    }
+    _avatarImage = NetworkImage(remoteUrl);
+  }
 
   UserViewModel() {
     _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
@@ -59,6 +88,7 @@ class UserViewModel extends ChangeNotifier {
     _repository.getLocalAvatarPath().then((path) {
       if (path != null && _localAvatarPath != path) {
         _localAvatarPath = path;
+        _recomputeAvatarImage();
         notifyListeners();
       }
     });
@@ -67,13 +97,16 @@ class UserViewModel extends ChangeNotifier {
       if (cached != null && _user == null) {
         _user = cached;
         _isLoading = false;
+        _recomputeAvatarImage();
         notifyListeners();
       }
     });
 
     _userSub = _repository.userStream(firebaseUser.uid).listen((userModel) {
+      final remoteChanged = _user?.avatarUrl != userModel?.avatarUrl;
       _user = userModel;
       _isLoading = false;
+      if (remoteChanged) _recomputeAvatarImage();
       notifyListeners();
       if (userModel != null) {
         _repository.cacheUser(userModel);
@@ -107,6 +140,7 @@ class UserViewModel extends ChangeNotifier {
 
     _localAvatarPath = path;
     _avatarVersion++;
+    _recomputeAvatarImage();
     notifyListeners();
 
     unawaited(_repository.syncAvatarToCloud());

@@ -12,7 +12,8 @@ import 'package:provider/provider.dart';
 
 import '../models/user_model.dart';
 import '../l10n/app_strings.dart';
-import '../repositories/audio_repository.dart';
+// TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
+// import '../repositories/audio_repository.dart';
 import '../repositories/export_repository.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
@@ -38,11 +39,14 @@ class ProfileScreenState extends State<ProfileScreen> {
   static const _primaryPurple = AppColors.primaryPurple;
   static const _cyanAccent = AppColors.cyanAccent;
 
-  static const _textPrimary = AppColors.textPrimary;
+  // TODO(sound-settings): _textPrimary y _textMuted se reactivan al
+  // restaurar `_showSfxDialog`.
+  // static const _textPrimary = AppColors.textPrimary;
   static const _textSecondary = AppColors.textSecondary;
-  static const _textMuted = AppColors.textMuted;
+  // static const _textMuted = AppColors.textMuted;
 
-  final _audio = AudioRepository();
+  // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
+  // final _audio = AudioRepository();
   final _export = ExportRepository();
 
   static const _badgeDefs = {
@@ -127,49 +131,50 @@ class ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showSfxDialog() async {
-    final current = await _audio.getSfxEnabled();
-    if (!mounted) return;
-
-    final s = context.read<AppStrings>();
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        bool sfxOn = current;
-        return StatefulBuilder(
-          builder: (builderContext, setDialogState) => AlertDialog(
-            backgroundColor: _cardColor,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            title: Text(s.get('sound_settings'),
-                style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.bold)),
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(s.get('sfx_label'),
-                    style: const TextStyle(color: _textMuted, fontSize: 14)),
-                Switch(
-                  value: sfxOn,
-                  activeColor: _primaryPurple,
-                  onChanged: (val) {
-                    setDialogState(() => sfxOn = val);
-                    _audio.setSfxEnabled(val);
-                  },
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text(s.get('close'),
-                    style: const TextStyle(color: _primaryPurple)),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
+  // void _showSfxDialog() async {
+  //   final current = await _audio.getSfxEnabled();
+  //   if (!mounted) return;
+  //
+  //   final s = context.read<AppStrings>();
+  //   showDialog(
+  //     context: context,
+  //     builder: (dialogContext) {
+  //       bool sfxOn = current;
+  //       return StatefulBuilder(
+  //         builder: (builderContext, setDialogState) => AlertDialog(
+  //           backgroundColor: _cardColor,
+  //           shape: RoundedRectangleBorder(
+  //               borderRadius: BorderRadius.circular(20)),
+  //           title: Text(s.get('sound_settings'),
+  //               style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.bold)),
+  //           content: Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               Text(s.get('sfx_label'),
+  //                   style: const TextStyle(color: _textMuted, fontSize: 14)),
+  //               Switch(
+  //                 value: sfxOn,
+  //                 activeColor: _primaryPurple,
+  //                 onChanged: (val) {
+  //                   setDialogState(() => sfxOn = val);
+  //                   _audio.setSfxEnabled(val);
+  //                 },
+  //               ),
+  //             ],
+  //           ),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () => Navigator.pop(dialogContext),
+  //               child: Text(s.get('close'),
+  //                   style: const TextStyle(color: _primaryPurple)),
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   void _showEditNameDialog() {
     final user = context.read<UserViewModel>().user;
@@ -396,16 +401,17 @@ class ProfileScreenState extends State<ProfileScreen> {
                 _showExportSheet();
               },
             ),
-            _SettingsTile(
-              icon: Icons.volume_up_outlined,
-              iconColor: _primaryPurple,
-              label: s.get('sound_settings'),
-              subtitle: s.get('sound_subtitle'),
-              onTap: () {
-                Navigator.pop(context);
-                _showSfxDialog();
-              },
-            ),
+            // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
+            // _SettingsTile(
+            //   icon: Icons.volume_up_outlined,
+            //   iconColor: _primaryPurple,
+            //   label: s.get('sound_settings'),
+            //   subtitle: s.get('sound_subtitle'),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     _showSfxDialog();
+            //   },
+            // ),
             _SettingsTile(
               icon: Icons.photo_library_outlined,
               iconColor: const Color(0xFFDEB7FF),
@@ -532,7 +538,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: GestureDetector(
                 onLongPress: () {
-                  final img = _avatarImage(userVM.localAvatarPath, user.avatarUrl);
+                  final img = userVM.avatarImage;
                   if (img == null) return;
                   showDialog(
                     context: context,
@@ -584,11 +590,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                           key: ValueKey('avatar_${userVM.avatarVersion}'),
                           radius: 56,
                           backgroundColor: const Color(0xFF2A223E),
-                          backgroundImage: _avatarImage(
-                              userVM.localAvatarPath, user.avatarUrl),
-                          child: _avatarImage(
-                                      userVM.localAvatarPath, user.avatarUrl) ==
-                                  null
+                          backgroundImage: userVM.avatarImage,
+                          child: userVM.avatarImage == null
                               ? const Icon(Icons.person,
                                   size: 60, color: _textSecondary)
                               : null,
@@ -815,24 +818,6 @@ class ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-  }
-
-  /// Devuelve la imagen apropiada para el avatar dando prioridad al archivo
-  /// local (para reflejar el cambio al instante y funcionar sin conexión) y,
-  /// como fallback, al `avatarUrl` remoto.
-  ImageProvider? _avatarImage(String? localPath, String? remoteUrl) {
-    if (localPath != null) {
-      final file = File(localPath);
-      if (file.existsSync()) return FileImage(file);
-    }
-    if (remoteUrl == null || remoteUrl.isEmpty) return null;
-    if (remoteUrl.startsWith('file://')) {
-      final path = remoteUrl.substring('file://'.length);
-      final file = File(path);
-      if (file.existsSync()) return FileImage(file);
-      return null;
-    }
-    return NetworkImage(remoteUrl);
   }
 
   String _nextRankName(int currentLevel) {

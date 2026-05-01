@@ -83,15 +83,22 @@ class CalendarRepository {
     required Set<int> usedColorIndices,
   }) async {
     await _ensureInitialized();
-    final GoogleSignInAccount account;
+    GoogleSignInAccount? account;
     try {
-      account = await _googleSignIn.authenticate(
-        scopeHint: const [gcal.CalendarApi.calendarScope],
-      );
-    } on GoogleSignInException catch (e) {
-      throw CalendarException(_friendlyAuthError(e));
+      account = await _googleSignIn.attemptLightweightAuthentication();
     } catch (_) {
-      throw CalendarException('No se pudo iniciar sesión con Google.');
+      account = null;
+    }
+    if (account == null) {
+      try {
+        account = await _googleSignIn.authenticate(
+          scopeHint: const [gcal.CalendarApi.calendarScope],
+        );
+      } on GoogleSignInException catch (e) {
+        throw CalendarException(_friendlyAuthError(e));
+      } catch (_) {
+        throw CalendarException('No se pudo iniciar sesión con Google.');
+      }
     }
 
     final GoogleSignInClientAuthorization auth;
@@ -219,13 +226,18 @@ class CalendarRepository {
     }
   }
 
+  /// Timeout aplicado a cualquier llamada a la API de Google Calendar.
+  /// Si en este margen no hubo respuesta, devolvemos lo que tengamos en
+  /// caché (vacío) y dejamos al usuario navegar sin que la UI se cuelgue.
+  static const _apiTimeout = Duration(seconds: 10);
+
   /// Obtiene la lista de calendarios de una cuenta usando su [accessToken].
   Future<List<CalendarInfo>> _fetchCalendars({
     required String accessToken,
     required String email,
   }) async {
     final api = gcal.CalendarApi(_AuthClient(accessToken));
-    final result = await api.calendarList.list();
+    final result = await api.calendarList.list().timeout(_apiTimeout);
     return (result.items ?? [])
         .map((item) => CalendarInfo(
               id: item.id ?? '',
@@ -303,7 +315,7 @@ class CalendarRepository {
         timeMax: timeMax,
         singleEvents: true,
         orderBy: 'startTime',
-      );
+      ).timeout(_apiTimeout);
       return (result.items ?? [])
           .map((e) => CalendarEvent.fromGoogleEvent(
                 e,
@@ -320,7 +332,10 @@ class CalendarRepository {
       if (!e.toString().contains('401')) return [];
       // Token vencido antes de los 55 min estimados: refrescar y reintentar.
       final newToken = await refreshToken(account);
-      if (newToken == null) return [];
+      if (newToken == null) {
+        _markExpired(account);
+        return [];
+      }
       try {
         return await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
       } catch (_) {
@@ -406,7 +421,7 @@ class CalendarRepository {
         timeMax: monthEnd,
         singleEvents: true,
         orderBy: 'startTime',
-      );
+      ).timeout(_apiTimeout);
       for (final e in res.items ?? []) {
         final start = e.start?.dateTime?.toLocal() ??
             (e.start?.date != null
@@ -424,11 +439,21 @@ class CalendarRepository {
     } catch (e) {
       if (!e.toString().contains('401')) return;
       final newToken = await refreshToken(account);
-      if (newToken == null) return;
+      if (newToken == null) {
+        _markExpired(account);
+        return;
+      }
       try {
         await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
       } catch (_) {}
     }
+  }
+
+  /// Fuerza el estado "token caducado" en [account] para que el ViewModel
+  /// active el banner "Reconectar" en la próxima reevaluación.
+  void _markExpired(CalendarAccount account) {
+    account.tokenExpiry =
+        DateTime.now().subtract(const Duration(minutes: 1));
   }
 
   /// Crea un evento en el calendario identificado por [calendarId].
@@ -456,7 +481,7 @@ class CalendarRepository {
           end: gcal.EventDateTime(dateTime: end.toUtc()),
         ),
         calendarId,
-      );
+      ).timeout(_apiTimeout);
     } catch (_) {
       throw CalendarException('No se pudo crear el evento.');
     }
@@ -474,7 +499,7 @@ class CalendarRepository {
     }
     final api = gcal.CalendarApi(_AuthClient(account.accessToken));
     try {
-      await api.events.delete(calendarId, eventId);
+      await api.events.delete(calendarId, eventId).timeout(_apiTimeout);
     } catch (_) {
       throw CalendarException('No se pudo eliminar el evento.');
     }

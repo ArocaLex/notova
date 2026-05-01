@@ -1,9 +1,9 @@
 // ignore_for_file: deprecated_member_use
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
+import '../models/calendar_event.dart';
 import '../models/task_model.dart';
 import '../repositories/notification_repository.dart';
 import '../viewmodel/calendar_viewmodel.dart';
@@ -14,24 +14,6 @@ import '../utils/tutorial_keys.dart';
 import 'all_events_screen.dart';
 import 'all_tasks_screen.dart';
 import 'main_screen.dart';
-
-/// Devuelve la imagen apropiada para el avatar dando prioridad al archivo
-/// local (para reflejar cambios al instante y funcionar sin conexión) y, como
-/// fallback, al `avatarUrl` remoto.
-ImageProvider? _avatarImageProvider(String? localPath, String? remoteUrl) {
-  if (localPath != null) {
-    final file = File(localPath);
-    if (file.existsSync()) return FileImage(file);
-  }
-  if (remoteUrl == null || remoteUrl.isEmpty) return null;
-  if (remoteUrl.startsWith('file://')) {
-    final path = remoteUrl.substring('file://'.length);
-    final file = File(path);
-    if (file.existsSync()) return FileImage(file);
-    return null;
-  }
-  return NetworkImage(remoteUrl);
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -206,11 +188,10 @@ class _UserHeader extends StatelessWidget {
     final user = context.select((UserViewModel vm) => vm.user);
     if (user == null) return const SizedBox.shrink();
 
-    final localAvatar =
-        context.select((UserViewModel vm) => vm.localAvatarPath);
     final avatarVersion =
         context.select((UserViewModel vm) => vm.avatarVersion);
-    final avatarImage = _avatarImageProvider(localAvatar, user.avatarUrl);
+    final avatarImage =
+        context.select((UserViewModel vm) => vm.avatarImage);
 
     return Row(
       children: [

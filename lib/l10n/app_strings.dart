@@ -142,6 +142,26 @@ class AppStrings extends ChangeNotifier {
       'my_calendars': 'Mis Calendarios',
       'connect_calendar': 'CONECTAR GOOGLE CALENDAR',
       'connect_another': 'CONECTAR OTRA CUENTA',
+      'reconnect_calendar_message':
+          'La sesión con Google ha caducado. Reconecta para ver tus eventos.',
+      'reconnect_calendar_button': 'Reconectar',
+      'tutorial_skip': 'SALTAR',
+      'tutorial_finish': 'FINALIZAR',
+      'tutorial_home_title': '¡Bienvenido a Notova!',
+      'tutorial_home_desc':
+          'Esta es tu experiencia y nivel actual. ¡Completa misiones para ganar XP y subir de nivel!',
+      'tutorial_calendar_title': 'Gestión del Calendario',
+      'tutorial_calendar_desc':
+          'Crea eventos desde aquí.\n\nPara borrar un evento creado por ti, deslízalo a la izquierda en la lista de abajo o toca su papelera.',
+      'tutorial_tasks_title': 'Tus Misiones',
+      'tutorial_tasks_desc':
+          'Añade nuevas misiones aquí. A medida que las completes, ganarás experiencia para desbloquear recompensas e insignias.',
+      'tutorial_profile_title': 'Tu Perfil',
+      'tutorial_profile_desc':
+          'Toca el engranaje para abrir los ajustes. Podrás editar tu nombre, cambiar el idioma, silenciar los sonidos y más.',
+      'exit_dialog_title': 'Salir de Notova',
+      'exit_dialog_message': '¿Seguro que quieres salir?',
+      'exit_dialog_exit': 'Salir',
       'disconnect': 'Desconectar',
       'calendar_connected': 'Google Calendar conectado',
       'connect_hint': 'Sincroniza tus eventos automáticamente.',
@@ -328,6 +348,26 @@ class AppStrings extends ChangeNotifier {
       'my_calendars': 'My Calendars',
       'connect_calendar': 'CONNECT GOOGLE CALENDAR',
       'connect_another': 'CONNECT ANOTHER ACCOUNT',
+      'reconnect_calendar_message':
+          'Your Google session has expired. Reconnect to see your events.',
+      'reconnect_calendar_button': 'Reconnect',
+      'tutorial_skip': 'SKIP',
+      'tutorial_finish': 'FINISH',
+      'tutorial_home_title': 'Welcome to Notova!',
+      'tutorial_home_desc':
+          'This is your current XP and level. Complete quests to earn XP and level up!',
+      'tutorial_calendar_title': 'Calendar Management',
+      'tutorial_calendar_desc':
+          'Create events from here.\n\nTo delete an event you created, swipe left on the list below or tap its trash icon.',
+      'tutorial_tasks_title': 'Your Quests',
+      'tutorial_tasks_desc':
+          'Add new quests here. As you complete them, you will earn experience to unlock rewards and badges.',
+      'tutorial_profile_title': 'Your Profile',
+      'tutorial_profile_desc':
+          'Tap the gear icon to open settings. You can edit your name, change the language, mute sounds and more.',
+      'exit_dialog_title': 'Exit Notova',
+      'exit_dialog_message': 'Are you sure you want to exit?',
+      'exit_dialog_exit': 'Exit',
       'disconnect': 'Disconnect',
       'calendar_connected': 'Google Calendar connected',
       'connect_hint': 'Sync your events automatically.',

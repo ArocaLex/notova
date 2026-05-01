@@ -26,6 +26,7 @@ class AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
   late bool isLogin;
   bool _obscurePassword = true;
+  bool _isAttachingCalendar = false;
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -97,16 +98,20 @@ class AuthScreenState extends State<AuthScreen>
     if (success) {
       final primary = viewModel.lastGooglePrimary;
       if (primary != null) {
-        // Auto-conecta el calendario con el scope ya concedido al iniciar
-        // sesión, para que el usuario no tenga que pasar dos veces por el
-        // selector de cuentas.
-        unawaited(calendarVm.attachGoogleAccountFromAuth(
+        // Mantenemos el botón en estado de carga mientras se descarga la
+        // lista de calendarios para que el usuario no perciba el botón
+        // "pegado". Se hace antes de navegar a MainScreen para que
+        // `isSignedIn` ya sea `true` al llegar a Home/Calendar.
+        if (mounted) setState(() => _isAttachingCalendar = true);
+        await calendarVm.attachGoogleAccountFromAuth(
           email: primary.email,
           accessToken: primary.accessToken,
           expiry: primary.expiry,
-        ));
+        );
+        if (mounted) setState(() => _isAttachingCalendar = false);
       }
     }
+    if (!mounted) return;
     _handleAuthResult(success, viewModel);
   }
 
@@ -272,7 +277,8 @@ class AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = context.watch<AuthViewModel>().isLoading;
+    final isLoading =
+        context.watch<AuthViewModel>().isLoading || _isAttachingCalendar;
 
     return Scaffold(
       backgroundColor: _bgColor,

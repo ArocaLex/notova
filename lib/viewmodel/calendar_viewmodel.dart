@@ -60,6 +60,12 @@ class CalendarViewModel extends ChangeNotifier {
 
   bool isLoading = false;
   String? errorMessage;
+
+  /// `true` cuando hay cuentas guardadas en SQLite pero su sesión OAuth con
+  /// Google no se pudo restaurar silenciosamente al abrir la app — la UI
+  /// muestra un banner "Reconectar" para que el usuario refresque el acceso
+  /// con un solo gesto.
+  bool needsReconnect = false;
   
   StreamSubscription<User?>? _authSub;
 
@@ -140,20 +146,69 @@ class CalendarViewModel extends ChangeNotifier {
       debugPrint('[CalendarVM] restore from local failed: $e');
     }
 
-    unawaited(_silentRestoreToken());
+    if (accounts.isEmpty) return;
+
+    // Refresca el access token de cada cuenta sin abrir diálogos y luego
+    // carga los eventos de hoy y los marcadores del mes para que el usuario,
+    // al abrir la pestaña Calendar tras reabrir la app, vea su agenda sin
+    // tener que cambiar de día o pulsar refrescar.
+    await _silentRestoreToken();
+    _recomputeNeedsReconnect();
+    await _reloadEverything();
+    _recomputeNeedsReconnect();
+    notifyListeners();
   }
 
-  /// Intenta restaurar el access token de la cuenta activa sin abrir diálogos.
+  /// Marca [needsReconnect] como `true` si alguna cuenta tiene el token
+  /// caducado tras una operación silenciosa o un 401 en runtime.
+  void _recomputeNeedsReconnect() {
+    needsReconnect = accounts.any((a) => a.isTokenExpired);
+  }
+
+  /// Reabre el flujo de Google para refrescar las credenciales de las cuentas
+  /// cuyo token caducó cuando la sesión silenciosa no fue capaz de
+  /// restaurarse. Llamado desde el banner "Reconectar".
+  Future<void> reconnectExpired() async {
+    needsReconnect = false;
+    notifyListeners();
+    await connectGoogleCalendar();
+    _recomputeNeedsReconnect();
+    notifyListeners();
+  }
+
+  /// Intenta restaurar el access token de las cuentas guardadas sin abrir
+  /// diálogos.
+  ///
+  /// Primero pide a `attemptSilentRestore` la sesión Google activa del
+  /// dispositivo y refresca esa cuenta. A continuación intenta refrescar las
+  /// demás cuentas vía `_repository.refreshToken`. Las cuentas que no
+  /// puedan refrescarse silenciosamente quedan marcadas como expiradas para
+  /// que la UI muestre el banner "Reconectar".
   Future<void> _silentRestoreToken() async {
     try {
       final restored = await _repository.attemptSilentRestore();
-      if (restored == null) return;
-      final idx = accounts.indexWhere(
-          (a) => a.email.toLowerCase() == restored.email.toLowerCase());
-      if (idx == -1) return;
-      accounts[idx].accessToken = restored.accessToken;
-      accounts[idx].tokenExpiry = restored.expiry;
-      await _persistAccount(accounts[idx]);
+      if (restored != null) {
+        final idx = accounts.indexWhere(
+            (a) => a.email.toLowerCase() == restored.email.toLowerCase());
+        if (idx != -1) {
+          accounts[idx].accessToken = restored.accessToken;
+          accounts[idx].tokenExpiry = restored.expiry;
+          await _persistAccount(accounts[idx]);
+        }
+      }
+
+      for (final acc in accounts) {
+        if (!acc.isTokenExpired) continue;
+        final newToken = await _repository.refreshToken(acc);
+        if (newToken == null) {
+          // refreshToken solo devuelve el token si la sesión Google viva
+          // coincide con la cuenta. Si no coincide, dejamos el token
+          // caducado y _recomputeNeedsReconnect activará el banner.
+          continue;
+        }
+        await _persistAccount(acc);
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('[CalendarVM] silent token restore failed: $e');
@@ -219,6 +274,7 @@ class CalendarViewModel extends ChangeNotifier {
       errorMessage = 'No se pudo conectar con Google Calendar.';
     }
 
+    _recomputeNeedsReconnect();
     isLoading = false;
     notifyListeners();
   }
@@ -379,6 +435,7 @@ class CalendarViewModel extends ChangeNotifier {
     } catch (_) {
       errorMessage = 'No se pudieron cargar los eventos.';
     }
+    _recomputeNeedsReconnect();
   }
 
   /// Carga los días con eventos de [month] para pintar los indicadores del grid.
@@ -397,6 +454,7 @@ class CalendarViewModel extends ChangeNotifier {
       _monthCache[key] = result;
       eventDayColors = result;
     } catch (_) {}
+    _recomputeNeedsReconnect();
   }
 
   /// Precarga los días con eventos de [month] en caché sin notificar a la UI.

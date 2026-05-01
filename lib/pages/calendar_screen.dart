@@ -252,6 +252,8 @@ class CalendarScreenState extends State<CalendarScreen> {
     final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
     final isAccountsEmpty = context.select((CalendarViewModel vm) => vm.accounts.isEmpty);
     final errorMessage = context.select((CalendarViewModel vm) => vm.errorMessage);
+    final needsReconnect =
+        context.select((CalendarViewModel vm) => vm.needsReconnect);
     final navHeight = MainScreen.navBarHeight(context);
 
     return Scaffold(
@@ -267,6 +269,10 @@ class CalendarScreenState extends State<CalendarScreen> {
                   children: [
                     const SizedBox(height: 16),
                     _HeaderSection(onAddEvent: (vm) => _showAddEventSheet(context, vm)),
+                    if (needsReconnect) ...[
+                      const SizedBox(height: 12),
+                      _buildReconnectBanner(context),
+                    ],
                     const SizedBox(height: 20),
                     _CalendarGridSection(
                       daysInMonth: _daysInMonth,
@@ -287,6 +293,56 @@ class CalendarScreenState extends State<CalendarScreen> {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildReconnectBanner(BuildContext context) {
+    final vm = context.read<CalendarViewModel>();
+    final s = context.watch<AppStrings>();
+    final isLoading = context.select((CalendarViewModel vm) => vm.isLoading);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primaryPurple.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryPurple.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.link_off,
+              color: AppColors.primaryPurple, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              s.get('reconnect_calendar_message'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: isLoading ? null : vm.reconnectExpired,
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.primaryPurple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              s.get('reconnect_calendar_button'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }

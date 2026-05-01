@@ -86,8 +86,11 @@ class AuthRepository {
       // manual sigue disponible desde la pantalla de Calendar.
       GooglePrimaryAccount? primary;
       try {
-        final auth = await googleUser.authorizationClient
-            .authorizeScopes([gcal.CalendarApi.calendarScope]);
+        final existing = await googleUser.authorizationClient
+            .authorizationForScopes([gcal.CalendarApi.calendarScope]);
+        final auth = existing ??
+            await googleUser.authorizationClient
+                .authorizeScopes([gcal.CalendarApi.calendarScope]);
         primary = GooglePrimaryAccount(
           email: googleUser.email,
           accessToken: auth.accessToken,
@@ -125,13 +128,19 @@ class AuthRepository {
     }
   }
 
-  /// Registra un nuevo usuario con [email] y [password].
+  /// Registra un nuevo usuario con [email] y [password] y dispara un correo
+  /// de verificación. Si el envío del correo falla (red, cuota), seguimos
+  /// adelante: el usuario queda registrado y podrá reenviar la verificación
+  /// más tarde.
   Future<User?> registerWithEmail(String email, String password) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      try {
+        await userCredential.user?.sendEmailVerification();
+      } catch (_) {}
       return userCredential.user;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_translateAuthError(e.code));
