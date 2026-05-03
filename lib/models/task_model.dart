@@ -41,7 +41,7 @@ class TaskModel {
       title: data['title'] as String? ?? '',
       subtitle: data['subtitle'] as String? ?? '',
       priority: data['priority'] as String? ?? 'MED',
-      xpReward: data['xpReward'] as int? ?? 50,
+      xpReward: data['xpReward'] as int? ?? 100,
       isCompleted: data['isCompleted'] as bool? ?? false,
       dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),

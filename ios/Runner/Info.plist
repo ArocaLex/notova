@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Notova necesita acceso a la cámara para que puedas tomar una foto y usarla como avatar de tu perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Notova necesita acceso a tu galería para que puedas elegir una foto como avatar de tu perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Notova puede guardar el historial exportado (CSV/TXT) en tu dispositivo.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

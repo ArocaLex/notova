@@ -147,16 +147,18 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Cierra la sesión del usuario actual.
   ///
-  /// Limpia la caché local de tareas y datos de usuario mediante [LocalTaskRepository]
-  /// y [UserRepository]. Delega el cierre de sesión a [AuthRepository].
+  /// Limpia la caché local ANTES de cerrar sesión en Firebase. Si el orden
+  /// se invirtiera, los listeners de `authStateChanges` podrían dispararse
+  /// con la sesión ya cerrada y leer datos cacheados de un usuario que ya no
+  /// está autenticado.
   Future<void> signOut() async {
     try {
-      await _repository.signOut();
       await _localTaskRepository.clearLocalCache();
       await _userRepository.clearCachedUser();
+      await _repository.signOut();
     } catch (e) {
-      // Si falla el signOut de Firebase, igual limpiamos la cache local
-      // para evitar datos huérfanos
+      // Si algo falla (p. ej. signOut de Firebase sin red), aseguramos que
+      // la caché local quede limpia para no dejar datos huérfanos.
       try {
         await _localTaskRepository.clearLocalCache();
         await _userRepository.clearCachedUser();

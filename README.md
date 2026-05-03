@@ -286,6 +286,19 @@ API_BASE_URL=https://arocaalex.pythonanywhere.com
 
 ---
 
+## Créditos de audio
+
+Los efectos de sonido de la app se han descargado de [Pixabay](https://pixabay.com/sound-effects/) bajo su licencia gratuita:
+
+- **`assets/audio/task_complete.mp3`** — Sound Effect by [Jurij (soundreality)](https://pixabay.com/es/users/soundreality-31074404/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=243461) from [Pixabay](https://pixabay.com/sound-effects//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=243461).
+- **`assets/audio/level_up.mp3`** — Sound Effect by [Sunovia](https://pixabay.com/es/users/sunovia-48300994/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=289723) from [Pixabay](https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=289723).
+
+Gracias a ambos autores por compartir su trabajo libremente.
+
+---
+
 ## Licencia
 
-Proyecto académico — DAM Intermodular 2025/2026. Todos los derechos reservados.
+Este proyecto está licenciado bajo una licencia académica personalizada (solo visualización, uso no comercial).
+
+Consulta el archivo [LICENSE](LICENSE) para ver los términos completos.

@@ -20,7 +20,10 @@ class LocalTasks extends Table {
   TextColumn get title => text().withLength(min: 1)();
   TextColumn get subtitle => text().withDefault(const Constant(''))();
   TextColumn get priority => text().withDefault(const Constant('MED'))();
-  IntColumn get xpReward => integer().withDefault(const Constant(25))();
+  /// Default 100 = XP de prioridad MED en la tabla canónica del formulario
+  /// (HIGH=250, MED=100, LOW=50). Solo se usa como fallback si la fila se
+  /// inserta sin valor explícito; el flujo normal lo asigna desde la UI.
+  IntColumn get xpReward => integer().withDefault(const Constant(100))();
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get dueDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().nullable()();

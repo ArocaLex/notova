@@ -62,7 +62,7 @@ class $LocalTasksTable extends LocalTasks
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(25),
+    defaultValue: const Constant(100),
   );
   static const VerificationMeta _isCompletedMeta = const VerificationMeta(
     'isCompleted',
