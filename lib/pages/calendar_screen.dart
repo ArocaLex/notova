@@ -894,7 +894,7 @@ class _ConnectButtonSection extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: ElevatedButton.icon(
+      child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryPurple,
           shape: RoundedRectangleBorder(
@@ -902,44 +902,124 @@ class _ConnectButtonSection extends StatelessWidget {
           ),
           elevation: 0,
         ),
-        icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
-        label: Text(
-          isSignedIn
-              ? s.get('connect_another')
-              : s.get('connect_calendar'),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-            letterSpacing: 1.0,
-          ),
-        ),
-        onPressed: isLoading
-            ? null
-            : () => _onConnectPressed(vm, isSignedIn),
+        onPressed: () {
+          if (isLoading) return;
+          _onConnectPressed(context, vm, isSignedIn);
+        },
+        child: isLoading
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Conectando...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    isSignedIn
+                        ? s.get('connect_another')
+                        : s.get('connect_calendar'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
   Future<void> _onConnectPressed(
+    BuildContext context,
     CalendarViewModel vm,
     bool isSignedIn,
   ) async {
-    // Si el usuario inició sesión con Google y aún no tiene ninguna cuenta de
-    // calendario adjuntada, intentamos restaurar silenciosamente esa misma
-    // sesión (sin selector). Solo abrimos el picker si la restauración falla
-    // o si ya hay cuentas (caso "conectar otra").
-    if (!isSignedIn) {
+    // Solo intentamos el adjunto silencioso la primera vez, justo tras un
+    // login con Google y sin que el usuario haya desconectado ninguna cuenta.
+    // Si ya pasó por desconectar, esa intención debe respetarse: el siguiente
+    // clic abre el picker explícito en lugar de silenciar la acción reusando
+    // la sesión cacheada.
+    if (!isSignedIn && !vm.userHasDisconnected) {
       final user = FirebaseAuth.instance.currentUser;
       final signedInWithGoogle = user?.providerData
               .any((p) => p.providerId == 'google.com') ??
           false;
       if (signedInWithGoogle) {
         final ok = await vm.attemptSilentAttach();
-        if (ok) return;
+        if (ok) {
+          if (!context.mounted) return;
+          _showSuccessSnackbar(context, vm);
+          return;
+        }
       }
     }
     await vm.connectGoogleCalendar();
+
+    if (!context.mounted) return;
+    final err = vm.errorMessage;
+    if (err != null && err.isNotEmpty) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text(err),
+          backgroundColor: AppColors.card,
+        ));
+    } else {
+      _showSuccessSnackbar(context, vm);
+    }
+  }
+
+  void _showSuccessSnackbar(BuildContext context, CalendarViewModel vm) {
+    final email = vm.lastConnectedEmail;
+    if (email == null) return;
+    vm.clearLastConnectedEmail();
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '$email conectado',
+                style: const TextStyle(color: Colors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF2E7D32),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
   }
 }
 

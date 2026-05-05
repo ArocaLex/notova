@@ -239,6 +239,13 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_5': 'Maestro',
       'badge_nivel_7': 'SuperNotova',
 
+      'bridge_title': '¿Empezamos con el tutorial?',
+      'bridge_desc': 'Te mostramos las funciones principales en menos de un minuto.',
+      'bridge_yes': 'Sí, mostrar tutorial',
+      'bridge_later': 'Ahora no',
+      'repeat_tutorial': 'Repetir Tutorial',
+      'repeat_tutorial_subtitle': 'Ver el tour de funciones de nuevo',
+
       'months_short': 'Ene,Feb,Mar,Abr,May,Jun,Jul,Ago,Sep,Oct,Nov,Dic',
       'months_long': 'ENERO,FEBRERO,MARZO,ABRIL,MAYO,JUNIO,JULIO,AGOSTO,SEPTIEMBRE,OCTUBRE,NOVIEMBRE,DICIEMBRE',
       'days_short': 'Lun,Mar,Mié,Jue,Vie,Sáb,Dom',
@@ -444,6 +451,13 @@ class AppStrings extends ChangeNotifier {
       'badge_nivel_3': 'Tactician',
       'badge_nivel_5': 'Master',
       'badge_nivel_7': 'SuperNotova',
+
+      'bridge_title': 'Start with a tutorial?',
+      'bridge_desc': "We'll show you the main features in under a minute.",
+      'bridge_yes': 'Yes, show tutorial',
+      'bridge_later': 'Maybe later',
+      'repeat_tutorial': 'Repeat Tutorial',
+      'repeat_tutorial_subtitle': 'See the feature tour again',
 
       'months_short': 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
       'months_long': 'JANUARY,FEBRUARY,MARCH,APRIL,MAY,JUNE,JULY,AUGUST,SEPTEMBER,OCTOBER,NOVEMBER,DECEMBER',

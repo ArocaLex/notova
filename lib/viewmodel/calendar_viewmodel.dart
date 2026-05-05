@@ -61,12 +61,24 @@ class CalendarViewModel extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
 
+  /// Email de la última cuenta conectada exitosamente. La UI lo consume para
+  /// mostrar un snackbar de confirmación y debe limpiarlo llamando a
+  /// [clearLastConnectedEmail] tras mostrarlo.
+  String? lastConnectedEmail;
+
   /// `true` cuando hay cuentas guardadas en SQLite pero su sesión OAuth con
   /// Google no se pudo restaurar silenciosamente al abrir la app — la UI
   /// muestra un banner "Reconectar" para que el usuario refresque el acceso
   /// con un solo gesto.
   bool needsReconnect = false;
-  
+
+  /// `true` si en esta sesión el usuario ya pulsó desconectar al menos una
+  /// cuenta. Usado por la UI para no reusar la sesión Google cacheada al
+  /// reconectar — si el usuario desconectó intencionadamente, el siguiente
+  /// clic en "Conectar" debe abrir el picker en vez de volver a adjuntar
+  /// silenciosamente la misma cuenta.
+  bool userHasDisconnected = false;
+
   StreamSubscription<User?>? _authSub;
 
   CalendarViewModel() {
@@ -251,6 +263,9 @@ class CalendarViewModel extends ChangeNotifier {
     return a.color.value;
   }
 
+  /// Limpia el email de la última cuenta conectada tras mostrarlo en la UI.
+  void clearLastConnectedEmail() => lastConnectedEmail = null;
+
   /// Conecta una nueva cuenta de Google Calendar sin eliminar las existentes.
   ///
   /// Asigna un color de paleta exclusivo a la cuenta, persiste la información
@@ -266,17 +281,19 @@ class CalendarViewModel extends ChangeNotifier {
         usedColorIndices: _usedColorIndices,
       );
       await _registerAccount(result.account, result.colorIndex);
+      lastConnectedEmail = result.account.email;
+      userHasDisconnected = false;
       _monthCache.clear();
       await _reloadEverything();
     } on CalendarException catch (e) {
       errorMessage = e.message;
     } catch (_) {
       errorMessage = 'No se pudo conectar con Google Calendar.';
+    } finally {
+      _recomputeNeedsReconnect();
+      isLoading = false;
+      notifyListeners();
     }
-
-    _recomputeNeedsReconnect();
-    isLoading = false;
-    notifyListeners();
   }
 
   /// Adjunta la cuenta de Google obtenida durante el login (sin picker).
@@ -305,16 +322,17 @@ class CalendarViewModel extends ChangeNotifier {
         usedColorIndices: _usedColorIndices,
       );
       await _registerAccount(result.account, result.colorIndex);
+      lastConnectedEmail = result.account.email;
       _monthCache.clear();
       await _reloadEverything();
     } on CalendarException catch (e) {
       errorMessage = e.message;
     } catch (_) {
       errorMessage = 'No se pudo conectar con Google Calendar.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
-
-    isLoading = false;
-    notifyListeners();
   }
 
   /// Intenta conectar la cuenta de Google del usuario actual sin mostrar
@@ -330,21 +348,22 @@ class CalendarViewModel extends ChangeNotifier {
       }
       isLoading = true;
       notifyListeners();
-      final result = await _repository.attachFromAuthSession(
-        email: restored.email,
-        accessToken: restored.accessToken,
-        expiry: restored.expiry,
-        usedColorIndices: _usedColorIndices,
-      );
-      await _registerAccount(result.account, result.colorIndex);
-      _monthCache.clear();
-      await _reloadEverything();
-      isLoading = false;
-      notifyListeners();
-      return true;
+      try {
+        final result = await _repository.attachFromAuthSession(
+          email: restored.email,
+          accessToken: restored.accessToken,
+          expiry: restored.expiry,
+          usedColorIndices: _usedColorIndices,
+        );
+        await _registerAccount(result.account, result.colorIndex);
+        _monthCache.clear();
+        await _reloadEverything();
+        return true;
+      } finally {
+        isLoading = false;
+        notifyListeners();
+      }
     } catch (_) {
-      isLoading = false;
-      notifyListeners();
       return false;
     }
   }
@@ -365,6 +384,7 @@ class CalendarViewModel extends ChangeNotifier {
   /// datos locales asociados y reinicia la lista de eventos.
   Future<void> disconnectGoogleCalendar({String? email}) async {
     errorMessage = null;
+    userHasDisconnected = true;
     try {
       if (email == null) {
         await _repository.disconnectAll();

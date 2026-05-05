@@ -1,14 +1,18 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/app_strings.dart';
+import '../widgets/tutorial_bridge_dialog.dart';
 import 'main_screen.dart';
 
 /// Onboarding inicial que se muestra una única vez.
 ///
-/// Persiste la preferencia `onboarding_seen` en [SharedPreferences] y navega a
-/// [MainScreen] al finalizar u omitir.
+/// Persiste `onboarding_seen` en [SharedPreferences] y navega a [MainScreen]
+/// al finalizar u omitir. Al completar todas las páginas muestra un diálogo
+/// para ofrecer el tutorial de coach-marks.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -23,28 +27,25 @@ class OnboardingScreenState extends State<OnboardingScreen> {
   static const _bgColor = Color(0xFF120E1A);
   static const _primaryPurple = Color(0xFF7B2CBF);
 
-  final _pages = const [
-    _OnboardingPage(
-      icon: Icons.bolt,
-      iconColor: Color(0xFFDEB7FF),
-      title: 'Bienvenido a Notova',
-      subtitle:
-          'Convierte tus tareas en Quests.\nGana XP, sube de nivel y construye hábitos duraderos.',
-    ),
-    _OnboardingPage(
-      icon: Icons.military_tech_rounded,
-      iconColor: Color(0xFFDEB7FF),
-      title: 'Sistema de Rangos',
-      subtitle:
-          'Novato → Aspirante → Táctico → Ninja → Maestro → Leyenda → SuperNotova\n\nCada Quest completada te acerca al siguiente nivel.',
-    ),
-    _OnboardingPage(
-      icon: Icons.calendar_month_rounded,
-      iconColor: Color(0xFF7B2CBF),
-      title: 'Conecta tu Calendario',
-      subtitle:
-          'Sincroniza Google Calendar para ver tus eventos y Quests en un solo lugar.',
-    ),
+  static const _pageIcons = [
+    Icons.bolt,
+    Icons.military_tech_rounded,
+    Icons.calendar_month_rounded,
+  ];
+  static const _pageIconColors = [
+    Color(0xFFDEB7FF),
+    Color(0xFFDEB7FF),
+    Color(0xFF7B2CBF),
+  ];
+  static const _pageTitleKeys = [
+    'onboarding_title_1',
+    'onboarding_title_2',
+    'onboarding_title_3',
+  ];
+  static const _pageSubKeys = [
+    'onboarding_sub_1',
+    'onboarding_sub_2',
+    'onboarding_sub_3',
   ];
 
   @override
@@ -53,13 +54,29 @@ class OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({bool skip = false}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_seen', true);
     if (!mounted) return;
+
+    bool showTutorial = false;
+
+    if (skip) {
+      // "Omitir" descarta también el tutorial
+      await prefs.setBool('hasSeenFullTutorial', true);
+    } else {
+      // "Comenzar" → preguntar si quiere el tutorial
+      showTutorial = await showTutorialBridgeDialog(context);
+      if (!mounted) return;
+      if (!showTutorial) {
+        await prefs.setBool('hasSeenFullTutorial', true);
+      }
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, a1, a2) => const MainScreen(),
+        pageBuilder: (ctx, a1, a2) => MainScreen(showTutorial: showTutorial),
         transitionDuration: const Duration(milliseconds: 500),
         transitionsBuilder: (ctx, anim, s, child) =>
             FadeTransition(opacity: anim, child: child),
@@ -69,6 +86,19 @@ class OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+    final pageCount = _pageIcons.length;
+
+    final pages = List.generate(
+      pageCount,
+      (i) => _OnboardingPage(
+        icon: _pageIcons[i],
+        iconColor: _pageIconColors[i],
+        title: s.get(_pageTitleKeys[i]),
+        subtitle: s.get(_pageSubKeys[i]),
+      ),
+    );
+
     return Scaffold(
       backgroundColor: _bgColor,
       body: SafeArea(
@@ -77,9 +107,9 @@ class OnboardingScreenState extends State<OnboardingScreen> {
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: _finish,
-                child: const Text('Omitir',
-                    style: TextStyle(
+                onPressed: () => _finish(skip: true),
+                child: Text(s.get('skip'),
+                    style: const TextStyle(
                         color: Colors.grey, fontWeight: FontWeight.w500)),
               ),
             ),
@@ -88,20 +118,22 @@ class OnboardingScreenState extends State<OnboardingScreen> {
               child: PageView(
                 controller: _controller,
                 onPageChanged: (i) => setState(() => _currentPage = i),
-                children: _pages,
+                children: pages,
               ),
             ),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_pages.length, (i) {
+              children: List.generate(pageCount, (i) {
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: _currentPage == i ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: _currentPage == i ? _primaryPurple : Colors.grey.shade700,
+                    color: _currentPage == i
+                        ? _primaryPurple
+                        : Colors.grey.shade700,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 );
@@ -123,7 +155,7 @@ class OnboardingScreenState extends State<OnboardingScreen> {
                     shadowColor: _primaryPurple.withOpacity(0.4),
                   ),
                   onPressed: () {
-                    if (_currentPage < _pages.length - 1) {
+                    if (_currentPage < pageCount - 1) {
                       _controller.nextPage(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOut,
@@ -133,7 +165,9 @@ class OnboardingScreenState extends State<OnboardingScreen> {
                     }
                   },
                   child: Text(
-                    _currentPage < _pages.length - 1 ? 'Siguiente' : 'Comenzar',
+                    _currentPage < pageCount - 1
+                        ? s.get('next')
+                        : s.get('start'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -205,9 +239,7 @@ class _OnboardingPage extends StatelessWidget {
             subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 15,
-                height: 1.6),
+                color: Colors.grey.shade400, fontSize: 15, height: 1.6),
           ),
         ],
       ),

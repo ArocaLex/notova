@@ -13,6 +13,7 @@ import '../l10n/app_strings.dart';
 import '../theme/app_colors.dart';
 import '../utils/tutorial_keys.dart';
 import '../viewmodel/calendar_viewmodel.dart';
+import '../widgets/tutorial_bridge_dialog.dart';
 import 'calendar_screen.dart';
 import 'home_screen.dart';
 import 'task_screen.dart';
@@ -24,7 +25,11 @@ import 'profile_screen.dart';
 /// estado de navegación usando un `IndexedStack` para preservar el estado de
 /// cada pestaña.
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  const MainScreen({super.key, this.showTutorial = false});
+
+  /// Si `true`, lanza el tutorial de coach-marks directamente al entrar.
+  /// Usado por [OnboardingScreen] y por "Repetir Tutorial" en [ProfileScreen].
+  final bool showTutorial;
 
   /// Altura total de la cápsula de navegación desde la parte inferior
   /// de la pantalla, incluyendo el inset del sistema (home indicator /
@@ -77,15 +82,35 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkAndShowTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeen = prefs.getBool('hasSeenFullTutorial') ?? false;
-    if (!hasSeen) {
+    if (widget.showTutorial) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() => _currentIndex = 0);
           _showHomeTutorial();
         }
       });
+      return;
+    }
+    // Para usuarios que ingresan por login (no onboarding): ofrecer tutorial
+    // si todavía no lo han visto.
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('hasSeenFullTutorial') ?? false;
+    if (!hasSeen && mounted) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _showBridgeAndMaybeTutorial();
+      });
+    }
+  }
+
+  Future<void> _showBridgeAndMaybeTutorial() async {
+    final wantsTutorial = await showTutorialBridgeDialog(context);
+    if (!mounted) return;
+    if (wantsTutorial) {
+      setState(() => _currentIndex = 0);
+      _showHomeTutorial();
+    } else {
+      // Marcamos visto para no volver a preguntar.
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasSeenFullTutorial', true);
     }
   }
@@ -97,7 +122,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         TargetFocus(
           identify: "homeXp",
           keyTarget: TutorialKeys.homeXpCard,
-          alignSkip: Alignment.topRight,
+          alignSkip: Alignment.bottomRight,
           contents: [
             TargetContent(
               align: ContentAlign.bottom,
@@ -109,17 +134,21 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ],
         ),
       ],
-      colorShadow: AppColors.background,
+      colorShadow: Colors.black,
       textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
-      opacityShadow: 0.9,
+      opacityShadow: 0.95,
       onFinish: () {
         setState(() => _currentIndex = 1);
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) _showCalendarTutorial();
         });
       },
-      onSkip: () => true,
+      onSkip: () {
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('hasSeenFullTutorial', true));
+        return true;
+      },
     ).show(context: context);
   }
 
@@ -130,7 +159,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         TargetFocus(
           identify: "calAdd",
           keyTarget: TutorialKeys.calAddEvent,
-          alignSkip: Alignment.topRight,
+          alignSkip: Alignment.bottomRight,
           contents: [
             TargetContent(
               align: ContentAlign.bottom,
@@ -142,17 +171,21 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ],
         ),
       ],
-      colorShadow: AppColors.background,
+      colorShadow: Colors.black,
       textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
-      opacityShadow: 0.9,
+      opacityShadow: 0.95,
       onFinish: () {
         setState(() => _currentIndex = 2);
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) _showTasksTutorial();
         });
       },
-      onSkip: () => true,
+      onSkip: () {
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('hasSeenFullTutorial', true));
+        return true;
+      },
     ).show(context: context);
   }
 
@@ -163,7 +196,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         TargetFocus(
           identify: "tasksFab",
           keyTarget: TutorialKeys.tasksFab,
-          alignSkip: Alignment.topRight,
+          alignSkip: Alignment.bottomRight,
           contents: [
             TargetContent(
               align: ContentAlign.top,
@@ -175,17 +208,21 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ],
         ),
       ],
-      colorShadow: AppColors.background,
+      colorShadow: Colors.black,
       textSkip: s.get('tutorial_skip'),
       paddingFocus: 10,
-      opacityShadow: 0.9,
+      opacityShadow: 0.95,
       onFinish: () {
         setState(() => _currentIndex = 3);
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) _showProfileTutorial();
         });
       },
-      onSkip: () => true,
+      onSkip: () {
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('hasSeenFullTutorial', true));
+        return true;
+      },
     ).show(context: context);
   }
 
@@ -208,14 +245,18 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           ],
         ),
       ],
-      colorShadow: AppColors.background,
+      colorShadow: Colors.black,
       textSkip: s.get('tutorial_finish'),
       paddingFocus: 10,
-      opacityShadow: 0.9,
+      opacityShadow: 0.95,
       onFinish: () {
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('hasSeenFullTutorial', true));
         setState(() => _currentIndex = 0);
       },
       onSkip: () {
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('hasSeenFullTutorial', true));
         setState(() => _currentIndex = 0);
         return true;
       },

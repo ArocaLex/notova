@@ -58,6 +58,14 @@ class CalendarRepository {
     Color(0xFF26C6DA),
     Color(0xFFAB47BC),
     Color(0xFFFFB300),
+    Color(0xFF43A047),
+    Color(0xFFEF6C00),
+    Color(0xFF00838F),
+    Color(0xFF6D4C41),
+    Color(0xFF546E7A),
+    Color(0xFFAD1457),
+    Color(0xFF558B2F),
+    Color(0xFF4527A0),
   ];
 
   final _rand = Random();
@@ -83,22 +91,24 @@ class CalendarRepository {
     required Set<int> usedColorIndices,
   }) async {
     await _ensureInitialized();
-    GoogleSignInAccount? account;
+    // El usuario pulsó "Conectar" explícitamente: forzamos el picker en lugar
+    // de reusar una sesión cacheada. En Android, `attemptLightweightAuthentication`
+    // a veces devuelve la cuenta previamente desconectada sin volver a pedir
+    // consent, lo que dejaba el botón "sin hacer nada visible" tras un ciclo
+    // conectar → desconectar → reconectar.
     try {
-      account = await _googleSignIn.attemptLightweightAuthentication();
+      await _googleSignIn.signOut();
+    } catch (_) {}
+
+    GoogleSignInAccount account;
+    try {
+      account = await _googleSignIn.authenticate(
+        scopeHint: const [gcal.CalendarApi.calendarScope],
+      );
+    } on GoogleSignInException catch (e) {
+      throw CalendarException(_friendlyAuthError(e));
     } catch (_) {
-      account = null;
-    }
-    if (account == null) {
-      try {
-        account = await _googleSignIn.authenticate(
-          scopeHint: const [gcal.CalendarApi.calendarScope],
-        );
-      } on GoogleSignInException catch (e) {
-        throw CalendarException(_friendlyAuthError(e));
-      } catch (_) {
-        throw CalendarException('No se pudo iniciar sesión con Google.');
-      }
+      throw CalendarException('No se pudo iniciar sesión con Google.');
     }
 
     final GoogleSignInClientAuthorization auth;

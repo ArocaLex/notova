@@ -10,10 +10,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/user_model.dart';
 import '../l10n/app_strings.dart';
-// TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
-// import '../repositories/audio_repository.dart';
+import '../repositories/audio_repository.dart';
 import '../repositories/export_repository.dart';
 import '../viewmodel/auth_viewmodel.dart';
 import '../viewmodel/user_viewmodel.dart';
@@ -39,14 +40,11 @@ class ProfileScreenState extends State<ProfileScreen> {
   static const _primaryPurple = AppColors.primaryPurple;
   static const _cyanAccent = AppColors.cyanAccent;
 
-  // TODO(sound-settings): _textPrimary y _textMuted se reactivan al
-  // restaurar `_showSfxDialog`.
-  // static const _textPrimary = AppColors.textPrimary;
+  static const _textPrimary = AppColors.textPrimary;
   static const _textSecondary = AppColors.textSecondary;
-  // static const _textMuted = AppColors.textMuted;
+  static const _textMuted = AppColors.textMuted;
 
-  // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
-  // final _audio = AudioRepository();
+  final _audio = AudioRepository();
   final _export = ExportRepository();
 
   static const _badgeDefs = {
@@ -131,50 +129,49 @@ class ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
-  // void _showSfxDialog() async {
-  //   final current = await _audio.getSfxEnabled();
-  //   if (!mounted) return;
-  //
-  //   final s = context.read<AppStrings>();
-  //   showDialog(
-  //     context: context,
-  //     builder: (dialogContext) {
-  //       bool sfxOn = current;
-  //       return StatefulBuilder(
-  //         builder: (builderContext, setDialogState) => AlertDialog(
-  //           backgroundColor: _cardColor,
-  //           shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(20)),
-  //           title: Text(s.get('sound_settings'),
-  //               style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.bold)),
-  //           content: Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               Text(s.get('sfx_label'),
-  //                   style: const TextStyle(color: _textMuted, fontSize: 14)),
-  //               Switch(
-  //                 value: sfxOn,
-  //                 activeColor: _primaryPurple,
-  //                 onChanged: (val) {
-  //                   setDialogState(() => sfxOn = val);
-  //                   _audio.setSfxEnabled(val);
-  //                 },
-  //               ),
-  //             ],
-  //           ),
-  //           actions: [
-  //             TextButton(
-  //               onPressed: () => Navigator.pop(dialogContext),
-  //               child: Text(s.get('close'),
-  //                   style: const TextStyle(color: _primaryPurple)),
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
+  void _showSfxDialog() async {
+    final current = await _audio.getSfxEnabled();
+    if (!mounted) return;
+
+    final s = context.read<AppStrings>();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool sfxOn = current;
+        return StatefulBuilder(
+          builder: (builderContext, setDialogState) => AlertDialog(
+            backgroundColor: _cardColor,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: Text(s.get('sound_settings'),
+                style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.bold)),
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(s.get('sfx_label'),
+                    style: const TextStyle(color: _textMuted, fontSize: 14)),
+                Switch(
+                  value: sfxOn,
+                  activeColor: _primaryPurple,
+                  onChanged: (val) {
+                    setDialogState(() => sfxOn = val);
+                    _audio.setSfxEnabled(val);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(s.get('close'),
+                    style: const TextStyle(color: _primaryPurple)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   void _showEditNameDialog() {
     final user = context.read<UserViewModel>().user;
@@ -401,17 +398,16 @@ class ProfileScreenState extends State<ProfileScreen> {
                 _showExportSheet();
               },
             ),
-            // TODO(sound-settings): reactivar cuando esté terminado el flujo de SFX.
-            // _SettingsTile(
-            //   icon: Icons.volume_up_outlined,
-            //   iconColor: _primaryPurple,
-            //   label: s.get('sound_settings'),
-            //   subtitle: s.get('sound_subtitle'),
-            //   onTap: () {
-            //     Navigator.pop(context);
-            //     _showSfxDialog();
-            //   },
-            // ),
+            _SettingsTile(
+              icon: Icons.volume_up_outlined,
+              iconColor: _primaryPurple,
+              label: s.get('sound_settings'),
+              subtitle: s.get('sound_subtitle'),
+              onTap: () {
+                Navigator.pop(context);
+                _showSfxDialog();
+              },
+            ),
             _SettingsTile(
               icon: Icons.photo_library_outlined,
               iconColor: const Color(0xFFDEB7FF),
@@ -430,6 +426,28 @@ class ProfileScreenState extends State<ProfileScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _showLanguageDialog();
+              },
+            ),
+            _SettingsTile(
+              icon: Icons.play_circle_outline_rounded,
+              iconColor: const Color(0xFFDEB7FF),
+              label: s.get('repeat_tutorial'),
+              subtitle: s.get('repeat_tutorial_subtitle'),
+              onTap: () async {
+                Navigator.pop(context);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('hasSeenFullTutorial', false);
+                if (!mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  PageRouteBuilder(
+                    pageBuilder: (ctx, a1, a2) =>
+                        const MainScreen(showTutorial: true),
+                    transitionDuration: const Duration(milliseconds: 400),
+                    transitionsBuilder: (ctx, anim, s, child) =>
+                        FadeTransition(opacity: anim, child: child),
+                  ),
+                  (route) => false,
+                );
               },
             ),
             const Padding(
