@@ -557,6 +557,158 @@ def exportar_csv():
 
 
 # ═══════════════════════════════════════════════════════════════════════
+#  Páginas legales (requeridas por Google OAuth)
+# ═══════════════════════════════════════════════════════════════════════
+
+_HTML_HEAD = """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title} — Notova</title>
+  <style>
+    *{{box-sizing:border-box;margin:0;padding:0}}
+    body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+          background:#0f0b17;color:#e0d9f0;line-height:1.7;padding:40px 20px}}
+    .wrap{{max-width:760px;margin:0 auto}}
+    h1{{font-size:2rem;color:#deb7ff;margin-bottom:8px}}
+    h2{{font-size:1.15rem;color:#b892f5;margin:32px 0 10px}}
+    p,li{{font-size:.97rem;color:#c4b8d8;margin-bottom:10px}}
+    ul{{padding-left:20px}}
+    a{{color:#7b2cbf;text-decoration:none}}
+    a:hover{{text-decoration:underline}}
+    .badge{{display:inline-block;background:#1e1a29;border:1px solid #3a2d55;
+             border-radius:8px;padding:4px 12px;font-size:.8rem;color:#9b7fd4;margin-bottom:24px}}
+    footer{{margin-top:48px;font-size:.82rem;color:#5a4f6e;border-top:1px solid #2a2040;padding-top:16px}}
+  </style>
+</head>
+<body><div class="wrap">"""
+
+_HTML_FOOT = """<footer>© 2026 Notova · <a href="/privacy">Política de Privacidad</a> · <a href="/terms">Condiciones del Servicio</a></footer>
+</div></body></html>"""
+
+
+@app.route("/privacy")
+def privacy():
+    """Política de Privacidad de Notova (requerida por Google OAuth)."""
+    from flask import make_response
+    html = _HTML_HEAD.format(title="Política de Privacidad") + """
+  <h1>Política de Privacidad</h1>
+  <span class="badge">Última actualización: mayo 2026</span>
+
+  <p>Notova («la App») es una aplicación de productividad gamificada desarrollada por Alejandro Aroca.
+  Esta política explica qué datos recogemos, cómo los usamos y cómo puedes controlarlos.</p>
+
+  <h2>1. Datos que recogemos</h2>
+  <ul>
+    <li><strong>Cuenta de usuario:</strong> nombre, dirección de correo electrónico y foto de perfil
+        proporcionados mediante Firebase Authentication (correo/contraseña o Google Sign-In).</li>
+    <li><strong>Datos de uso:</strong> tareas creadas, puntos de experiencia (XP), rachas diarias e insignias.</li>
+    <li><strong>Google Calendar (opcional):</strong> si conectas tu cuenta de Google Calendar, la App
+        accede a la lista de calendarios y eventos para mostrarlos dentro de la App.
+        Este acceso es opcional y puede revocarse en cualquier momento.</li>
+    <li><strong>Avatar:</strong> imagen que el usuario sube voluntariamente, almacenada en Firebase Storage.</li>
+  </ul>
+
+  <h2>2. Cómo usamos tus datos</h2>
+  <ul>
+    <li>Para mostrar y sincronizar tus tareas, nivel y estadísticas de gamificación.</li>
+    <li>Para mostrar tus eventos de Google Calendar dentro de la pantalla de Calendario de la App.</li>
+    <li>Para generar exportaciones (CSV/TXT) de tu historial de tareas a petición tuya.</li>
+  </ul>
+  <p>No usamos tus datos para publicidad ni los compartimos con terceros con fines comerciales.</p>
+
+  <h2>3. Datos de Google Calendar</h2>
+  <p>El acceso a Google Calendar se realiza mediante OAuth 2.0 con el scope
+  <code>https://www.googleapis.com/auth/calendar</code>. Los datos obtenidos:</p>
+  <ul>
+    <li>Se usan exclusivamente para mostrar eventos en la App y permitir crear o eliminar eventos
+        en calendarios propios del usuario.</li>
+    <li>No se almacenan en nuestros servidores de forma permanente; se cachean localmente
+        en el dispositivo del usuario.</li>
+    <li>No se comparten con ningún tercero.</li>
+  </ul>
+  <p>Puedes revocar el acceso en cualquier momento desde
+  <a href="https://myaccount.google.com/permissions" target="_blank">Permisos de tu cuenta Google</a>
+  o desde la pantalla de Perfil de la App.</p>
+
+  <h2>4. Almacenamiento y seguridad</h2>
+  <p>Los datos se almacenan en Firebase (Google Cloud). Aplicamos medidas de seguridad estándar
+  de la industria, incluyendo autenticación de tokens y reglas de seguridad en Firestore que
+  garantizan que cada usuario solo puede acceder a sus propios datos.</p>
+
+  <h2>5. Retención de datos</h2>
+  <p>Conservamos tus datos mientras tu cuenta esté activa. Puedes solicitar la eliminación
+  completa de tu cuenta y datos desde la sección de Ajustes de la App o escribiéndonos a
+  <a href="mailto:arocaalex2112@gmail.com">arocaalex2112@gmail.com</a>.</p>
+
+  <h2>6. Menores de edad</h2>
+  <p>La App no está dirigida a menores de 13 años. No recogemos conscientemente datos de menores.</p>
+
+  <h2>7. Cambios en esta política</h2>
+  <p>Notificaremos cambios relevantes mediante la App o por correo electrónico.
+  El uso continuado de la App tras los cambios implica la aceptación de la nueva política.</p>
+
+  <h2>8. Contacto</h2>
+  <p>Para cualquier consulta sobre privacidad: <a href="mailto:arocaalex2112@gmail.com">arocaalex2112@gmail.com</a></p>
+""" + _HTML_FOOT
+    return make_response(html, 200, {"Content-Type": "text/html; charset=utf-8"})
+
+
+@app.route("/terms")
+def terms():
+    """Condiciones del Servicio de Notova."""
+    from flask import make_response
+    html = _HTML_HEAD.format(title="Condiciones del Servicio") + """
+  <h1>Condiciones del Servicio</h1>
+  <span class="badge">Última actualización: mayo 2026</span>
+
+  <p>Al usar Notova («la App») aceptas las presentes Condiciones del Servicio.
+  Si no estás de acuerdo, no uses la App.</p>
+
+  <h2>1. Descripción del servicio</h2>
+  <p>Notova es una aplicación de productividad gamificada que permite gestionar tareas,
+  ganar puntos de experiencia y sincronizar eventos con Google Calendar.</p>
+
+  <h2>2. Cuenta de usuario</h2>
+  <ul>
+    <li>Debes proporcionar información veraz al registrarte.</li>
+    <li>Eres responsable de mantener la seguridad de tu cuenta y contraseña.</li>
+    <li>Notova se reserva el derecho a suspender cuentas que infrinjan estas condiciones.</li>
+  </ul>
+
+  <h2>3. Uso aceptable</h2>
+  <p>Queda prohibido:</p>
+  <ul>
+    <li>Usar la App para actividades ilegales o fraudulentas.</li>
+    <li>Intentar acceder a datos de otros usuarios.</li>
+    <li>Realizar ingeniería inversa o redistribuir el código de la App sin autorización.</li>
+  </ul>
+
+  <h2>4. Integración con Google Calendar</h2>
+  <p>La conexión con Google Calendar es opcional. Al conectarla, autorizas a Notova a
+  leer y escribir eventos en tu nombre según los permisos que otorgues. Puedes desconectarla
+  en cualquier momento desde la App o desde tu cuenta de Google.</p>
+
+  <h2>5. Propiedad intelectual</h2>
+  <p>El nombre, logo y código de Notova son propiedad de Alejandro Aroca.
+  El contenido que tú creas (tareas, eventos) es tuyo.</p>
+
+  <h2>6. Limitación de responsabilidad</h2>
+  <p>La App se proporciona «tal cual». No garantizamos disponibilidad continua ni
+  ausencia de errores. No somos responsables de pérdidas de datos derivadas de fallos técnicos.</p>
+
+  <h2>7. Modificaciones</h2>
+  <p>Podemos actualizar estas condiciones. Los cambios relevantes se notificarán en la App.
+  El uso continuado implica aceptación.</p>
+
+  <h2>8. Contacto</h2>
+  <p><a href="mailto:arocaalex2112@gmail.com">arocaalex2112@gmail.com</a></p>
+""" + _HTML_FOOT
+    return make_response(html, 200, {"Content-Type": "text/html; charset=utf-8"})
+
+
+# ═══════════════════════════════════════════════════════════════════════
 #  Punto de entrada (desarrollo local)
 # ═══════════════════════════════════════════════════════════════════════
 

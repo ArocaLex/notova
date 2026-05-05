@@ -59,6 +59,7 @@ class CalendarViewModel extends ChangeNotifier {
   final Map<String, Map<int, List<Color>>> _monthCache = {};
 
   bool isLoading = false;
+  bool isSavingEvent = false;
   String? errorMessage;
 
   /// Email de la última cuenta conectada exitosamente. La UI lo consume para
@@ -591,6 +592,8 @@ class CalendarViewModel extends ChangeNotifier {
     final cal = allCalendars.where((c) => c.id == calendarId).firstOrNull;
     if (cal == null || !cal.isOwned) return false;
 
+    isSavingEvent = true;
+    notifyListeners();
     try {
       await _repository.createEvent(
         accounts: accounts,
@@ -599,15 +602,20 @@ class CalendarViewModel extends ChangeNotifier {
         start: start,
         end: end,
       );
+      // Delay to allow Google Calendar API to propagate the new event.
+      await Future.delayed(const Duration(seconds: 2));
       await _reloadEverything();
+      isSavingEvent = false;
       notifyListeners();
       return true;
     } on CalendarException catch (e) {
       errorMessage = e.message;
+      isSavingEvent = false;
       notifyListeners();
       return false;
     } catch (_) {
       errorMessage = 'No se pudo crear el evento.';
+      isSavingEvent = false;
       notifyListeners();
       return false;
     }
@@ -621,21 +629,39 @@ class CalendarViewModel extends ChangeNotifier {
   Future<bool> deleteEvent(CalendarEvent event) async {
     if (!event.isOwned) return false;
 
+    // Optimistic removal: update local state immediately so the UI reflects
+    // the deletion without waiting for the Google API propagation delay.
+    final previousEvents = List<CalendarEvent>.from(events);
+    final previousUpcoming = List<CalendarEvent>.from(upcomingEvents);
+    events = events.where((e) => e.id != event.id).toList();
+    upcomingEvents = upcomingEvents.where((e) => e.id != event.id).toList();
+    if (event.start != null) {
+      _monthCache.remove('${event.start!.year}-${event.start!.month}');
+    }
+    notifyListeners();
+
     try {
       await _repository.deleteEvent(
         accounts: accounts,
         calendarId: event.calendarId,
         eventId: event.id,
       );
-      await _reloadEverything();
-      notifyListeners();
+      // Delayed reload for eventual consistency with the Google Calendar API.
+      unawaited(Future.delayed(const Duration(seconds: 2), () async {
+        await _reloadEverything();
+        notifyListeners();
+      }));
       return true;
     } on CalendarException catch (e) {
       errorMessage = e.message;
+      events = previousEvents;
+      upcomingEvents = previousUpcoming;
       notifyListeners();
       return false;
     } catch (_) {
       errorMessage = 'No se pudo eliminar el evento.';
+      events = previousEvents;
+      upcomingEvents = previousUpcoming;
       notifyListeners();
       return false;
     }

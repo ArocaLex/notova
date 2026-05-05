@@ -1034,6 +1034,7 @@ class _ScheduleSection extends StatelessWidget {
     final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
     final events = context.select((CalendarViewModel vm) => vm.events);
     final selectedDate = context.select((CalendarViewModel vm) => vm.selectedDate);
+    final isSavingEvent = context.select((CalendarViewModel vm) => vm.isSavingEvent);
     final vm = context.read<CalendarViewModel>();
 
     return Container(
@@ -1072,6 +1073,17 @@ class _ScheduleSection extends StatelessWidget {
               ),
             ],
           ),
+          if (isSavingEvent) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: const LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                color: AppColors.primaryPurple,
+                minHeight: 2,
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
 
           if (!isSignedIn)
