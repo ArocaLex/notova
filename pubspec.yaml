@@ -1,7 +1,7 @@
 name: notova
 description: "Tu app de productividad gamificada"
 publish_to: "none"
-version: 0.2.0+2
+version: 0.5.1+2
 
 environment:
   sdk: ^3.11.1

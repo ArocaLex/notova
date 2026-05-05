@@ -163,6 +163,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           contents: [
             TargetContent(
               align: ContentAlign.bottom,
+              padding: const EdgeInsets.only(top: 40),
               builder: (context, controller) => _buildTutorialContent(
                 title: s.get('tutorial_calendar_title'),
                 desc: s.get('tutorial_calendar_desc'),
