@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 
@@ -21,7 +21,13 @@ class UserViewModel extends ChangeNotifier {
   ImageProvider? _avatarImage;
 
   StreamSubscription<UserModel?>? _userSub;
-  StreamSubscription<User?>? _authSub;
+  StreamSubscription<firebase_auth.User?>? _authSub;
+
+  /// Marca si Firebase ya entregó un `User` no nulo en esta sesión. En cold
+  /// start `authStateChanges()` puede emitir `null` antes de que Firebase
+  /// termine de restaurar la sesión desde disco; ese null transitorio no es
+  /// un sign-out real y no debe limpiar la caché del perfil.
+  bool _firebaseAuthRestored = false;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
@@ -30,15 +36,7 @@ class UserViewModel extends ChangeNotifier {
   /// Path local del avatar en disco si existe; tiene prioridad sobre
   /// `user.avatarUrl` para mostrar la imagen del usuario.
   String? get localAvatarPath => _localAvatarPath;
-
-  /// Contador que se incrementa cada vez que el avatar local cambia.
-  /// La UI puede usarlo como `ValueKey` para forzar un rebuild sin
-  /// depender de la caché de `FileImage`.
   int get avatarVersion => _avatarVersion;
-
-  /// `ImageProvider` cacheado del avatar — calculado una vez por cambio de
-  /// `_localAvatarPath` o `_user.avatarUrl`. Evita ejecutar `existsSync` en
-  /// el hilo de render en cada rebuild.
   ImageProvider? get avatarImage => _avatarImage;
 
   void _recomputeAvatarImage() {
@@ -65,16 +63,19 @@ class UserViewModel extends ChangeNotifier {
   }
 
   UserViewModel() {
-    _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
+    _authSub = firebase_auth.FirebaseAuth.instance.authStateChanges().listen(
+      _onAuthChanged,
+    );
   }
 
   /// Reacciona a cambios en la sesión de Firebase: cancela la suscripción
   /// anterior, carga desde caché local de forma inmediata y se suscribe
   /// al stream de Firestore para mantener los datos sincronizados.
-  void _onAuthChanged(User? firebaseUser) {
+  void _onAuthChanged(firebase_auth.User? firebaseUser) {
     _userSub?.cancel();
 
     if (firebaseUser == null) {
+      if (!_firebaseAuthRestored) return;
       _user = null;
       _isLoading = false;
       _repository.clearCachedUser();
@@ -82,6 +83,7 @@ class UserViewModel extends ChangeNotifier {
       return;
     }
 
+    _firebaseAuthRestored = true;
     _isLoading = true;
     notifyListeners();
 
@@ -102,7 +104,7 @@ class UserViewModel extends ChangeNotifier {
       }
     });
 
-    _userSub = _repository.userStream(firebaseUser.uid).listen((userModel) {
+    _userSub = _repository.userStream(firebaseUser.uid).listen((UserModel? userModel) {
       final remoteChanged = _user?.avatarUrl != userModel?.avatarUrl;
       _user = userModel;
       _isLoading = false;
@@ -117,10 +119,8 @@ class UserViewModel extends ChangeNotifier {
   /// Actualiza el nombre visible del usuario en Firestore.
   Future<void> updateName(String name) => _repository.updateName(name);
 
-  /// Incrementa el XP total del usuario en [amount] puntos.
   Future<void> addXp(int amount) => _repository.addXp(amount);
 
-  /// Actualiza los campos indicados en el documento Firestore del usuario.
   Future<void> updateFields(Map<String, dynamic> fields) =>
       _repository.updateFields(fields);
 

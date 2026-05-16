@@ -21,13 +21,13 @@ class NotificationRepository {
   /// Inicializa el plugin de notificaciones y configura la zona horaria.
   ///
   /// Es idempotente: las llamadas sucesivas no tienen efecto.
-  Future<void> init() async {
+  Future<void> _ensureInitialized() async {
     if (_initialized) return;
 
     tz.initializeTimeZones();
     // Intenta usar la zona horaria del dispositivo (funciona en iOS y Android
     // moderno que devuelve nombres IANA). Si el nombre no es reconocido, usa
-    // America/Mexico_City como fallback para el mercado principal.
+    // Europe/Madrid como fallback.
     try {
       final deviceTz = DateTime.now().timeZoneName;
       tz.setLocalLocation(tz.getLocation(deviceTz));
@@ -35,7 +35,7 @@ class NotificationRepository {
       tz.setLocalLocation(tz.getLocation('Europe/Madrid'));
     }
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -51,10 +51,9 @@ class NotificationRepository {
     _initialized = true;
   }
 
-  /// Indica si las notificaciones están activadas por el usuario.
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefKey) ?? false;
+    return prefs.getBool(_prefKey) ?? true;
   }
 
   /// Activa o desactiva las notificaciones y cancela todas las pendientes
@@ -67,12 +66,31 @@ class NotificationRepository {
     }
   }
 
+  /// Comprueba si el permiso de notificaciones está concedido en el OS
+  /// **sin mostrar ningún diálogo**. Útil para sincronizar la preferencia
+  /// local con el estado real del sistema (e.g., tras revocar desde Ajustes).
+  Future<bool> arePermissionsGranted() async {
+    await _ensureInitialized();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      return await android.areNotificationsEnabled() ?? false;
+    }
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      final perms = await ios.checkPermissions();
+      return perms?.isEnabled ?? false;
+    }
+    return true;
+  }
+
   /// Solicita permiso de notificaciones al sistema operativo.
   ///
   /// Retorna `true` si el permiso fue concedido. En plataformas que no
   /// requieren permiso explícito, retorna `true` directamente.
   Future<bool> requestPermission() async {
-    await init();
+    await _ensureInitialized();
 
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -95,33 +113,34 @@ class NotificationRepository {
     return true;
   }
 
-  static const _notifDetails = NotificationDetails(
+  static const _details = NotificationDetails(
     android: AndroidNotificationDetails(
       'task_reminders',
       'Recordatorios de Quests',
       channelDescription: 'Notificaciones de tareas y recordatorios',
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_notification',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
     ),
     iOS: DarwinNotificationDetails(),
   );
 
   /// Muestra una notificación instantánea si las notificaciones están activadas.
-  Future<void> showInstant({
+  Future<void> showImmediate({
     required String title,
     required String body,
     int? id,
   }) async {
     final enabled = await isEnabled();
     if (!enabled) return;
-    await init();
+    await _ensureInitialized();
 
     await _plugin.show(
       id: id ?? title.hashCode,
       title: title,
       body: body,
-      notificationDetails: _notifDetails,
+      notificationDetails: _details,
     );
   }
 
@@ -136,7 +155,7 @@ class NotificationRepository {
   }) async {
     final enabled = await isEnabled();
     if (!enabled) return;
-    await init();
+    await _ensureInitialized();
 
     final oneHourBefore = dueDate.subtract(const Duration(hours: 1));
     final thirtyMinBefore = dueDate.subtract(const Duration(minutes: 30));
@@ -149,7 +168,7 @@ class NotificationRepository {
         title: '⏰ Quest por vencer',
         body: '"$title" vence en 1 hora',
         scheduledDate: tzTime,
-        notificationDetails: _notifDetails,
+        notificationDetails: _details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     } else if (thirtyMinBefore.isAfter(now)) {
@@ -159,7 +178,7 @@ class NotificationRepository {
         title: '⏰ Quest por vencer',
         body: '"$title" vence en 30 minutos',
         scheduledDate: tzTime,
-        notificationDetails: _notifDetails,
+        notificationDetails: _details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
@@ -172,7 +191,7 @@ class NotificationRepository {
         title: '📋 Quest pendiente',
         body: '"$title" vence mañana',
         scheduledDate: tzTime,
-        notificationDetails: _notifDetails,
+        notificationDetails: _details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
@@ -181,7 +200,7 @@ class NotificationRepository {
   /// Cancela las notificaciones programadas para la tarea identificada por
   /// [taskId] (recordatorio de 1 hora y de 1 día).
   Future<void> cancelTaskReminder(String taskId) async {
-    await init();
+    await _ensureInitialized();
     await _plugin.cancel(id: taskId.hashCode);
     await _plugin.cancel(id: '${taskId}_day'.hashCode);
   }

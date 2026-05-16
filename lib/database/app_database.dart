@@ -10,279 +10,252 @@ import 'package:path/path.dart' as p;
 part 'app_database.g.dart';
 
 /// Tabla SQLite para caché offline de tareas.
-///
-/// Usa drift como ORM: las columnas se definen como propiedades Dart
-/// y drift genera el SQL, las clases de datos y los DAOs automáticamente.
-class LocalTasks extends Table {
-  /// Clave primaria: identificador del documento Firestore o UUID asignado
-  /// localmente cuando la tarea se crea sin conexión.
+class TasksTable extends Table {
+  TextColumn get idUsuario => text()();
   TextColumn get id => text()();
-  TextColumn get title => text().withLength(min: 1)();
-  TextColumn get subtitle => text().withDefault(const Constant(''))();
-  TextColumn get priority => text().withDefault(const Constant('MED'))();
-  /// Default 100 = XP de prioridad MED en la tabla canónica del formulario
-  /// (HIGH=250, MED=100, LOW=50). Solo se usa como fallback si la fila se
-  /// inserta sin valor explícito; el flujo normal lo asigna desde la UI.
-  IntColumn get xpReward => integer().withDefault(const Constant(100))();
-  BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get dueDate => dateTime().nullable()();
-  DateTimeColumn get createdAt => dateTime().nullable()();
-  DateTimeColumn get completedAt => dateTime().nullable()();
+  TextColumn get titulo => text().withLength(min: 1)();
+  TextColumn get subtitulo => text().withDefault(const Constant(''))();
+  TextColumn get prioridad => text().withDefault(const Constant('MED'))();
+  IntColumn get puntosXp => integer().withDefault(const Constant(100))();
+  BoolColumn get estaTerminada => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get fechaTope => dateTime().nullable()();
+  DateTimeColumn get creadaEl => dateTime().nullable()();
+  DateTimeColumn get terminadaEl => dateTime().nullable()();
   TextColumn get color => text().nullable()();
-
-  /// Marca de mutación local pendiente de empujar a Firestore. Cuando vale
-  /// `true` la fila tiene cambios locales que aún no se han sincronizado.
-  /// La sync periódica busca estas filas y las empuja en background.
-  BoolColumn get pendingPush => boolean().withDefault(const Constant(false))();
+  BoolColumn get pendienteSincro => boolean().withDefault(const Constant(false))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {id, idUsuario};
 }
 
 /// Cuenta de Google Calendar conectada (multi-cuenta).
-///
-/// Persistir esto permite restaurar la lista de cuentas tras un reinicio
-/// sin que el usuario tenga que volver a vincular Google.
-class LocalCalendarAccounts extends Table {
+class AccountsTable extends Table {
+  TextColumn get idUsuario => text()();
   TextColumn get email => text()();
-  /// ARGB del color asignado a la cuenta para los puntitos del grid.
-  IntColumn get colorValue => integer()();
-  /// Índice usado en la paleta — para no repetir color al reconectar.
-  IntColumn get colorIndex => integer().withDefault(const Constant(-1))();
-  TextColumn get accessToken => text().withDefault(const Constant(''))();
-  DateTimeColumn get tokenExpiry => dateTime().nullable()();
-  DateTimeColumn get connectedAt => dateTime().nullable()();
+  IntColumn get valorColor => integer()();
+  IntColumn get indiceColor => integer().withDefault(const Constant(-1))();
+  TextColumn get tokenAcceso => text().withDefault(const Constant(''))();
+  DateTimeColumn get expiracionToken => dateTime().nullable()();
+  DateTimeColumn get conectadaEl => dateTime().nullable()();
 
   @override
-  Set<Column> get primaryKey => {email};
+  Set<Column> get primaryKey => {email, idUsuario};
 }
 
 /// Calendario individual dentro de una cuenta de Google.
-class LocalCalendars extends Table {
+class CalendarsTable extends Table {
+  TextColumn get idUsuario => text()();
   TextColumn get id => text()();
-  TextColumn get accountEmail => text()();
-  TextColumn get summary => text().withDefault(const Constant('Calendario'))();
-  TextColumn get backgroundColor => text().nullable()();
-  TextColumn get accessRole => text().withDefault(const Constant('reader'))();
-  BoolColumn get isVisible => boolean().withDefault(const Constant(true))();
+  TextColumn get emailCuenta => text()();
+  TextColumn get resumen => text().withDefault(const Constant('Calendario'))();
+  TextColumn get colorFondo => text().nullable()();
+  TextColumn get rolAcceso => text().withDefault(const Constant('reader'))();
+  BoolColumn get esVisible => boolean().withDefault(const Constant(true))();
 
   @override
-  Set<Column> get primaryKey => {id, accountEmail};
+  Set<Column> get primaryKey => {id, emailCuenta, idUsuario};
 }
 
 /// Base de datos local de Notova con drift (ORM sobre SQLite).
-@DriftDatabase(tables: [LocalTasks, LocalCalendarAccounts, LocalCalendars])
+@DriftDatabase(tables: [TasksTable, AccountsTable, CalendarsTable])
 class AppDatabase extends _$AppDatabase {
   AppDatabase._internal(super.e);
 
-  static AppDatabase? _instance;
+  static AppDatabase? _instancia;
 
-  /// Singleton — una sola instancia durante todo el ciclo de vida de la app.
   factory AppDatabase() {
-    _instance ??= AppDatabase._internal(_openConnection());
-    return _instance!;
+    _instancia ??= AppDatabase._internal(_abrirConexion());
+    return _instancia!;
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (migrator, from, to) async {
           if (from < 2) {
-            await migrator.addColumn(localTasks, localTasks.color);
+            await migrator.addColumn(tasksTable, tasksTable.color);
           }
           if (from < 3) {
-            await migrator.createTable(localCalendarAccounts);
-            await migrator.createTable(localCalendars);
+            await migrator.createTable(accountsTable);
+            await migrator.createTable(calendarsTable);
           }
           if (from < 4) {
-            await migrator.addColumn(localTasks, localTasks.pendingPush);
+            await migrator.addColumn(tasksTable, tasksTable.pendienteSincro);
+          }
+          if (from < 5) {
+            // Purgar tablas antiguas para migrar a multi-usuario.
+            await migrator.issueCustomQuery('DROP TABLE IF EXISTS local_tasks;');
+            await migrator.issueCustomQuery('DROP TABLE IF EXISTS local_calendar_accounts;');
+            await migrator.issueCustomQuery('DROP TABLE IF EXISTS local_calendars;');
+            await migrator.createTable(tasksTable);
+            await migrator.createTable(accountsTable);
+            await migrator.createTable(calendarsTable);
           }
         },
       );
 
-  /// Todas las tareas pendientes, ordenadas por fecha de creación.
-  Future<List<LocalTask>> getPendingTasks() {
-    return (select(localTasks)
-          ..where((t) => t.isCompleted.equals(false))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+  // --- Tareas ---
+
+  Future<List<TasksTableData>> obtenerPendientes(String uid) {
+    return (select(tasksTable)
+          ..where((t) => t.idUsuario.equals(uid) & t.estaTerminada.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.creadaEl)]))
         .get();
   }
 
-  /// Últimas tareas completadas (límite para no sobrecargar RAM).
-  Future<List<LocalTask>> getCompletedTasks({int limit = 100}) {
-    return (select(localTasks)
-          ..where((t) => t.isCompleted.equals(true))
-          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)])
+  Future<List<TasksTableData>> obtenerHechas(String uid, {int limit = 100}) {
+    return (select(tasksTable)
+          ..where((t) => t.idUsuario.equals(uid) & t.estaTerminada.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.terminadaEl)])
           ..limit(limit))
         .get();
   }
 
-  /// Todas las tareas (para exportación).
-  Future<List<LocalTask>> getAllTasks() {
-    return (select(localTasks)
-          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+  Future<List<TasksTableData>> obtenerTodas(String uid) {
+    return (select(tasksTable)
+          ..where((t) => t.idUsuario.equals(uid))
+          ..orderBy([(t) => OrderingTerm.asc(t.creadaEl)]))
         .get();
   }
 
-  /// Obtener una tarea por ID.
-  Future<LocalTask?> getTaskById(String taskId) {
-    return (select(localTasks)..where((t) => t.id.equals(taskId)))
+  Future<TasksTableData?> obtenerTareaPorId(String uid, String idTarea) {
+    return (select(tasksTable)..where((t) => t.idUsuario.equals(uid) & t.id.equals(idTarea)))
         .getSingleOrNull();
   }
 
-  /// Stream reactivo de tareas pendientes (para UI con StreamBuilder).
-  Stream<List<LocalTask>> watchPendingTasks() {
-    return (select(localTasks)
-          ..where((t) => t.isCompleted.equals(false))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+  Stream<List<TasksTableData>> escucharPendientes(String uid) {
+    return (select(tasksTable)
+          ..where((t) => t.idUsuario.equals(uid) & t.estaTerminada.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.creadaEl)]))
         .watch();
   }
 
-  /// Stream reactivo de tareas completadas.
-  Stream<List<LocalTask>> watchCompletedTasks() {
-    return (select(localTasks)
-          ..where((t) => t.isCompleted.equals(true))
-          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
+  Stream<List<TasksTableData>> escucharHechas(String uid) {
+    return (select(tasksTable)
+          ..where((t) => t.idUsuario.equals(uid) & t.estaTerminada.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.terminadaEl)]))
         .watch();
   }
 
-  /// Tareas con cambios locales pendientes de subir a Firestore.
-  Future<List<LocalTask>> getPendingPushTasks() {
-    return (select(localTasks)..where((t) => t.pendingPush.equals(true))).get();
+  Future<List<TasksTableData>> obtenerPendientesSincro(String uid) {
+    return (select(tasksTable)..where((t) => t.idUsuario.equals(uid) & t.pendienteSincro.equals(true))).get();
   }
 
-  /// Inserta o reemplaza una tarea (upsert).
-  Future<void> upsertTask(LocalTasksCompanion task) {
-    return into(localTasks).insertOnConflictUpdate(task);
+  Future<void> insertarTarea(TasksTableCompanion tarea) {
+    return into(tasksTable).insertOnConflictUpdate(tarea);
   }
 
-  /// Sincronización desde Firestore: hace MERGE preservando filas locales
-  /// con `pendingPush = true` (mutaciones aún no empujadas) y filas que
-  /// existan localmente pero no en el snapshot remoto (creadas offline).
-  Future<void> mergeFromFirestore(List<LocalTasksCompanion> remote) async {
-    final remoteIds = remote.map((c) => c.id.value).toSet();
-    final local = await select(localTasks).get();
+  Future<void> fusionarDesdeNube(String uid, List<TasksTableCompanion> remoto) async {
+    final remoteIds = remoto.map((c) => c.id.value).toSet();
+    final local = await (select(tasksTable)..where((t) => t.idUsuario.equals(uid))).get();
     final pendingLocalIds = local
-        .where((t) => t.pendingPush || !remoteIds.contains(t.id))
+        .where((t) => t.pendienteSincro || !remoteIds.contains(t.id))
         .map((t) => t.id)
         .toSet();
 
-    final toApply = remote
+    final toApply = remoto
         .where((c) => !pendingLocalIds.contains(c.id.value))
         .toList();
     if (toApply.isEmpty) return;
     await batch((b) {
-      b.insertAllOnConflictUpdate(localTasks, toApply);
+      b.insertAllOnConflictUpdate(tasksTable, toApply);
     });
   }
 
-  /// Marca una tarea como completada (con flag de sincronización).
-  Future<void> markCompleted(String taskId, {bool needsPush = true}) {
-    return (update(localTasks)..where((t) => t.id.equals(taskId))).write(
-      LocalTasksCompanion(
-        isCompleted: const Value(true),
-        completedAt: Value(DateTime.now()),
-        pendingPush: Value(needsPush),
+  Future<void> marcarTerminada(String uid, String idTarea, {bool necesitaSubir = true}) {
+    return (update(tasksTable)..where((t) => t.idUsuario.equals(uid) & t.id.equals(idTarea))).write(
+      TasksTableCompanion(
+        estaTerminada: const Value(true),
+        terminadaEl: Value(DateTime.now()),
+        pendienteSincro: Value(necesitaSubir),
       ),
     );
   }
 
-  /// Limpia el flag de pendingPush tras sincronizar exitosamente.
-  Future<void> clearPendingPush(String taskId) {
-    return (update(localTasks)..where((t) => t.id.equals(taskId))).write(
-      const LocalTasksCompanion(pendingPush: Value(false)),
+  Future<void> limpiarPendienteSincro(String uid, String idTarea) {
+    return (update(tasksTable)..where((t) => t.idUsuario.equals(uid) & t.id.equals(idTarea))).write(
+      const TasksTableCompanion(pendienteSincro: Value(false)),
     );
   }
 
-  /// Eliminar una tarea.
-  Future<void> deleteTask(String taskId) {
-    return (delete(localTasks)..where((t) => t.id.equals(taskId))).go();
+  Future<void> borrarTarea(String uid, String idTarea) {
+    return (delete(tasksTable)..where((t) => t.idUsuario.equals(uid) & t.id.equals(idTarea))).go();
   }
 
-  /// Eliminar todas las tareas (para logout o reset).
-  Future<void> clearAll() {
-    return delete(localTasks).go();
+  Future<void> borrarTodasLasTareas(String uid) {
+    return (delete(tasksTable)..where((t) => t.idUsuario.equals(uid))).go();
   }
 
-  /// Todas las cuentas de calendario guardadas.
-  Future<List<LocalCalendarAccount>> getAllCalendarAccounts() {
-    return (select(localCalendarAccounts)
-          ..orderBy([(a) => OrderingTerm.asc(a.connectedAt)]))
+  // --- Calendarios ---
+
+  Future<List<AccountsTableData>> obtenerTodasLasCuentas(String uid) {
+    return (select(accountsTable)
+          ..where((a) => a.idUsuario.equals(uid))
+          ..orderBy([(a) => OrderingTerm.asc(a.conectadaEl)]))
         .get();
   }
 
-  /// Calendarios de una cuenta concreta.
-  Future<List<LocalCalendar>> getCalendarsForAccount(String email) {
-    return (select(localCalendars)
-          ..where((c) => c.accountEmail.equals(email)))
+  Future<List<CalendarsTableData>> obtenerCalendariosDeCuenta(String uid, String email) {
+    return (select(calendarsTable)
+          ..where((c) => c.idUsuario.equals(uid) & c.emailCuenta.equals(email)))
         .get();
   }
 
-  /// Inserta o actualiza una cuenta.
-  Future<void> upsertCalendarAccount(LocalCalendarAccountsCompanion acc) {
-    return into(localCalendarAccounts).insertOnConflictUpdate(acc);
+  Future<void> insertarCuenta(AccountsTableCompanion cuenta) {
+    return into(accountsTable).insertOnConflictUpdate(cuenta);
   }
 
-  /// Reemplaza la lista de calendarios de una cuenta de forma atómica:
-  /// borra los anteriores y escribe los nuevos. Conserva la visibilidad
-  /// si el caller la pasa ya en `calendars`.
-  Future<void> replaceCalendarsForAccount(
+  Future<void> reemplazarCalendariosDeCuenta(
+    String uid,
     String email,
-    List<LocalCalendarsCompanion> calendars,
+    List<CalendarsTableCompanion> calendarios,
   ) async {
     await transaction(() async {
-      await (delete(localCalendars)
-            ..where((c) => c.accountEmail.equals(email)))
+      await (delete(calendarsTable)
+            ..where((c) => c.idUsuario.equals(uid) & c.emailCuenta.equals(email)))
           .go();
-      if (calendars.isNotEmpty) {
+      if (calendarios.isNotEmpty) {
         await batch((b) {
-          b.insertAllOnConflictUpdate(localCalendars, calendars);
+          b.insertAllOnConflictUpdate(calendarsTable, calendarios);
         });
       }
     });
   }
 
-  /// Actualiza la visibilidad de un calendario concreto.
-  Future<void> setCalendarVisibility(
-    String calendarId,
-    String accountEmail,
-    bool isVisible,
+  Future<void> cambiarVisibilidadCalendario(
+    String uid,
+    String idCalendario,
+    String emailCuenta,
+    bool esVisible,
   ) {
-    return (update(localCalendars)
+    return (update(calendarsTable)
           ..where((c) =>
-              c.id.equals(calendarId) & c.accountEmail.equals(accountEmail)))
-        .write(LocalCalendarsCompanion(isVisible: Value(isVisible)));
+              c.idUsuario.equals(uid) & c.id.equals(idCalendario) & c.emailCuenta.equals(emailCuenta)))
+        .write(CalendarsTableCompanion(esVisible: Value(esVisible)));
   }
 
-  /// Borra una cuenta y sus calendarios.
-  Future<void> deleteCalendarAccount(String email) async {
+  Future<void> borrarCuenta(String uid, String email) async {
     await transaction(() async {
-      await (delete(localCalendars)
-            ..where((c) => c.accountEmail.equals(email)))
+      await (delete(calendarsTable)
+            ..where((c) => c.idUsuario.equals(uid) & c.emailCuenta.equals(email)))
           .go();
-      await (delete(localCalendarAccounts)
-            ..where((a) => a.email.equals(email)))
+      await (delete(accountsTable)
+            ..where((a) => a.idUsuario.equals(uid) & a.email.equals(email)))
           .go();
     });
   }
 
-  /// Borra todas las cuentas y sus calendarios (logout).
-  Future<void> clearAllCalendarAccounts() async {
+  Future<void> borrarTodasLasCuentas(String uid) async {
     await transaction(() async {
-      await delete(localCalendars).go();
-      await delete(localCalendarAccounts).go();
+      await (delete(calendarsTable)..where((c) => c.idUsuario.equals(uid))).go();
+      await (delete(accountsTable)..where((a) => a.idUsuario.equals(uid))).go();
     });
   }
 }
 
-/// Genera o recupera la clave AES-256 del Keystore del dispositivo.
-///
-/// En el primer arranque se genera una clave aleatoria de 32 bytes y se
-/// persiste en [FlutterSecureStorage] (respaldado por Android Keystore /
-/// iOS Keychain). Las siguientes veces se recupera la misma clave.
-Future<String> _getOrCreateDbKey() async {
+Future<String> _obtenerClaveBD() async {
   const storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -297,10 +270,9 @@ Future<String> _getOrCreateDbKey() async {
   return key;
 }
 
-/// Abre la conexión cifrada con SQLCipher (AES-256) a [notova.db].
-LazyDatabase _openConnection() {
+LazyDatabase _abrirConexion() {
   return LazyDatabase(() async {
-    final dbKey = await _getOrCreateDbKey();
+    final dbKey = await _obtenerClaveBD();
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'notova.db'));
     return NativeDatabase.createInBackground(

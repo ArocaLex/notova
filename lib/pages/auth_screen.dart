@@ -7,7 +7,6 @@ import 'package:notova/pages/main_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodel/auth_viewmodel.dart';
-import '../viewmodel/calendar_viewmodel.dart';
 import 'onboarding_screen.dart';
 
 /// Pantalla de autenticación (login/registro) de Notova.
@@ -26,9 +25,9 @@ class AuthScreenState extends State<AuthScreen>
     with SingleTickerProviderStateMixin {
   late bool isLogin;
   bool _obscurePassword = true;
-  bool _isAttachingCalendar = false;
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  String? _errorMessage;
+  final TextEditingController controladorEmail = TextEditingController();
+  final TextEditingController controladorPass = TextEditingController();
 
   static const _bgColor = Color(0xFF120E1A);
   static const _cardColor = Color(0xFF1E1926);
@@ -72,146 +71,180 @@ class AuthScreenState extends State<AuthScreen>
   @override
   void dispose() {
     _entryController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
+    controladorEmail.dispose();
+    controladorPass.dispose();
     super.dispose();
   }
 
   Future<void> _submitAuth() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-    final viewModel = context.read<AuthViewModel>();
+    setState(() => _errorMessage = null);
+    final email = controladorEmail.text.trim();
+    final pass = controladorPass.text.trim();
+    final gestor = context.read<AuthViewModel>();
 
-    bool success;
+    bool exito;
     if (isLogin) {
-      success = await viewModel.signInWithEmail(email, password);
+      exito = await gestor.signInWithEmail(email, pass);
     } else {
-      success = await viewModel.registerWithEmail(email, password);
+      exito = await gestor.registerWithEmail(email, pass);
     }
-    _handleAuthResult(success, viewModel);
+    _gestionarResultado(exito, gestor);
   }
 
   Future<void> _googleSignIn() async {
-    final viewModel = context.read<AuthViewModel>();
-    final calendarVm = context.read<CalendarViewModel>();
-    final success = await viewModel.signInWithGoogle();
-    if (success) {
-      final primary = viewModel.lastGooglePrimary;
-      if (primary != null) {
-        // Mantenemos el botón en estado de carga mientras se descarga la
-        // lista de calendarios para que el usuario no perciba el botón
-        // "pegado". Se hace antes de navegar a MainScreen para que
-        // `isSignedIn` ya sea `true` al llegar a Home/Calendar.
-        if (mounted) setState(() => _isAttachingCalendar = true);
-        await calendarVm.attachGoogleAccountFromAuth(
-          email: primary.email,
-          accessToken: primary.accessToken,
-          expiry: primary.expiry,
-        );
-        if (mounted) setState(() => _isAttachingCalendar = false);
-      }
-    }
+    setState(() => _errorMessage = null);
+    final gestor = context.read<AuthViewModel>();
+    final exito = await gestor.signInWithGoogle();
     if (!mounted) return;
-    _handleAuthResult(success, viewModel);
+    _gestionarResultado(exito, gestor);
   }
 
   Future<void> _showForgotPasswordDialog() async {
     final resetController =
-        TextEditingController(text: emailController.text.trim());
+        TextEditingController(text: controladorEmail.text.trim());
     final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: _cardColor,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Recuperar contraseña',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: resetController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration(
-                  hint: 'ejemplo@notova.com',
-                  icon: Icons.email_outlined,
+        String? dialogError;
+        bool resetSent = false;
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            backgroundColor: _cardColor,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            title: const Text(
+              'Recuperar contraseña',
+              style: TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.',
+                  style:
+                      TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: resetController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration(
+                    hint: 'ejemplo@notova.com',
+                    icon: Icons.email_outlined,
+                  ),
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: Colors.redAccent, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            dialogError!,
+                            style: const TextStyle(
+                                color: Colors.redAccent, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (resetSent) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.green.withOpacity(0.4)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.greenAccent, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Revisa tu correo para restablecer la contraseña.',
+                            style: TextStyle(
+                                color: Colors.greenAccent, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  resetSent ? 'Cerrar' : 'Cancelar',
+                  style: TextStyle(color: Colors.grey.shade400),
                 ),
               ),
+              if (!resetSent)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryPurple,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    final email = resetController.text.trim();
+                    if (!emailRegex.hasMatch(email)) {
+                      setDialogState(() => dialogError =
+                          'Introduce un correo electrónico válido.');
+                      return;
+                    }
+                    setDialogState(() => dialogError = null);
+                    final vm = context.read<AuthViewModel>();
+                    final exito = await vm.sendPasswordReset(email);
+                    if (!mounted) return;
+                    if (exito) {
+                      setDialogState(() => resetSent = true);
+                    } else {
+                      setDialogState(() => dialogError = vm.errorMessage ??
+                          'No se pudo enviar el correo.');
+                    }
+                  },
+                  child: const Text('Enviar',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+                ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text('Cancelar',
-                  style: TextStyle(color: Colors.grey.shade400)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryPurple,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () async {
-                final email = resetController.text.trim();
-                if (!emailRegex.hasMatch(email)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content:
-                          Text('Introduce un correo electrónico válido.'),
-                      backgroundColor: Colors.redAccent,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  return;
-                }
-                final vm = context.read<AuthViewModel>();
-                final nav = Navigator.of(dialogContext);
-                final messenger = ScaffoldMessenger.of(context);
-                final success = await vm.sendPasswordReset(email);
-                if (!mounted) return;
-                nav.pop();
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      success
-                          ? 'Revisa tu correo para restablecer la contraseña.'
-                          : (vm.errorMessage ??
-                              'No se pudo enviar el correo.'),
-                    ),
-                    backgroundColor:
-                        success ? Colors.green.shade700 : Colors.redAccent,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              child: const Text('Enviar',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
         );
       },
     );
     resetController.dispose();
   }
 
-  void _handleAuthResult(bool success, AuthViewModel viewModel) {
-    if (success) {
+  void _gestionarResultado(bool exito, AuthViewModel gestor) {
+    if (exito) {
       if (mounted) {
-        if (viewModel.wasNewUser) {
+        if (gestor.wasNewUser) {
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
               pageBuilder: (pageContext, primaryAnimation, secondaryAnimation) =>
@@ -235,16 +268,8 @@ class AuthScreenState extends State<AuthScreen>
           );
         }
       }
-    } else if (viewModel.errorMessage != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(viewModel.errorMessage!),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    } else if (gestor.errorMessage != null && mounted) {
+      setState(() => _errorMessage = gestor.errorMessage);
     }
   }
 
@@ -277,8 +302,7 @@ class AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isLoading =
-        context.watch<AuthViewModel>().isLoading || _isAttachingCalendar;
+    final isLoading = context.watch<AuthViewModel>().isLoading;
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -422,7 +446,7 @@ class AuthScreenState extends State<AuthScreen>
                       child: Column(
                         children: [
                           TextField(
-                            controller: emailController,
+                            controller: controladorEmail,
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -432,7 +456,7 @@ class AuthScreenState extends State<AuthScreen>
                           ),
                           const SizedBox(height: 14),
                           TextField(
-                            controller: passwordController,
+                            controller: controladorPass,
                             obscureText: _obscurePassword,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
@@ -468,6 +492,35 @@ class AuthScreenState extends State<AuthScreen>
                             ),
                           ] else
                             const SizedBox(height: 24),
+
+                          if (_errorMessage != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withOpacity(0.10),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.redAccent.withOpacity(0.35)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      color: Colors.redAccent, size: 18),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: const TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
 
                           SizedBox(
                             height: 54,
@@ -586,8 +639,10 @@ class AuthScreenState extends State<AuthScreen>
                               GestureDetector(
                                 onTap: isLoading
                                     ? null
-                                    : () => setState(
-                                        () => isLogin = !isLogin),
+                                    : () => setState(() {
+                                          isLogin = !isLogin;
+                                          _errorMessage = null;
+                                        }),
                                 child: Text(
                                   isLogin
                                       ? 'Regístrate'
@@ -614,3 +669,4 @@ class AuthScreenState extends State<AuthScreen>
     );
   }
 }
+

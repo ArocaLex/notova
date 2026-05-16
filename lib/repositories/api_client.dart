@@ -25,11 +25,9 @@ class ApiClient {
 
   /// Crea un cliente API con instancias opcionales de [FirebaseAuth] y
   /// [http.Client] para facilitar la inyección en tests.
-  ApiClient({
-    FirebaseAuth? auth,
-    http.Client? httpClient,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _http = httpClient ?? http.Client();
+  ApiClient({FirebaseAuth? auth, http.Client? httpClient})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _http = httpClient ?? http.Client();
 
   /// Obtiene el Firebase ID Token del usuario actualmente logueado.
   ///
@@ -41,10 +39,10 @@ class ApiClient {
   }
 
   /// Construye los headers con el Bearer token automáticamente.
-  Future<Map<String, String>> _authHeaders() async {
+  Future<Map<String, String>> _authenticatedHeaders() async {
     final token = await _getIdToken();
     if (token == null) {
-      throw ApiException(401, 'No hay sesión activa — inicia sesión primero.');
+      throw ApiError(401, 'No hay sesión activa — inicia sesión primero.');
     }
     return {
       'Authorization': 'Bearer $token',
@@ -54,20 +52,20 @@ class ApiClient {
 
   /// Realiza una petición GET autenticada.
   ///
-  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
+  /// Si no hay sesión activa, lanza [ApiError]. Para errores HTTP (4xx/5xx)
   /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> get(String path) async {
-    final headers = await _authHeaders();
-    final response = await _http.get(Uri.parse('$baseUrl$path'), headers: headers);
+    final headers = await _authenticatedHeaders();
+    final response = await _http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+    );
     return _handleResponse(response);
   }
 
   /// Realiza una petición POST autenticada con cuerpo JSON opcional.
-  ///
-  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
-  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> post(String path, {Map<String, dynamic>? body}) async {
-    final headers = await _authHeaders();
+    final headers = await _authenticatedHeaders();
     final response = await _http.post(
       Uri.parse('$baseUrl$path'),
       headers: headers,
@@ -77,11 +75,8 @@ class ApiClient {
   }
 
   /// Realiza una petición PUT autenticada con cuerpo JSON opcional.
-  ///
-  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
-  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> put(String path, {Map<String, dynamic>? body}) async {
-    final headers = await _authHeaders();
+    final headers = await _authenticatedHeaders();
     final response = await _http.put(
       Uri.parse('$baseUrl$path'),
       headers: headers,
@@ -91,12 +86,12 @@ class ApiClient {
   }
 
   /// Realiza una petición DELETE autenticada.
-  ///
-  /// Si no hay sesión activa, lanza [ApiException]. Para errores HTTP (4xx/5xx)
-  /// devuelve igualmente un [ApiResponse] con [ApiResponse.isOk] en `false`.
   Future<ApiResponse> delete(String path) async {
-    final headers = await _authHeaders();
-    final response = await _http.delete(Uri.parse('$baseUrl$path'), headers: headers);
+    final headers = await _authenticatedHeaders();
+    final response = await _http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: headers,
+    );
     return _handleResponse(response);
   }
 
@@ -129,8 +124,7 @@ class ApiResponse {
   bool get isOk => statusCode >= 200 && statusCode < 300;
 
   /// Decodifica el cuerpo de la respuesta como un mapa JSON.
-  Map<String, dynamic> get json =>
-      jsonDecode(body) as Map<String, dynamic>;
+  Map<String, dynamic> get json => jsonDecode(body) as Map<String, dynamic>;
 
   /// Decodifica el cuerpo de la respuesta como una lista JSON.
   List<dynamic> get jsonList => jsonDecode(body) as List<dynamic>;
@@ -138,15 +132,15 @@ class ApiResponse {
 
 /// Excepción lanzada por [ApiClient] cuando no hay sesión activa o la
 /// respuesta indica un error HTTP.
-class ApiException implements Exception {
+class ApiError implements Exception {
   /// Código de estado HTTP asociado al error.
   final int statusCode;
 
   /// Mensaje descriptivo del error.
   final String message;
 
-  const ApiException(this.statusCode, this.message);
+  const ApiError(this.statusCode, this.message);
 
   @override
-  String toString() => 'ApiException($statusCode): $message';
+  String toString() => 'ApiError($statusCode): $message';
 }

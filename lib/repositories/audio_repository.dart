@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Gestiona la reproducción de efectos de sonido (SFX) de la app.
 ///
 /// Los sonidos se activan en:
-///   - Completar una tarea  → task_complete.mp3
+///   - Completar una Task  → task_complete.mp3
 ///   - Subir de nivel       → level_up.mp3
 ///
 /// El usuario puede desactivar el audio desde Ajustes de Perfil.
@@ -18,7 +18,7 @@ class AudioRepository {
   bool _sfxEnabled = true;
   bool _initialized = false;
 
-  Future<void> _ensureInit() async {
+  Future<void> _ensureInitialized() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
     _sfxEnabled = prefs.getBool('sfx_enabled') ?? true;
@@ -29,8 +29,8 @@ class AudioRepository {
   ///
   /// No tiene efecto si el usuario desactivó los sonidos mediante
   /// [setSfxEnabled].
-  Future<void> playTaskComplete() async {
-    await _ensureInit();
+  Future<void> playTaskCompleted() async {
+    await _ensureInitialized();
     if (!_sfxEnabled) return;
     await _player.play(AssetSource('audio/task_complete.mp3'));
   }
@@ -40,7 +40,7 @@ class AudioRepository {
   /// No tiene efecto si el usuario desactivó los sonidos mediante
   /// [setSfxEnabled].
   Future<void> playLevelUp() async {
-    await _ensureInit();
+    await _ensureInitialized();
     if (!_sfxEnabled) return;
     await _player.play(AssetSource('audio/level_up.mp3'));
   }
@@ -60,7 +60,7 @@ class AudioRepository {
 
   /// Carga la preferencia actual (útil para leer antes de mostrar el toggle en UI).
   Future<bool> getSfxEnabled() async {
-    await _ensureInit();
+    await _ensureInitialized();
     return _sfxEnabled;
   }
 }

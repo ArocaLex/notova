@@ -5,13 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../database/app_database.dart';
 import '../models/task_model.dart';
 
-/// Repositorio local de tareas usando SQLite vía drift (ORM).
+/// Repositorio local de tareas usando SQLite.
 ///
-/// Funciones:
-///   - Caché offline de las tareas del usuario.
-///   - Sincronización unidireccional: Firestore → SQLite.
-///   - Lectura desde SQLite cuando no hay conexión.
-///
+/// Encapsula el `AppDatabase` (cuyas tablas conservan nombres en español por
+/// motivos de compatibilidad de schema) y expone una API en inglés con
+/// modelos [TaskModel].
 class LocalTaskRepository {
   final AppDatabase _db;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,93 +17,102 @@ class LocalTaskRepository {
 
   LocalTaskRepository({AppDatabase? db}) : _db = db ?? AppDatabase();
 
-  String? get _uid => _auth.currentUser?.uid;
+  String? get userId => _auth.currentUser?.uid;
 
-  /// Convierte un [TaskModel] a un [LocalTasksCompanion] para persistirlo
-  /// en SQLite mediante drift.
-  LocalTasksCompanion _toCompanion(TaskModel task) {
-    return LocalTasksCompanion(
+  /// Convierte un [TaskModel] al companion de drift.
+  TasksTableCompanion _toCompanion(TaskModel task) {
+    return TasksTableCompanion(
+      idUsuario: Value(userId!),
       id: Value(task.id),
-      title: Value(task.title),
-      subtitle: Value(task.subtitle),
-      priority: Value(task.priority),
-      xpReward: Value(task.xpReward),
-      isCompleted: Value(task.isCompleted),
-      dueDate: Value(task.dueDate),
-      createdAt: Value(task.createdAt),
-      completedAt: Value(task.completedAt),
+      titulo: Value(task.title),
+      subtitulo: Value(task.subtitle),
+      prioridad: Value(task.priority),
+      puntosXp: Value(task.xpReward),
+      estaTerminada: Value(task.isCompleted),
+      fechaTope: Value(task.dueDate),
+      creadaEl: Value(task.createdAt),
+      terminadaEl: Value(task.completedAt),
     );
   }
 
-  /// Convierte una fila de SQLite (LocalTask) a TaskModel de dominio.
-  TaskModel _toTaskModel(LocalTask row) {
+  /// Convierte una fila de SQLite a [TaskModel].
+  TaskModel _fromRow(TasksTableData row) {
     return TaskModel(
       id: row.id,
-      title: row.title,
-      subtitle: row.subtitle,
-      priority: row.priority,
-      xpReward: row.xpReward,
-      isCompleted: row.isCompleted,
-      dueDate: row.dueDate,
-      createdAt: row.createdAt,
-      completedAt: row.completedAt,
+      title: row.titulo,
+      subtitle: row.subtitulo,
+      priority: row.prioridad,
+      xpReward: row.puntosXp,
+      isCompleted: row.estaTerminada,
+      dueDate: row.fechaTope,
+      createdAt: row.creadaEl,
+      completedAt: row.terminadaEl,
     );
   }
 
   /// Retorna las tareas pendientes almacenadas en la caché local.
   Future<List<TaskModel>> getPendingTasks() async {
-    final rows = await _db.getPendingTasks();
-    return rows.map(_toTaskModel).toList();
+    if (userId == null) return [];
+    final rows = await _db.obtenerPendientes(userId!);
+    return rows.map(_fromRow).toList();
   }
 
   /// Retorna las tareas completadas almacenadas en la caché local.
   Future<List<TaskModel>> getCompletedTasks() async {
-    final rows = await _db.getCompletedTasks();
-    return rows.map(_toTaskModel).toList();
+    if (userId == null) return [];
+    final rows = await _db.obtenerHechas(userId!);
+    return rows.map(_fromRow).toList();
   }
 
   /// Retorna todas las tareas almacenadas en la caché local.
   Future<List<TaskModel>> getAllTasks() async {
-    final rows = await _db.getAllTasks();
-    return rows.map(_toTaskModel).toList();
+    if (userId == null) return [];
+    final rows = await _db.obtenerTodas(userId!);
+    return rows.map(_fromRow).toList();
   }
 
   /// Stream reactivo de tareas pendientes.
-  Stream<List<TaskModel>> watchPendingTasks() {
-    return _db.watchPendingTasks().map(
-      (rows) => rows.map(_toTaskModel).toList(),
+  Stream<List<TaskModel>> watchPending() {
+    if (userId == null) return Stream.value([]);
+    return _db.escucharPendientes(userId!).map(
+      (rows) => rows.map(_fromRow).toList(),
     );
   }
 
   /// Stream reactivo de tareas completadas.
-  Stream<List<TaskModel>> watchCompletedTasks() {
-    return _db.watchCompletedTasks().map(
-      (rows) => rows.map(_toTaskModel).toList(),
+  Stream<List<TaskModel>> watchCompleted() {
+    if (userId == null) return Stream.value([]);
+    return _db.escucharHechas(userId!).map(
+      (rows) => rows.map(_fromRow).toList(),
     );
   }
 
   /// Descarga todas las tareas de Firestore y las fusiona con SQLite.
   Future<void> syncFromFirestore() async {
-    if (_uid == null) return;
+    if (userId == null) return;
 
     final snap = await _firestore
         .collection('users')
-        .doc(_uid)
+        .doc(userId)
         .collection('tasks')
         .get();
 
     final companions = snap.docs.map((doc) {
-      final task = TaskModel.fromFirestore(doc);
-      return _toCompanion(task);
+      final t = TaskModel.fromFirestore(doc);
+      return _toCompanion(t);
     }).toList();
 
-    await _db.mergeFromFirestore(companions);
-    final total = await _db.getAllTasks();
-    debugPrint('[SQLite Sync] ${total.length} tareas cacheadas en notova.db');
+    await _db.fusionarDesdeNube(userId!, companions);
+    final all = await _db.obtenerTodas(userId!);
+    debugPrint('[Sync Local] ${all.length} tareas en BD para $userId');
   }
 
-  /// Limpia la caché local (al cerrar sesión).
-  Future<void> clearLocalCache() async {
-    await _db.clearAll();
+  /// Limpia la caché local del usuario dado (al cerrar sesión o eliminar cuenta).
+  ///
+  /// Recibe [uid] explícito para evitar depender de [FirebaseAuth.currentUser],
+  /// que puede ser null si Firebase ya ha procesado el signOut.
+  Future<void> clearLocalCache(String uid) async {
+    await _db.borrarTodasLasTareas(uid);
+    await _db.borrarTodasLasCuentas(uid);
   }
 }

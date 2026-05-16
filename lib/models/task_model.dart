@@ -50,7 +50,7 @@ class TaskModel {
     );
   }
 
-  /// Retorna una copia de este [TaskModel] con los campos indicados
+  /// Retorna una copia de esta [TaskModel] con los campos indicados
   /// reemplazados por los nuevos valores proporcionados.
   TaskModel copyWith({
     bool? isCompleted,

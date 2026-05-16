@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,9 +15,7 @@ import '../models/user_model.dart';
 ///   /users/{uid}/tasks/   -> subcolección de tareas (gestionada por TasksRepository)
 class UserRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  String? get _uid => _auth.currentUser?.uid;
+  String? get _uid => auth.FirebaseAuth.instance.currentUser?.uid;
 
   /// Retorna la referencia al documento Firestore del usuario con [uid].
   DocumentReference _userDoc(String uid) => _db.collection('users').doc(uid);
@@ -43,14 +41,16 @@ class UserRepository {
   /// Crea el documento del usuario en Firestore si no existe.
   ///
   /// Retorna `true` si el documento fue creado, `false` si ya existía.
-  Future<bool> createIfNotExists(User firebaseUser) async {
+  Future<bool> createIfNotExists(auth.User firebaseUser) async {
     final doc = await _userDoc(firebaseUser.uid).get();
     if (doc.exists) return false;
 
-    await _userDoc(firebaseUser.uid).set(UserModel.initialData(
-      email: firebaseUser.email ?? '',
-      displayName: firebaseUser.displayName,
-    ));
+    await _userDoc(firebaseUser.uid).set(
+      UserModel.initialData(
+        email: firebaseUser.email ?? '',
+        displayName: firebaseUser.displayName,
+      ),
+    );
     return true;
   }
 
@@ -75,32 +75,33 @@ class UserRepository {
     if (_uid == null || amount <= 0) return false;
     final uid = _uid!;
     final userRef = _userDoc(uid);
-    late int newTotalXpEver;
+    late int newTotalXp;
     late int newLevel;
     late bool didLevelUp;
     late int dayStreak;
-    late List<String> existingBadges;
+    late List<String> currentBadges;
 
     final applied = await _db.runTransaction<bool>((tx) async {
       final snap = await tx.get(userRef);
       if (!snap.exists) return false;
       final data = snap.data() as Map<String, dynamic>? ?? {};
-      final currentTotal = (data['totalXpEver'] as num?)?.toInt() ?? 0;
+      final currentXp = (data['totalXpEver'] as num?)?.toInt() ?? 0;
       final currentLevel = (data['level'] as num?)?.toInt() ?? 1;
-      final currentDayStreak = (data['dayStreak'] as num?)?.toInt() ?? 0;
-      final badges = (data['badges'] as List<dynamic>? ?? const <dynamic>[])
-          .whereType<String>()
-          .toList();
+      final currentStreak = (data['dayStreak'] as num?)?.toInt() ?? 0;
+      final badgesList =
+          (data['badges'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<String>()
+              .toList();
 
-      newTotalXpEver = currentTotal + amount;
-      newLevel = UserModel.levelFromXp(newTotalXpEver);
+      newTotalXp = currentXp + amount;
+      newLevel = UserModel.levelFromXp(newTotalXp);
       final newRank = UserModel.rankForLevel(newLevel);
       didLevelUp = newLevel > currentLevel;
-      dayStreak = currentDayStreak;
-      existingBadges = badges;
+      dayStreak = currentStreak;
+      currentBadges = badgesList;
 
       tx.update(userRef, {
-        'totalXpEver': newTotalXpEver,
+        'totalXpEver': newTotalXp,
         'level': newLevel,
         'rank': newRank,
       });
@@ -109,11 +110,11 @@ class UserRepository {
 
     if (!applied) return false;
 
-    await checkAndAwardBadges(
-      totalXpEver: newTotalXpEver,
+    await _checkBadges(
+      totalXpEver: newTotalXp,
       level: newLevel,
       dayStreak: dayStreak,
-      existingBadges: existingBadges,
+      existingBadges: currentBadges,
     );
 
     return didLevelUp;
@@ -133,16 +134,15 @@ class UserRepository {
     final today = DateTime(now.year, now.month, now.day);
 
     if (user.lastActivityDate == null) {
-      await _userDoc(_uid!).update({
-        'dayStreak': 1,
-        'lastActivityDate': Timestamp.fromDate(today),
-      });
+      await _userDoc(
+        _uid!,
+      ).update({'dayStreak': 1, 'lastActivityDate': Timestamp.fromDate(today)});
       return;
     }
 
     final last = user.lastActivityDate!;
-    final lastOnly = DateTime(last.year, last.month, last.day);
-    final diff = today.difference(lastOnly).inDays;
+    final lastDay = DateTime(last.year, last.month, last.day);
+    final diff = today.difference(lastDay).inDays;
 
     if (diff == 0) return;
 
@@ -155,7 +155,7 @@ class UserRepository {
 
   /// Evalúa las condiciones de desbloqueo de badges y otorga los que aún no
   /// tiene el usuario.
-  Future<void> checkAndAwardBadges({
+  Future<void> _checkBadges({
     required int totalXpEver,
     required int level,
     required int dayStreak,
@@ -222,10 +222,7 @@ class UserRepository {
 
     try {
       final ref = FirebaseStorage.instance.ref('avatars/$_uid.jpg');
-      await ref.putFile(
-        file,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
       final downloadUrl = await ref.getDownloadURL();
       await updateFields({'avatarUrl': downloadUrl});
     } catch (_) {}
@@ -264,13 +261,13 @@ class UserRepository {
 
   /// Obtiene los datos actuales del usuario y evalúa si hay badges nuevos.
   ///
-  /// Útil para llamar tras completar una tarea, cuando el XP se actualiza
+  /// Útil para llamar tras completar una Task, cuando el XP se actualiza
   /// directamente en Firestore sin pasar por [addXp].
-  Future<void> refreshAndCheckBadges() async {
+  Future<void> refreshBadges() async {
     if (_uid == null) return;
     final user = await getUser(_uid!);
     if (user == null) return;
-    await checkAndAwardBadges(
+    await _checkBadges(
       totalXpEver: user.totalXpEver,
       level: user.level,
       dayStreak: user.dayStreak,
@@ -292,7 +289,9 @@ class UserRepository {
     const batchSize = 500;
     for (var i = 0; i < taskDocs.length; i += batchSize) {
       final batch = _db.batch();
-      final end = (i + batchSize < taskDocs.length) ? i + batchSize : taskDocs.length;
+      final end = (i + batchSize < taskDocs.length)
+          ? i + batchSize
+          : taskDocs.length;
       for (var j = i; j < end; j++) {
         batch.delete(taskDocs[j].reference);
       }

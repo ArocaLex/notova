@@ -13,6 +13,7 @@ import '../theme/app_colors.dart';
 import '../utils/tutorial_keys.dart';
 import 'all_events_screen.dart';
 import 'all_tasks_screen.dart';
+import '../models/user_model.dart';
 import 'main_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final _notifRepo = NotificationRepository();
   bool _notificationsOn = false;
+  bool _isTogglingNotifications = false;
 
   @override
   void initState() {
@@ -32,65 +34,105 @@ class HomeScreenState extends State<HomeScreen> {
     _loadNotifPref();
   }
 
+  Future<void> _onRefresh() async {
+    await Future.wait([
+      context.read<TasksViewModel>().refresh(),
+      context.read<CalendarViewModel>().refreshUpcoming(),
+    ]);
+  }
+
   Future<void> _loadNotifPref() async {
-    final on = await _notifRepo.isEnabled();
-    if (mounted) setState(() => _notificationsOn = on);
+    final prefEnabled = await _notifRepo.isEnabled();
+    if (!prefEnabled) {
+      if (mounted) setState(() => _notificationsOn = false);
+      return;
+    }
+    // Preferencia dice ON — consultar el OS sin mostrar ningún diálogo.
+    final osGranted = await _notifRepo.arePermissionsGranted();
+    if (!osGranted) {
+      // Primera vez o permiso revocado desde Ajustes → pedir ahora.
+      final granted = await _notifRepo.requestPermission();
+      if (!granted) {
+        await _notifRepo.setEnabled(false);
+        if (mounted) setState(() => _notificationsOn = false);
+        return;
+      }
+    }
+    if (mounted) setState(() => _notificationsOn = true);
   }
 
   Future<void> _toggleNotifications() async {
-    if (!_notificationsOn) {
-      final granted = await _notifRepo.requestPermission();
-      if (!granted) return;
+    if (_isTogglingNotifications) return;
+    if (mounted) setState(() => _isTogglingNotifications = true);
+    try {
+      if (!_notificationsOn) {
+        final granted = await _notifRepo.requestPermission();
+        if (!granted) {
+          final osGranted = await _notifRepo.arePermissionsGranted();
+          if (!osGranted && mounted) _showNotifBlockedDialog();
+          return;
+        }
+      }
+      final newValue = !_notificationsOn;
+      await _notifRepo.setEnabled(newValue);
+      if (mounted) setState(() => _notificationsOn = newValue);
+    } finally {
+      if (mounted) setState(() => _isTogglingNotifications = false);
     }
-    final newValue = !_notificationsOn;
-    await _notifRepo.setEnabled(newValue);
-    if (!mounted) return;
-    setState(() => _notificationsOn = newValue);
+  }
+
+  void _showNotifBlockedDialog() {
     final s = context.read<AppStrings>();
-    
-    // Premium Toast-like Notification
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              newValue ? Icons.notifications_active : Icons.notifications_off,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                newValue ? s.get('notifications_on') : s.get('notifications_off'),
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          s.get('notif_blocked_title'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          s.get('notif_blocked_body'),
+          style: TextStyle(color: Colors.grey.shade400, height: 1.5, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              s.get('ok'),
+              style: const TextStyle(
+                color: AppColors.primaryPurple,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.primaryPurple,
-        duration: const Duration(seconds: 2),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Escuchamos el estado global de carga del usuario, pero delegamos los 
+    // Escuchamos el State global de carga del User, pero delegamos los 
     // datos específicos a Selectors para optimizar el rendimiento.
-    final isLoading = context.select((UserViewModel vm) => vm.isLoading);
-    final hasUser = context.select((UserViewModel vm) => vm.user != null);
+    final estaCargando = context.select((UserViewModel vm) => vm.isLoading);
+    final tieneUsuario = context.select((UserViewModel vm) => vm.hasUser);
     final s = context.watch<AppStrings>();
     final navHeight = MainScreen.navBarHeight(context);
 
-    if (isLoading) {
+    if (estaCargando) {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.primaryPurple)),
       );
     }
 
-    if (!hasUser) {
+    if (!tieneUsuario) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
@@ -103,7 +145,12 @@ class HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: AppColors.primaryPurple,
+          backgroundColor: AppColors.card,
+          child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,15 +163,27 @@ class HomeScreenState extends State<HomeScreen> {
               _XpCard(key: TutorialKeys.homeXpCard),
               const SizedBox(height: 28),
               _buildSectionHeader(s.get('up_next'), s.get('view_schedule'),
-                onAction: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AllEventsScreen())),
+                onTap: () async {
+                  final result = await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const AllEventsScreen()));
+                  if (result is CalendarEvent) {
+                    if (!context.mounted) return;
+                    context.findAncestorStateOfType<MainScreenState>()?.navigateToEvent(result);
+                  }
+                },
               ),
               const SizedBox(height: 14),
               const _UpcomingEventsList(),
               const SizedBox(height: 28),
               _buildSectionHeader(s.get('pending_quests'), s.get('view_all'),
-                onAction: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AllTasksScreen())),
+                onTap: () async {
+                  final result = await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const AllTasksScreen()));
+                  if (result is TaskModel) {
+                    if (!context.mounted) return;
+                    context.findAncestorStateOfType<MainScreenState>()?.navigateToTask(result);
+                  }
+                },
               ),
               const SizedBox(height: 14),
               const _PendingTasksList(),
@@ -134,11 +193,12 @@ class HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, String actionText, {VoidCallback? onAction}) {
+  Widget _buildSectionHeader(String title, String actionText, {VoidCallback? onTap}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -154,7 +214,7 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
         TextButton(
-          onPressed: onAction,
+          onPressed: onTap,
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
             minimumSize: const Size(50, 30),
@@ -195,32 +255,37 @@ class _UserHeader extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [AppColors.primaryPurple, AppColors.cyanAccent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryPurple.withOpacity(0.4),
-                blurRadius: 12,
-                spreadRadius: 1,
+        GestureDetector(
+          onTap: () => context
+              .findAncestorStateOfType<MainScreenState>()
+              ?.selectTab(3),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [AppColors.primaryPurple, AppColors.cyanAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ],
-          ),
-          child: CircleAvatar(
-            key: ValueKey('home_avatar_$avatarVersion'),
-            radius: 24,
-            backgroundColor: const Color(0xFF2A223E),
-            backgroundImage: avatarImage,
-            child: avatarImage == null
-                ? const Icon(Icons.person, color: Colors.white70, size: 28)
-                : null,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryPurple.withOpacity(0.4),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              key: ValueKey('home_avatar_$avatarVersion'),
+              radius: 24,
+              backgroundColor: const Color(0xFF2A223E),
+              backgroundImage: avatarImage,
+              child: avatarImage == null
+                  ? const Icon(Icons.person, color: Colors.white70, size: 28)
+                  : null,
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -394,8 +459,8 @@ class _XpCard extends StatelessWidget {
     );
   }
 
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
+  String _formatNumber(int numero) {
+    return numero.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
@@ -411,11 +476,11 @@ class _UpcomingEventsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
-    final upcoming =
+    final estaIdentificado = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final proximos =
         context.select((CalendarViewModel vm) => vm.upcomingEvents);
 
-    if (!isSignedIn) {
+    if (!estaIdentificado) {
       return _infoCard(
         icon: Icons.calendar_month_outlined,
         message: s.get('connect_calendar_home'),
@@ -423,8 +488,10 @@ class _UpcomingEventsList extends StatelessWidget {
     }
 
     final now = DateTime.now();
-    final visible = upcoming
-        .where((e) => e.start != null && e.start!.isAfter(now))
+    final today = DateTime(now.year, now.month, now.day);
+    final visible = proximos
+        .where((e) => e.start != null && !e.start!.isBefore(today))
+        .take(3)
         .toList();
 
     if (visible.isEmpty) {
@@ -489,16 +556,20 @@ class _UpcomingEventTile extends StatelessWidget {
         ? s.get('all_day')
         : _formatTimeRange(event.start, event.end);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return GestureDetector(
+      onTap: () {
+        context.findAncestorStateOfType<MainScreenState>()?.navigateToEvent(event);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.04)),
+        ),
+        child: IntrinsicHeight(
+        child: Row(
+          children: [
           Container(
             width: 4,
             decoration: BoxDecoration(
@@ -520,7 +591,7 @@ class _UpcomingEventTile extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     height: 1.25,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
@@ -557,7 +628,7 @@ class _UpcomingEventTile extends StatelessWidget {
                 Text(
                   event.accountEmail,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    color: AppColors.textMuted,
                     fontSize: 10,
                   ),
                   maxLines: 1,
@@ -567,8 +638,9 @@ class _UpcomingEventTile extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
-    );
+    ));
   }
 
   /// Devuelve la etiqueta de día para [date]: `HOY`, `MAÑANA` o una
@@ -613,208 +685,256 @@ class _PendingTasksList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final pendingTasks = context.select((TasksViewModel vm) => vm.pending);
-    
-    final tasksToShow = pendingTasks.take(3).toList();
+    final tasks = context.select((TasksViewModel vm) => vm.pending);
 
-    if (tasksToShow.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Text(
-          s.get('no_pending_home'),
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+    if (tasks.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.task_alt, color: Colors.grey.shade600, size: 32),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                s.get('no_pending_home'),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              ),
+            ),
+          ],
         ),
       );
     }
 
+    final preview = tasks.take(3).toList();
     return Column(
-      children: tasksToShow.asMap().entries.map((entry) {
-        final task = entry.value;
-        Color priorityColor = AppColors.accentPurple;
-        if (task.priority == 'HIGH') priorityColor = AppColors.cyanAccent;
-        if (task.priority == 'LOW') priorityColor = Colors.grey;
-        
-        return Column(
-          children: [
-            _buildTaskCard(context, task, priorityColor, s),
-            if (entry.key < tasksToShow.length - 1) const SizedBox(height: 10),
-          ],
-        );
-      }).toList(),
+      children: [
+        for (int i = 0; i < preview.length; i++) ...[
+          _TaskTile(task: preview[i]),
+          if (i < preview.length - 1) const SizedBox(height: 12),
+        ],
+      ],
     );
   }
+}
 
-  Widget _buildTaskCard(
-    BuildContext context,
-    TaskModel task,
-    Color priorityColor,
-    AppStrings s,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () async {
-              final taskVm = context.read<TasksViewModel>();
-              final didLevelUp = await taskVm.toggleTaskCompletion(
-                task.id,
-                task.xpReward,
-              );
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '${s.get('quest_completed')} +${task.xpReward} XP',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+class _TaskTile extends StatelessWidget {
+  final TaskModel task;
+  const _TaskTile({required this.task});
+
+  static Color? _parseHex(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    final clean = hex.replaceFirst('#', '');
+    if (clean.length != 6) return null;
+    final val = int.tryParse(clean, radix: 16);
+    return val != null ? Color(0xFF000000 | val) : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppStrings>();
+
+    final Color priorityColor = switch (task.priority) {
+      'HIGH' => AppColors.priorityHigh,
+      'MED'  => AppColors.priorityMed,
+      'LOW'  => AppColors.priorityLow,
+      _      => AppColors.accentPurple,
+    };
+    final Color? taskColor = _parseHex(task.color);
+    final barColor = taskColor ?? priorityColor;
+    final dueDateColor = AppColors.textMuted;
+
+    return GestureDetector(
+      onTap: () {
+        context.findAncestorStateOfType<MainScreenState>()?.navigateToTask(task);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: taskColor?.withOpacity(0.3) ?? Colors.white.withOpacity(0.04),
+          ),
+          boxShadow: taskColor != null
+              ? [
+                  BoxShadow(
+                    color: taskColor.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: barColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: barColor.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              _PriorityChip(
+                                label: _priorityLabel(task.priority, s),
+                                color: priorityColor,
+                              ),
+                              if (task.subtitle.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    task.subtitle,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (task.dueDate != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.schedule,
+                                  size: 11,
+                                  color: dueDateColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  _dueDateLabel(task.dueDate!, s),
+                                  style: TextStyle(
+                                    color: dueDateColor,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.cyanAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.cyanAccent.withOpacity(0.3),
                         ),
                       ),
-                    ],
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: AppColors.primaryPurple,
-                  duration: const Duration(seconds: 2),
+                      child: Text(
+                        '+${task.xpReward} XP',
+                        style: const TextStyle(
+                          color: AppColors.cyanAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-              if (didLevelUp) _showLevelUpDialog(context, s);
-            },
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.primaryPurple, width: 2),
               ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (task.subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    task.subtitle,
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: priorityColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              _priorityLabel(task.priority, s),
-              style: TextStyle(
-                color: priorityColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLevelUpDialog(BuildContext context, AppStrings s) {
-    final user = context.read<UserViewModel>().user;
-    if (user == null) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          '🎉 ${s.get('level_up')}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.military_tech, color: AppColors.cyanAccent, size: 64),
-            const SizedBox(height: 16),
-            Text(
-              '${s.get('level')} ${user.level} · ${user.rank}',
-              style: const TextStyle(
-                color: AppColors.cyanAccent,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              s.get('keep_completing'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              s.get('continue'),
-              style: const TextStyle(
-                color: AppColors.primaryPurple,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
-    );
+    ));
   }
 
-  String _priorityLabel(String priority, AppStrings s) {
-    switch (priority) {
-      case 'HIGH':
-        return s.get('priority_high');
-      case 'MED':
-        return s.get('priority_med');
-      case 'LOW':
-        return s.get('priority_low');
-      default:
-        return priority;
-    }
+  String _dueDateLabel(DateTime date, AppStrings s) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = d.difference(today).inDays;
+    if (diff == 0) return s.get('today');
+    if (diff == 1) return s.get('tomorrow');
+    final days = s.get('days_short').split(',');
+    final months = s.get('months_short').split(',');
+    final weekday = days[date.weekday - 1].toUpperCase();
+    final month = months[date.month - 1].toUpperCase();
+    return s.isSpanish
+        ? '$weekday ${date.day} $month'
+        : '$weekday $month ${date.day}';
+  }
+
+  static String _priorityLabel(String priority, AppStrings s) {
+    return switch (priority) {
+      'HIGH' => s.get('priority_high'),
+      'MED'  => s.get('priority_med'),
+      'LOW'  => s.get('priority_low'),
+      _      => priority,
+    };
+  }
+}
+
+class _PriorityChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _PriorityChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
   }
 }
 
@@ -842,7 +962,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             Icons.emoji_events,
-            user.rank,
+            s.get(UserModel.rankKeyForLevel(user.level)),
             s.get('ranking'),
             AppColors.cyanAccent,
           ),
@@ -886,3 +1006,4 @@ class _StatsRow extends StatelessWidget {
     );
   }
 }
+

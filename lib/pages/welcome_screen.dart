@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
 import 'auth_screen.dart';
 
 /// Pantalla de bienvenida que precede al flujo de autenticación.
@@ -260,7 +261,7 @@ class WelcomeScreenState extends State<WelcomeScreen>
                     child: Text(
                       'Tu productividad gamificada',
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: AppColors.textMuted,
                         fontSize: 12,
                         letterSpacing: 0.5,
                       ),
@@ -275,3 +276,4 @@ class WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 }
+

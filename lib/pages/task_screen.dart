@@ -18,7 +18,7 @@ class TasksScreen extends StatefulWidget {
 }
 
 class TasksScreenState extends State<TasksScreen> {
-  int _selectedTab = 0;
+  int _pestanaSeleccionada = 0;
 
   @override
   void initState() {
@@ -57,21 +57,21 @@ class TasksScreenState extends State<TasksScreen> {
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      _buildTab(s.get('all'), 0),
+                      _crearPestana(s.get('all'), 0),
                       const SizedBox(width: 24),
-                      _buildTab(s.get('high_priority'), 1),
+                      _crearPestana(s.get('high_priority'), 1),
                       const SizedBox(width: 24),
-                      _buildTab(s.get('completed'), 2),
+                      _crearPestana(s.get('completed'), 2),
                     ],
                   ),
                   const SizedBox(height: 28),
-                  if (_selectedTab != 2) _ActiveTasksSection(selectedTab: _selectedTab),
-                  if (_selectedTab == 2) const _CompletedTasksSection(),
+                  if (_pestanaSeleccionada != 2) _SeccionTareasPendientes(pestana: _pestanaSeleccionada),
+                  if (_pestanaSeleccionada == 2) const _SeccionTareasHechas(),
                 ],
               ),
             ),
           ),
-          if (_selectedTab != 2)
+          if (_pestanaSeleccionada != 2)
           Positioned(
             bottom: fabBottom,
             right: 16,
@@ -80,7 +80,7 @@ class TasksScreenState extends State<TasksScreen> {
               backgroundColor: AppColors.primaryPurple,
               shape: const CircleBorder(),
               elevation: 8,
-              onPressed: () => _showTaskDialog(context, context.read<TasksViewModel>(), s),
+              onPressed: () => abrirDialogoTarea(context, context.read<TasksViewModel>(), s),
               child: const Icon(Icons.add, color: Colors.white, size: 30),
             ),
           ),
@@ -89,26 +89,26 @@ class TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildTab(String label, int index) {
-    final isActive = _selectedTab == index;
+  Widget _crearPestana(String etiqueta, int indice) {
+    final activo = _pestanaSeleccionada == indice;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
+      onTap: () => setState(() => _pestanaSeleccionada = indice),
       child: Column(
         children: [
           Text(
-            label,
+            etiqueta,
             style: TextStyle(
-              color: isActive ? AppColors.primaryPurple : Colors.grey.shade500,
+              color: activo ? AppColors.primaryPurple : Colors.grey.shade500,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
           ),
           const SizedBox(height: 4),
-          if (isActive)
+          if (activo)
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               height: 2,
-              width: label.length * 7.5,
+              width: etiqueta.length * 7.5,
               color: AppColors.primaryPurple,
             ),
         ],
@@ -116,18 +116,18 @@ class TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _showTaskDialog(
+  void abrirDialogoTarea(
     BuildContext context,
-    TasksViewModel viewModel,
+    TasksViewModel gestor,
     AppStrings s, {
-    TaskModel? existingTask,
+    TaskModel? tareaAntigua,
   }) {
-    final isEditing = existingTask != null;
-    final titleCtrl = TextEditingController(text: existingTask?.title ?? '');
-    final subCtrl = TextEditingController(text: existingTask?.subtitle ?? '');
-    String selectedPriority = existingTask?.priority ?? 'HIGH';
-    DateTime? selectedDueDate = existingTask?.dueDate;
-    String? selectedColor = existingTask?.color;
+    final editando = tareaAntigua != null;
+    final controladorTitulo = TextEditingController(text: tareaAntigua?.title ?? '');
+    final controladorNota = TextEditingController(text: tareaAntigua?.subtitle ?? '');
+    String prioridadElegida = tareaAntigua?.priority ?? 'HIGH';
+    DateTime? fechaElegida = tareaAntigua?.dueDate;
+    String? colorElegido = tareaAntigua?.color;
 
     const colorOptions = [
       null,
@@ -153,7 +153,7 @@ class TasksScreenState extends State<TasksScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               title: Text(
-                isEditing ? s.get('edit_quest') : s.get('new_quest'),
+                editando ? s.get('edit_quest') : s.get('new_quest'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -164,7 +164,7 @@ class TasksScreenState extends State<TasksScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
-                      controller: titleCtrl,
+                      controller: controladorTitulo,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: s.get('quest_title'),
@@ -179,7 +179,7 @@ class TasksScreenState extends State<TasksScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextField(
-                      controller: subCtrl,
+                      controller: controladorNota,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: s.get('notes_optional'),
@@ -229,7 +229,7 @@ class TasksScreenState extends State<TasksScreen> {
                         );
                         if (time == null) return;
                         setDialogState(() {
-                          selectedDueDate = DateTime(
+                          fechaElegida = DateTime(
                             date.year,
                             date.month,
                             date.day,
@@ -251,28 +251,28 @@ class TasksScreenState extends State<TasksScreen> {
                           children: [
                             Icon(
                               Icons.calendar_today,
-                              color: selectedDueDate != null
+                              color: fechaElegida != null
                                   ? AppColors.cyanAccent
-                                  : Colors.grey.shade600,
+                                  : AppColors.textMuted,
                               size: 16,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              selectedDueDate != null
-                                  ? '${selectedDueDate!.day}/${selectedDueDate!.month}  ${selectedDueDate!.hour.toString().padLeft(2, '0')}:${selectedDueDate!.minute.toString().padLeft(2, '0')}'
+                              fechaElegida != null
+                                  ? '${fechaElegida!.day}/${fechaElegida!.month}  ${fechaElegida!.hour.toString().padLeft(2, '0')}:${fechaElegida!.minute.toString().padLeft(2, '0')}'
                                   : s.get('date_time_optional'),
                               style: TextStyle(
-                                color: selectedDueDate != null
+                                color: fechaElegida != null
                                     ? Colors.white
-                                    : Colors.grey.shade600,
+                                    : AppColors.textMuted,
                                 fontSize: 14,
                               ),
                             ),
-                            if (selectedDueDate != null) ...[
+                            if (fechaElegida != null) ...[
                               const Spacer(),
                               GestureDetector(
                                 onTap: () => setDialogState(
-                                  () => selectedDueDate = null,
+                                  () => fechaElegida = null,
                                 ),
                                 child: Icon(
                                   Icons.close,
@@ -294,11 +294,11 @@ class TasksScreenState extends State<TasksScreen> {
                             : p == 'MED'
                             ? AppColors.priorityMed
                             : AppColors.priorityLow;
-                        final isSelected = selectedPriority == p;
+                        final isSelected = prioridadElegida == p;
                         return Expanded(
                           child: GestureDetector(
                             onTap: () =>
-                                setDialogState(() => selectedPriority = p),
+                                setDialogState(() => prioridadElegida = p),
                             child: Container(
                               margin: const EdgeInsets.symmetric(horizontal: 3),
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -314,12 +314,12 @@ class TasksScreenState extends State<TasksScreen> {
                                 ),
                               ),
                               child: Text(
-                                _TasksHelper.priorityLabel(p, s),
+                                _AyudaTareas.textoPrioridad(p, s),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: isSelected
                                       ? priorityAccentColor
-                                      : Colors.grey.shade600,
+                                      : AppColors.textMuted,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 11,
                                 ),
@@ -347,7 +347,7 @@ class TasksScreenState extends State<TasksScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: colorOptions.map((hex) {
-                        final isSelected = selectedColor == hex;
+                        final isSelected = colorElegido == hex;
                         final color = hex != null
                             ? Color(
                                 0xFF000000 |
@@ -356,7 +356,7 @@ class TasksScreenState extends State<TasksScreen> {
                             : null;
                         return GestureDetector(
                           onTap: () =>
-                              setDialogState(() => selectedColor = hex),
+                              setDialogState(() => colorElegido = hex),
                           child: Container(
                             width: 30,
                             height: 30,
@@ -400,11 +400,58 @@ class TasksScreenState extends State<TasksScreen> {
                 ),
               ),
               actions: [
+                if (editando)
+                  TextButton.icon(
+                    icon: const Icon(Icons.delete_outline_rounded,
+                        color: AppColors.error, size: 18),
+                    label: Text(
+                      s.get('delete'),
+                      style: const TextStyle(
+                          color: AppColors.error, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: dialogContext,
+                        builder: (confirmCtx) => AlertDialog(
+                          backgroundColor: AppColors.card,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          title: Text(s.get('delete_quest_title'),
+                              style: const TextStyle(color: Colors.white)),
+                          content: Text(
+                            s.get('delete_quest_confirm'),
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(confirmCtx, false),
+                              child: Text(s.get('cancel'),
+                                  style: TextStyle(
+                                      color: AppColors.textMuted)),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(confirmCtx, true),
+                              child: Text(s.get('delete'),
+                                  style: const TextStyle(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm != true) return;
+                      await gestor.deleteTask(tareaAntigua.id);
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                    },
+                  ),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
                   child: Text(
                     s.get('cancel'),
-                    style: const TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: AppColors.textMuted),
                   ),
                 ),
                 ElevatedButton(
@@ -415,41 +462,41 @@ class TasksScreenState extends State<TasksScreen> {
                     ),
                   ),
                   onPressed: () async {
-                    if (titleCtrl.text.isNotEmpty) {
-                      final xp = selectedPriority == 'HIGH'
+                    if (controladorTitulo.text.isNotEmpty) {
+                      final xp = prioridadElegida == 'HIGH'
                           ? 250
-                          : selectedPriority == 'MED'
+                          : prioridadElegida == 'MED'
                           ? 100
                           : 50;
-                      if (isEditing) {
-                        await viewModel.updateTask(
-                          existingTask.id,
-                          titleCtrl.text.trim(),
-                          subCtrl.text.trim(),
-                          selectedPriority,
+                      if (editando) {
+                        await gestor.updateTask(
+                          tareaAntigua.id,
+                          controladorTitulo.text.trim(),
+                          controladorNota.text.trim(),
+                          prioridadElegida,
                           xp,
-                          dueDate: selectedDueDate,
-                          color: selectedColor,
+                          dueDate: fechaElegida,
+                          color: colorElegido,
                         );
                       } else {
-                        await viewModel.createTask(
-                          titleCtrl.text.trim(),
-                          subCtrl.text.trim(),
-                          selectedPriority,
+                        await gestor.createTask(
+                          controladorTitulo.text.trim(),
+                          controladorNota.text.trim(),
+                          prioridadElegida,
                           xp,
-                          dueDate: selectedDueDate,
-                          color: selectedColor,
+                          dueDate: fechaElegida,
+                          color: colorElegido,
                         );
                       }
                       if (!dialogContext.mounted) return;
                       Navigator.pop(dialogContext);
-                      if (!isEditing) {
-                        setState(() => _selectedTab = 0);
+                      if (!editando) {
+                        setState(() => _pestanaSeleccionada = 0);
                       }
                     }
                   },
                   child: Text(
-                    isEditing ? s.get('save') : s.get('add_quest'),
+                    editando ? s.get('save') : s.get('add_quest'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -533,7 +580,7 @@ class _TaskHeader extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                '${_formatNumber(user?.totalXpEver ?? 0)} XP',
+                '${_formatearNumero(user?.totalXpEver ?? 0)} XP',
                 style: const TextStyle(
                   color: AppColors.cyanAccent,
                   fontWeight: FontWeight.bold,
@@ -547,8 +594,8 @@ class _TaskHeader extends StatelessWidget {
     );
   }
 
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
+  String _formatearNumero(int numero) {
+    return numero.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
@@ -563,9 +610,9 @@ class _DailyProgressCard extends StatelessWidget {
     final s = context.watch<AppStrings>();
     final completedTodayCount =
         context.select((TasksViewModel vm) => vm.completedTodayProgressCount);
-    final totalForProgress =
+    final totalParaBarra =
         context.select((TasksViewModel vm) => vm.totalDailyProgressCount);
-    final progressAll = context.select((TasksViewModel vm) => vm.dailyProgress);
+    final progresoGlobal = context.select((TasksViewModel vm) => vm.dailyProgress);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -600,7 +647,7 @@ class _DailyProgressCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '$completedTodayCount / $totalForProgress ${s.get('completed_count')}',
+                '$completedTodayCount / $totalParaBarra ${s.get('completed_count')}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -619,7 +666,7 @@ class _DailyProgressCard extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: progressAll,
+              widthFactor: progresoGlobal,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeOutCubic,
@@ -636,19 +683,19 @@ class _DailyProgressCard extends StatelessWidget {
   }
 }
 
-class _ActiveTasksSection extends StatelessWidget {
-  final int selectedTab;
+class _SeccionTareasPendientes extends StatelessWidget {
+  final int pestana;
 
-  const _ActiveTasksSection({required this.selectedTab});
+  const _SeccionTareasPendientes({required this.pestana});
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
     final isLoading = context.select((TasksViewModel vm) => vm.isLoading);
-    var tasks = context.select((TasksViewModel vm) => vm.pending);
+    var tareas = context.select((TasksViewModel vm) => vm.pending);
 
-    if (selectedTab == 1) {
-      tasks = tasks.where((t) => t.priority == 'HIGH').toList();
+    if (pestana == 1) {
+      tareas = tareas.where((t) => t.priority == 'HIGH').toList();
     }
 
     return Column(
@@ -659,7 +706,7 @@ class _ActiveTasksSection extends StatelessWidget {
             Text(
               s.get('active_quests'),
               style: const TextStyle(
-                color: Colors.grey,
+                color: AppColors.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
@@ -669,14 +716,14 @@ class _ActiveTasksSection extends StatelessWidget {
             Container(
               width: 1,
               height: 12,
-              color: Colors.grey.shade800,
+              color: Colors.white.withOpacity(0.10),
             ),
           ],
         ),
         const SizedBox(height: 16),
         if (isLoading)
           const Center(child: CircularProgressIndicator(color: AppColors.primaryPurple))
-        else if (tasks.isEmpty)
+        else if (tareas.isEmpty)
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -684,15 +731,15 @@ class _ActiveTasksSection extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.check_circle_outline,
-                    color: Colors.grey.shade700,
+                    color: AppColors.textMuted,
                     size: 48,
                   ),
                   const SizedBox(height: 12),
                   Text(
                     s.get('no_pending_quests'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
                       fontSize: 14,
                     ),
                   ),
@@ -704,11 +751,11 @@ class _ActiveTasksSection extends StatelessWidget {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: tasks.length,
+            itemCount: tareas.length,
             itemBuilder: (context, index) {
-              final task = tasks[index];
+              final t = tareas[index];
               return TweenAnimationBuilder<double>(
-                key: ValueKey('anim_${task.id}'),
+                key: ValueKey('anim_${t.id}'),
                 tween: Tween(begin: 0.0, end: 1.0),
                 duration: const Duration(milliseconds: 350),
                 curve: Curves.easeOutCubic,
@@ -719,10 +766,10 @@ class _ActiveTasksSection extends StatelessWidget {
                     child: child,
                   ),
                 ),
-                child: _buildActiveTaskItem(
+                child: _filaTareaPendiente(
                   context: context,
-                  task: task,
-                  taskViewModel: context.read<TasksViewModel>(),
+                  tarea: t,
+                  gestor: context.read<TasksViewModel>(),
                   s: s,
                 ),
               );
@@ -732,55 +779,30 @@ class _ActiveTasksSection extends StatelessWidget {
     );
   }
 
-  Widget _buildActiveTaskItem({
+  Widget _filaTareaPendiente({
     required BuildContext context,
-    required TaskModel task,
-    required TasksViewModel taskViewModel,
+    required TaskModel tarea,
+    required TasksViewModel gestor,
     required AppStrings s,
   }) {
     Color priorityColor = AppColors.accentPurple;
-    if (task.priority == 'HIGH') priorityColor = AppColors.priorityHigh;
-    if (task.priority == 'LOW') priorityColor = AppColors.priorityLow;
-    if (task.priority == 'MED') priorityColor = AppColors.priorityMed;
+    if (tarea.priority == 'MED') priorityColor = AppColors.priorityMed;
 
-    final taskColor = _TasksHelper.parseHexColor(task.color);
+    final taskColor = _AyudaTareas.leerColorHex(tarea.color);
     final barColor = taskColor ?? priorityColor;
 
-    final dueDateColor = task.isOverdue ? AppColors.error : Colors.grey.shade500;
+    final dueDateColor = tarea.isOverdue ? AppColors.error : AppColors.textMuted;
 
     return Dismissible(
-      key: Key(task.id),
+      key: Key(tarea.id),
       direction: DismissDirection.endToStart,
       confirmDismiss: (_) async {
-        final didLevelUp = await taskViewModel.toggleTaskCompletion(
-          task.id,
-          task.xpReward,
+        final subioNivel = await gestor.toggleTaskCompletion(
+          tarea.id,
+          tarea.xpReward,
         );
         if (!context.mounted) return false;
-        
-        // Premium SnackBar Notification
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${s.get('quest_completed')} +${task.xpReward} XP',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            backgroundColor: AppColors.primaryPurple,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        
-        if (didLevelUp) _TasksHelper.showLevelUpDialog(context, s);
+        if (subioNivel) _AyudaTareas.dialogoNivel(context, s);
         return true;
       },
       background: Container(
@@ -801,7 +823,7 @@ class _ActiveTasksSection extends StatelessWidget {
         onTap: () {
           final state = context.findAncestorStateOfType<TasksScreenState>();
           if (state != null) {
-            state._showTaskDialog(context, taskViewModel, s, existingTask: task);
+            state.abrirDialogoTarea(context, gestor, s, tareaAntigua: tarea);
           }
         },
         child: Container(
@@ -811,7 +833,7 @@ class _ActiveTasksSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: taskColor?.withOpacity(0.3) ??
-                  (task.isOverdue
+                  (tarea.isOverdue
                       ? AppColors.error.withOpacity(0.3)
                       : Colors.white.withOpacity(0.04)),
             ),
@@ -857,7 +879,7 @@ class _ActiveTasksSection extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                task.title,
+                                tarea.title,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -866,25 +888,25 @@ class _ActiveTasksSection extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  _TasksHelper.buildPill(task.priority, priorityColor, s),
-                                  if (task.subtitle.isNotEmpty) ...[
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        task.subtitle,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.grey.shade500,
-                                          fontSize: 11,
+                                Row(
+                                  children: [
+                                    _AyudaTareas.dibujarEtiqueta(tarea.priority, priorityColor, s),
+                                    if (tarea.subtitle.isNotEmpty) ...[
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          tarea.subtitle,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 11,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                              if (task.dueDate != null) ...[
+                                ),
+                              if (tarea.dueDate != null) ...[
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
@@ -898,14 +920,14 @@ class _ActiveTasksSection extends StatelessWidget {
                                       child: Row(
                                         children: [
                                           Text(
-                                            task.formattedDueDate,
+                                            tarea.formattedDueDate,
                                             style: TextStyle(
                                               color: dueDateColor,
                                               fontSize: 11,
                                             ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                          if (task.isOverdue) ...[
+                                          if (tarea.isOverdue) ...[
                                             const SizedBox(width: 4),
                                             Text(
                                               s.get('overdue'),
@@ -940,7 +962,7 @@ class _ActiveTasksSection extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            '+${task.xpReward} XP',
+                            '+${tarea.xpReward} XP',
                             style: const TextStyle(
                               color: AppColors.cyanAccent,
                               fontWeight: FontWeight.bold,
@@ -961,14 +983,14 @@ class _ActiveTasksSection extends StatelessWidget {
   }
 }
 
-class _CompletedTasksSection extends StatelessWidget {
-  const _CompletedTasksSection();
+class _SeccionTareasHechas extends StatelessWidget {
+  const _SeccionTareasHechas();
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final completedAll = context.select((TasksViewModel vm) => vm.completed);
-    final taskViewModel = context.read<TasksViewModel>();
+    final hechasTodas = context.select((TasksViewModel vm) => vm.completed);
+    final gestor = context.read<TasksViewModel>();
     final isLoading = context.select((TasksViewModel vm) => vm.isLoading);
 
     return Column(
@@ -980,13 +1002,13 @@ class _CompletedTasksSection extends StatelessWidget {
             Text(
               s.get('completed_quests'),
               style: const TextStyle(
-                color: Colors.grey,
+                color: AppColors.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
               ),
             ),
-            if (completedAll.isNotEmpty)
+            if (hechasTodas.isNotEmpty)
               TextButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
@@ -1001,14 +1023,14 @@ class _CompletedTasksSection extends StatelessWidget {
                         style: TextStyle(color: Colors.white),
                       ),
                       content: Text(
-                        '¿Eliminar las ${completedAll.length} quests completadas?',
-                        style: TextStyle(color: Colors.grey.shade400),
+                        '¿Eliminar las ${hechasTodas.length} quests completadas?',
+                        style: TextStyle(color: AppColors.textMuted),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext, false),
                           child: Text(s.get('cancel'),
-                              style: TextStyle(color: Colors.grey.shade400)),
+                              style: TextStyle(color: AppColors.textMuted)),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext, true),
@@ -1037,13 +1059,13 @@ class _CompletedTasksSection extends StatelessWidget {
         const SizedBox(height: 16),
         if (isLoading)
           const SizedBox.shrink()
-        else if (completedAll.isEmpty)
+        else if (hechasTodas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Text(
               s.get('no_completed_quests'),
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: AppColors.textMuted,
                 fontSize: 13,
               ),
             ),
@@ -1052,19 +1074,19 @@ class _CompletedTasksSection extends StatelessWidget {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: completedAll.length,
+            itemCount: hechasTodas.length,
             itemBuilder: (context, index) =>
-                _buildCompletedTaskItem(context, completedAll[index], s, taskViewModel),
+                _filaTareaHecha(context, hechasTodas[index], s, gestor),
           ),
       ],
     );
   }
 
-  Widget _buildCompletedTaskItem(
+  Widget _filaTareaHecha(
     BuildContext context,
-    TaskModel task,
+    TaskModel t,
     AppStrings s,
-    TasksViewModel taskViewModel,
+    TasksViewModel gestor,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1090,37 +1112,60 @@ class _CompletedTasksSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task.title,
+                  t.title,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    color: AppColors.textMuted,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     decoration: TextDecoration.lineThrough,
-                    decorationColor: Colors.grey.shade600,
+                    decorationColor: AppColors.textMuted,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                _TasksHelper.buildPill(task.priority, Colors.grey.shade700, s),
+                Row(
+                  children: [
+                    _AyudaTareas.dibujarEtiqueta(t.priority, AppColors.textMuted, s),
+                    if (t.completedAt != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '${t.completedAt!.day}/${t.completedAt!.month}/${t.completedAt!.year}',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
-          Text(
-            '+${task.xpReward} XP',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.card),
+            ),
+            child: Text(
+              '+${t.xpReward} XP',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           GestureDetector(
-            onTap: () => taskViewModel.deleteTask(task.id),
+            onTap: () => gestor.deleteTask(t.id),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.error.withOpacity(0.3)),
               ),
               child: const Icon(
                 Icons.delete_outline_rounded,
@@ -1135,9 +1180,9 @@ class _CompletedTasksSection extends StatelessWidget {
   }
 }
 
-class _TasksHelper {
-  static String priorityLabel(String priority, AppStrings s) {
-    switch (priority) {
+class _AyudaTareas {
+  static String textoPrioridad(String prioridad, AppStrings s) {
+    switch (prioridad) {
       case 'HIGH':
         return s.get('priority_high');
       case 'MED':
@@ -1145,11 +1190,11 @@ class _TasksHelper {
       case 'LOW':
         return s.get('priority_low');
       default:
-        return priority;
+        return prioridad;
     }
   }
 
-  static Widget buildPill(String priority, Color color, AppStrings s) {
+  static Widget dibujarEtiqueta(String prioridad, Color color, AppStrings s) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -1157,7 +1202,7 @@ class _TasksHelper {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        priorityLabel(priority, s),
+        textoPrioridad(prioridad, s),
         style: TextStyle(
           color: color,
           fontSize: 9,
@@ -1168,16 +1213,16 @@ class _TasksHelper {
     );
   }
 
-  static Color? parseHexColor(String? hex) {
+  static Color? leerColorHex(String? hex) {
     if (hex == null || hex.isEmpty) return null;
-    final clean = hex.replaceFirst('#', '');
-    if (clean.length != 6) return null;
-    final value = int.tryParse(clean, radix: 16);
-    if (value == null) return null;
-    return Color(0xFF000000 | value);
+    final limpio = hex.replaceFirst('#', '');
+    if (limpio.length != 6) return null;
+    final valor = int.tryParse(limpio, radix: 16);
+    if (valor == null) return null;
+    return Color(0xFF000000 | valor);
   }
 
-  static void showLevelUpDialog(BuildContext context, AppStrings s) {
+  static void dialogoNivel(BuildContext context, AppStrings s) {
     final user = context.read<UserViewModel>().user;
     if (user == null) return;
     showDialog(
@@ -1211,7 +1256,7 @@ class _TasksHelper {
             Text(
               s.get('keep_completing'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 14),
             ),
           ],
         ),
@@ -1239,3 +1284,4 @@ class _TasksHelper {
     );
   }
 }
+

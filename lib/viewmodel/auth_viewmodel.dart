@@ -28,14 +28,9 @@ class AuthViewModel extends ChangeNotifier {
   String? errorMessage;
   bool wasNewUser = false;
 
-  /// Sesión de Google obtenida en el último login con Google con scope de
-  /// Calendar concedido. La pantalla de autenticación la lee tras un
-  /// `signInWithGoogle()` exitoso para auto-adjuntar el calendario.
-  GooglePrimaryAccount? lastGooglePrimary;
-
   void _setLoading(bool value) {
     isLoading = value;
-    if (value) errorMessage = null; 
+    if (value) errorMessage = null;
     notifyListeners();
   }
 
@@ -46,14 +41,12 @@ class AuthViewModel extends ChangeNotifier {
   /// [errorMessage] con un mensaje descriptivo.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
-    lastGooglePrimary = null;
 
     try {
-      final (user, isNew, primary) = await _repository.signInWithGoogle();
+      final (user, isNew) = await _repository.signInWithGoogle();
 
       if (user != null) {
         wasNewUser = isNew;
-        lastGooglePrimary = primary;
         await _createInitialUserProfile(user);
         _setLoading(false);
         return true;
@@ -147,20 +140,18 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Cierra la sesión del usuario actual.
   ///
-  /// Limpia la caché local ANTES de cerrar sesión en Firebase. Si el orden
-  /// se invirtiera, los listeners de `authStateChanges` podrían dispararse
-  /// con la sesión ya cerrada y leer datos cacheados de un usuario que ya no
-  /// está autenticado.
+  /// Captura el uid ANTES de llamar a Firebase signOut para garantizar que
+  /// [clearLocalCache] siempre reciba un uid válido aunque el estado de auth
+  /// cambie durante la operación.
   Future<void> signOut() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     try {
-      await _localTaskRepository.clearLocalCache();
+      if (uid != null) await _localTaskRepository.clearLocalCache(uid);
       await _userRepository.clearCachedUser();
       await _repository.signOut();
     } catch (e) {
-      // Si algo falla (p. ej. signOut de Firebase sin red), aseguramos que
-      // la caché local quede limpia para no dejar datos huérfanos.
       try {
-        await _localTaskRepository.clearLocalCache();
+        if (uid != null) await _localTaskRepository.clearLocalCache(uid);
         await _userRepository.clearCachedUser();
       } catch (_) {}
       rethrow;
@@ -169,11 +160,16 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Elimina permanentemente la cuenta del usuario actual de Firebase Auth
   /// y limpia la caché local.
+  ///
+  /// Captura el uid ANTES de eliminar la cuenta porque [deleteAccount] en
+  /// el repositorio destruye la sesión de Firebase Auth, dejando
+  /// [currentUser] nulo para cualquier llamada posterior.
   Future<void> deleteAccount() async {
     _setLoading(true);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     try {
       await _repository.deleteAccount();
-      await _localTaskRepository.clearLocalCache();
+      if (uid != null) await _localTaskRepository.clearLocalCache(uid);
       await _userRepository.clearCachedUser();
       _setLoading(false);
     } catch (e) {
@@ -183,7 +179,6 @@ class AuthViewModel extends ChangeNotifier {
         errorMessage = 'No se pudo eliminar la cuenta. Inténtalo de nuevo.';
       }
       _setLoading(false);
-      // No rethrow - el error ya está manejado en errorMessage
     }
   }
 

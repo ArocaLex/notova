@@ -3,12 +3,23 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $LocalTasksTable extends LocalTasks
-    with TableInfo<$LocalTasksTable, LocalTask> {
+class $TasksTableTable extends TasksTable
+    with TableInfo<$TasksTableTable, TasksTableData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $LocalTasksTable(this.attachedDatabase, [this._alias]);
+  $TasksTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idUsuarioMeta = const VerificationMeta(
+    'idUsuario',
+  );
+  @override
+  late final GeneratedColumn<String> idUsuario = GeneratedColumn<String>(
+    'id_usuario',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -18,95 +29,95 @@ class $LocalTasksTable extends LocalTasks
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  static const VerificationMeta _tituloMeta = const VerificationMeta('titulo');
   @override
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
+  late final GeneratedColumn<String> titulo = GeneratedColumn<String>(
+    'titulo',
     aliasedName,
     false,
     additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1),
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _subtitleMeta = const VerificationMeta(
-    'subtitle',
+  static const VerificationMeta _subtituloMeta = const VerificationMeta(
+    'subtitulo',
   );
   @override
-  late final GeneratedColumn<String> subtitle = GeneratedColumn<String>(
-    'subtitle',
+  late final GeneratedColumn<String> subtitulo = GeneratedColumn<String>(
+    'subtitulo',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
+  static const VerificationMeta _prioridadMeta = const VerificationMeta(
+    'prioridad',
   );
   @override
-  late final GeneratedColumn<String> priority = GeneratedColumn<String>(
-    'priority',
+  late final GeneratedColumn<String> prioridad = GeneratedColumn<String>(
+    'prioridad',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('MED'),
   );
-  static const VerificationMeta _xpRewardMeta = const VerificationMeta(
-    'xpReward',
+  static const VerificationMeta _puntosXpMeta = const VerificationMeta(
+    'puntosXp',
   );
   @override
-  late final GeneratedColumn<int> xpReward = GeneratedColumn<int>(
-    'xp_reward',
+  late final GeneratedColumn<int> puntosXp = GeneratedColumn<int>(
+    'puntos_xp',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
     defaultValue: const Constant(100),
   );
-  static const VerificationMeta _isCompletedMeta = const VerificationMeta(
-    'isCompleted',
+  static const VerificationMeta _estaTerminadaMeta = const VerificationMeta(
+    'estaTerminada',
   );
   @override
-  late final GeneratedColumn<bool> isCompleted = GeneratedColumn<bool>(
-    'is_completed',
+  late final GeneratedColumn<bool> estaTerminada = GeneratedColumn<bool>(
+    'esta_terminada',
     aliasedName,
     false,
     type: DriftSqlType.bool,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_completed" IN (0, 1))',
+      'CHECK ("esta_terminada" IN (0, 1))',
     ),
     defaultValue: const Constant(false),
   );
-  static const VerificationMeta _dueDateMeta = const VerificationMeta(
-    'dueDate',
+  static const VerificationMeta _fechaTopeMeta = const VerificationMeta(
+    'fechaTope',
   );
   @override
-  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
-    'due_date',
+  late final GeneratedColumn<DateTime> fechaTope = GeneratedColumn<DateTime>(
+    'fecha_tope',
     aliasedName,
     true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
+  static const VerificationMeta _creadaElMeta = const VerificationMeta(
+    'creadaEl',
   );
   @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
+  late final GeneratedColumn<DateTime> creadaEl = GeneratedColumn<DateTime>(
+    'creada_el',
     aliasedName,
     true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _completedAtMeta = const VerificationMeta(
-    'completedAt',
+  static const VerificationMeta _terminadaElMeta = const VerificationMeta(
+    'terminadaEl',
   );
   @override
-  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
-    'completed_at',
+  late final GeneratedColumn<DateTime> terminadaEl = GeneratedColumn<DateTime>(
+    'terminada_el',
     aliasedName,
     true,
     type: DriftSqlType.dateTime,
@@ -121,105 +132,114 @@ class $LocalTasksTable extends LocalTasks
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _pendingPushMeta = const VerificationMeta(
-    'pendingPush',
+  static const VerificationMeta _pendienteSincroMeta = const VerificationMeta(
+    'pendienteSincro',
   );
   @override
-  late final GeneratedColumn<bool> pendingPush = GeneratedColumn<bool>(
-    'pending_push',
+  late final GeneratedColumn<bool> pendienteSincro = GeneratedColumn<bool>(
+    'pendiente_sincro',
     aliasedName,
     false,
     type: DriftSqlType.bool,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("pending_push" IN (0, 1))',
+      'CHECK ("pendiente_sincro" IN (0, 1))',
     ),
     defaultValue: const Constant(false),
   );
   @override
   List<GeneratedColumn> get $columns => [
+    idUsuario,
     id,
-    title,
-    subtitle,
-    priority,
-    xpReward,
-    isCompleted,
-    dueDate,
-    createdAt,
-    completedAt,
+    titulo,
+    subtitulo,
+    prioridad,
+    puntosXp,
+    estaTerminada,
+    fechaTope,
+    creadaEl,
+    terminadaEl,
     color,
-    pendingPush,
+    pendienteSincro,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'local_tasks';
+  static const String $name = 'tasks_table';
   @override
   VerificationContext validateIntegrity(
-    Insertable<LocalTask> instance, {
+    Insertable<TasksTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('id_usuario')) {
+      context.handle(
+        _idUsuarioMeta,
+        idUsuario.isAcceptableOrUnknown(data['id_usuario']!, _idUsuarioMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_idUsuarioMeta);
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('title')) {
+    if (data.containsKey('titulo')) {
       context.handle(
-        _titleMeta,
-        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+        _tituloMeta,
+        titulo.isAcceptableOrUnknown(data['titulo']!, _tituloMeta),
       );
     } else if (isInserting) {
-      context.missing(_titleMeta);
+      context.missing(_tituloMeta);
     }
-    if (data.containsKey('subtitle')) {
+    if (data.containsKey('subtitulo')) {
       context.handle(
-        _subtitleMeta,
-        subtitle.isAcceptableOrUnknown(data['subtitle']!, _subtitleMeta),
+        _subtituloMeta,
+        subtitulo.isAcceptableOrUnknown(data['subtitulo']!, _subtituloMeta),
       );
     }
-    if (data.containsKey('priority')) {
+    if (data.containsKey('prioridad')) {
       context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+        _prioridadMeta,
+        prioridad.isAcceptableOrUnknown(data['prioridad']!, _prioridadMeta),
       );
     }
-    if (data.containsKey('xp_reward')) {
+    if (data.containsKey('puntos_xp')) {
       context.handle(
-        _xpRewardMeta,
-        xpReward.isAcceptableOrUnknown(data['xp_reward']!, _xpRewardMeta),
+        _puntosXpMeta,
+        puntosXp.isAcceptableOrUnknown(data['puntos_xp']!, _puntosXpMeta),
       );
     }
-    if (data.containsKey('is_completed')) {
+    if (data.containsKey('esta_terminada')) {
       context.handle(
-        _isCompletedMeta,
-        isCompleted.isAcceptableOrUnknown(
-          data['is_completed']!,
-          _isCompletedMeta,
+        _estaTerminadaMeta,
+        estaTerminada.isAcceptableOrUnknown(
+          data['esta_terminada']!,
+          _estaTerminadaMeta,
         ),
       );
     }
-    if (data.containsKey('due_date')) {
+    if (data.containsKey('fecha_tope')) {
       context.handle(
-        _dueDateMeta,
-        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+        _fechaTopeMeta,
+        fechaTope.isAcceptableOrUnknown(data['fecha_tope']!, _fechaTopeMeta),
       );
     }
-    if (data.containsKey('created_at')) {
+    if (data.containsKey('creada_el')) {
       context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+        _creadaElMeta,
+        creadaEl.isAcceptableOrUnknown(data['creada_el']!, _creadaElMeta),
       );
     }
-    if (data.containsKey('completed_at')) {
+    if (data.containsKey('terminada_el')) {
       context.handle(
-        _completedAtMeta,
-        completedAt.isAcceptableOrUnknown(
-          data['completed_at']!,
-          _completedAtMeta,
+        _terminadaElMeta,
+        terminadaEl.isAcceptableOrUnknown(
+          data['terminada_el']!,
+          _terminadaElMeta,
         ),
       );
     }
@@ -229,12 +249,12 @@ class $LocalTasksTable extends LocalTasks
         color.isAcceptableOrUnknown(data['color']!, _colorMeta),
       );
     }
-    if (data.containsKey('pending_push')) {
+    if (data.containsKey('pendiente_sincro')) {
       context.handle(
-        _pendingPushMeta,
-        pendingPush.isAcceptableOrUnknown(
-          data['pending_push']!,
-          _pendingPushMeta,
+        _pendienteSincroMeta,
+        pendienteSincro.isAcceptableOrUnknown(
+          data['pendiente_sincro']!,
+          _pendienteSincroMeta,
         ),
       );
     }
@@ -242,373 +262,393 @@ class $LocalTasksTable extends LocalTasks
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {id, idUsuario};
   @override
-  LocalTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+  TasksTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return LocalTask(
+    return TasksTableData(
+      idUsuario: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id_usuario'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      title: attachedDatabase.typeMapping.read(
+      titulo: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}title'],
+        data['${effectivePrefix}titulo'],
       )!,
-      subtitle: attachedDatabase.typeMapping.read(
+      subtitulo: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}subtitle'],
+        data['${effectivePrefix}subtitulo'],
       )!,
-      priority: attachedDatabase.typeMapping.read(
+      prioridad: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}priority'],
+        data['${effectivePrefix}prioridad'],
       )!,
-      xpReward: attachedDatabase.typeMapping.read(
+      puntosXp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}xp_reward'],
+        data['${effectivePrefix}puntos_xp'],
       )!,
-      isCompleted: attachedDatabase.typeMapping.read(
+      estaTerminada: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
-        data['${effectivePrefix}is_completed'],
+        data['${effectivePrefix}esta_terminada'],
       )!,
-      dueDate: attachedDatabase.typeMapping.read(
+      fechaTope: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}due_date'],
+        data['${effectivePrefix}fecha_tope'],
       ),
-      createdAt: attachedDatabase.typeMapping.read(
+      creadaEl: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
+        data['${effectivePrefix}creada_el'],
       ),
-      completedAt: attachedDatabase.typeMapping.read(
+      terminadaEl: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}completed_at'],
+        data['${effectivePrefix}terminada_el'],
       ),
       color: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}color'],
       ),
-      pendingPush: attachedDatabase.typeMapping.read(
+      pendienteSincro: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
-        data['${effectivePrefix}pending_push'],
+        data['${effectivePrefix}pendiente_sincro'],
       )!,
     );
   }
 
   @override
-  $LocalTasksTable createAlias(String alias) {
-    return $LocalTasksTable(attachedDatabase, alias);
+  $TasksTableTable createAlias(String alias) {
+    return $TasksTableTable(attachedDatabase, alias);
   }
 }
 
-class LocalTask extends DataClass implements Insertable<LocalTask> {
+class TasksTableData extends DataClass implements Insertable<TasksTableData> {
+  final String idUsuario;
   final String id;
-  final String title;
-  final String subtitle;
-  final String priority;
-  final int xpReward;
-  final bool isCompleted;
-  final DateTime? dueDate;
-  final DateTime? createdAt;
-  final DateTime? completedAt;
+  final String titulo;
+  final String subtitulo;
+  final String prioridad;
+  final int puntosXp;
+  final bool estaTerminada;
+  final DateTime? fechaTope;
+  final DateTime? creadaEl;
+  final DateTime? terminadaEl;
   final String? color;
-
-  /// Marca de mutación local pendiente de empujar a Firestore. Cuando vale
-  /// `true` la fila tiene cambios locales que aún no se han sincronizado.
-  /// La sync periódica busca estas filas y las empuja en background.
-  final bool pendingPush;
-  const LocalTask({
+  final bool pendienteSincro;
+  const TasksTableData({
+    required this.idUsuario,
     required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.priority,
-    required this.xpReward,
-    required this.isCompleted,
-    this.dueDate,
-    this.createdAt,
-    this.completedAt,
+    required this.titulo,
+    required this.subtitulo,
+    required this.prioridad,
+    required this.puntosXp,
+    required this.estaTerminada,
+    this.fechaTope,
+    this.creadaEl,
+    this.terminadaEl,
     this.color,
-    required this.pendingPush,
+    required this.pendienteSincro,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['id_usuario'] = Variable<String>(idUsuario);
     map['id'] = Variable<String>(id);
-    map['title'] = Variable<String>(title);
-    map['subtitle'] = Variable<String>(subtitle);
-    map['priority'] = Variable<String>(priority);
-    map['xp_reward'] = Variable<int>(xpReward);
-    map['is_completed'] = Variable<bool>(isCompleted);
-    if (!nullToAbsent || dueDate != null) {
-      map['due_date'] = Variable<DateTime>(dueDate);
+    map['titulo'] = Variable<String>(titulo);
+    map['subtitulo'] = Variable<String>(subtitulo);
+    map['prioridad'] = Variable<String>(prioridad);
+    map['puntos_xp'] = Variable<int>(puntosXp);
+    map['esta_terminada'] = Variable<bool>(estaTerminada);
+    if (!nullToAbsent || fechaTope != null) {
+      map['fecha_tope'] = Variable<DateTime>(fechaTope);
     }
-    if (!nullToAbsent || createdAt != null) {
-      map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || creadaEl != null) {
+      map['creada_el'] = Variable<DateTime>(creadaEl);
     }
-    if (!nullToAbsent || completedAt != null) {
-      map['completed_at'] = Variable<DateTime>(completedAt);
+    if (!nullToAbsent || terminadaEl != null) {
+      map['terminada_el'] = Variable<DateTime>(terminadaEl);
     }
     if (!nullToAbsent || color != null) {
       map['color'] = Variable<String>(color);
     }
-    map['pending_push'] = Variable<bool>(pendingPush);
+    map['pendiente_sincro'] = Variable<bool>(pendienteSincro);
     return map;
   }
 
-  LocalTasksCompanion toCompanion(bool nullToAbsent) {
-    return LocalTasksCompanion(
+  TasksTableCompanion toCompanion(bool nullToAbsent) {
+    return TasksTableCompanion(
+      idUsuario: Value(idUsuario),
       id: Value(id),
-      title: Value(title),
-      subtitle: Value(subtitle),
-      priority: Value(priority),
-      xpReward: Value(xpReward),
-      isCompleted: Value(isCompleted),
-      dueDate: dueDate == null && nullToAbsent
+      titulo: Value(titulo),
+      subtitulo: Value(subtitulo),
+      prioridad: Value(prioridad),
+      puntosXp: Value(puntosXp),
+      estaTerminada: Value(estaTerminada),
+      fechaTope: fechaTope == null && nullToAbsent
           ? const Value.absent()
-          : Value(dueDate),
-      createdAt: createdAt == null && nullToAbsent
+          : Value(fechaTope),
+      creadaEl: creadaEl == null && nullToAbsent
           ? const Value.absent()
-          : Value(createdAt),
-      completedAt: completedAt == null && nullToAbsent
+          : Value(creadaEl),
+      terminadaEl: terminadaEl == null && nullToAbsent
           ? const Value.absent()
-          : Value(completedAt),
+          : Value(terminadaEl),
       color: color == null && nullToAbsent
           ? const Value.absent()
           : Value(color),
-      pendingPush: Value(pendingPush),
+      pendienteSincro: Value(pendienteSincro),
     );
   }
 
-  factory LocalTask.fromJson(
+  factory TasksTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return LocalTask(
+    return TasksTableData(
+      idUsuario: serializer.fromJson<String>(json['idUsuario']),
       id: serializer.fromJson<String>(json['id']),
-      title: serializer.fromJson<String>(json['title']),
-      subtitle: serializer.fromJson<String>(json['subtitle']),
-      priority: serializer.fromJson<String>(json['priority']),
-      xpReward: serializer.fromJson<int>(json['xpReward']),
-      isCompleted: serializer.fromJson<bool>(json['isCompleted']),
-      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
-      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
-      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      titulo: serializer.fromJson<String>(json['titulo']),
+      subtitulo: serializer.fromJson<String>(json['subtitulo']),
+      prioridad: serializer.fromJson<String>(json['prioridad']),
+      puntosXp: serializer.fromJson<int>(json['puntosXp']),
+      estaTerminada: serializer.fromJson<bool>(json['estaTerminada']),
+      fechaTope: serializer.fromJson<DateTime?>(json['fechaTope']),
+      creadaEl: serializer.fromJson<DateTime?>(json['creadaEl']),
+      terminadaEl: serializer.fromJson<DateTime?>(json['terminadaEl']),
       color: serializer.fromJson<String?>(json['color']),
-      pendingPush: serializer.fromJson<bool>(json['pendingPush']),
+      pendienteSincro: serializer.fromJson<bool>(json['pendienteSincro']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'idUsuario': serializer.toJson<String>(idUsuario),
       'id': serializer.toJson<String>(id),
-      'title': serializer.toJson<String>(title),
-      'subtitle': serializer.toJson<String>(subtitle),
-      'priority': serializer.toJson<String>(priority),
-      'xpReward': serializer.toJson<int>(xpReward),
-      'isCompleted': serializer.toJson<bool>(isCompleted),
-      'dueDate': serializer.toJson<DateTime?>(dueDate),
-      'createdAt': serializer.toJson<DateTime?>(createdAt),
-      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'titulo': serializer.toJson<String>(titulo),
+      'subtitulo': serializer.toJson<String>(subtitulo),
+      'prioridad': serializer.toJson<String>(prioridad),
+      'puntosXp': serializer.toJson<int>(puntosXp),
+      'estaTerminada': serializer.toJson<bool>(estaTerminada),
+      'fechaTope': serializer.toJson<DateTime?>(fechaTope),
+      'creadaEl': serializer.toJson<DateTime?>(creadaEl),
+      'terminadaEl': serializer.toJson<DateTime?>(terminadaEl),
       'color': serializer.toJson<String?>(color),
-      'pendingPush': serializer.toJson<bool>(pendingPush),
+      'pendienteSincro': serializer.toJson<bool>(pendienteSincro),
     };
   }
 
-  LocalTask copyWith({
+  TasksTableData copyWith({
+    String? idUsuario,
     String? id,
-    String? title,
-    String? subtitle,
-    String? priority,
-    int? xpReward,
-    bool? isCompleted,
-    Value<DateTime?> dueDate = const Value.absent(),
-    Value<DateTime?> createdAt = const Value.absent(),
-    Value<DateTime?> completedAt = const Value.absent(),
+    String? titulo,
+    String? subtitulo,
+    String? prioridad,
+    int? puntosXp,
+    bool? estaTerminada,
+    Value<DateTime?> fechaTope = const Value.absent(),
+    Value<DateTime?> creadaEl = const Value.absent(),
+    Value<DateTime?> terminadaEl = const Value.absent(),
     Value<String?> color = const Value.absent(),
-    bool? pendingPush,
-  }) => LocalTask(
+    bool? pendienteSincro,
+  }) => TasksTableData(
+    idUsuario: idUsuario ?? this.idUsuario,
     id: id ?? this.id,
-    title: title ?? this.title,
-    subtitle: subtitle ?? this.subtitle,
-    priority: priority ?? this.priority,
-    xpReward: xpReward ?? this.xpReward,
-    isCompleted: isCompleted ?? this.isCompleted,
-    dueDate: dueDate.present ? dueDate.value : this.dueDate,
-    createdAt: createdAt.present ? createdAt.value : this.createdAt,
-    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    titulo: titulo ?? this.titulo,
+    subtitulo: subtitulo ?? this.subtitulo,
+    prioridad: prioridad ?? this.prioridad,
+    puntosXp: puntosXp ?? this.puntosXp,
+    estaTerminada: estaTerminada ?? this.estaTerminada,
+    fechaTope: fechaTope.present ? fechaTope.value : this.fechaTope,
+    creadaEl: creadaEl.present ? creadaEl.value : this.creadaEl,
+    terminadaEl: terminadaEl.present ? terminadaEl.value : this.terminadaEl,
     color: color.present ? color.value : this.color,
-    pendingPush: pendingPush ?? this.pendingPush,
+    pendienteSincro: pendienteSincro ?? this.pendienteSincro,
   );
-  LocalTask copyWithCompanion(LocalTasksCompanion data) {
-    return LocalTask(
+  TasksTableData copyWithCompanion(TasksTableCompanion data) {
+    return TasksTableData(
+      idUsuario: data.idUsuario.present ? data.idUsuario.value : this.idUsuario,
       id: data.id.present ? data.id.value : this.id,
-      title: data.title.present ? data.title.value : this.title,
-      subtitle: data.subtitle.present ? data.subtitle.value : this.subtitle,
-      priority: data.priority.present ? data.priority.value : this.priority,
-      xpReward: data.xpReward.present ? data.xpReward.value : this.xpReward,
-      isCompleted: data.isCompleted.present
-          ? data.isCompleted.value
-          : this.isCompleted,
-      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      completedAt: data.completedAt.present
-          ? data.completedAt.value
-          : this.completedAt,
+      titulo: data.titulo.present ? data.titulo.value : this.titulo,
+      subtitulo: data.subtitulo.present ? data.subtitulo.value : this.subtitulo,
+      prioridad: data.prioridad.present ? data.prioridad.value : this.prioridad,
+      puntosXp: data.puntosXp.present ? data.puntosXp.value : this.puntosXp,
+      estaTerminada: data.estaTerminada.present
+          ? data.estaTerminada.value
+          : this.estaTerminada,
+      fechaTope: data.fechaTope.present ? data.fechaTope.value : this.fechaTope,
+      creadaEl: data.creadaEl.present ? data.creadaEl.value : this.creadaEl,
+      terminadaEl: data.terminadaEl.present
+          ? data.terminadaEl.value
+          : this.terminadaEl,
       color: data.color.present ? data.color.value : this.color,
-      pendingPush: data.pendingPush.present
-          ? data.pendingPush.value
-          : this.pendingPush,
+      pendienteSincro: data.pendienteSincro.present
+          ? data.pendienteSincro.value
+          : this.pendienteSincro,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('LocalTask(')
+    return (StringBuffer('TasksTableData(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('id: $id, ')
-          ..write('title: $title, ')
-          ..write('subtitle: $subtitle, ')
-          ..write('priority: $priority, ')
-          ..write('xpReward: $xpReward, ')
-          ..write('isCompleted: $isCompleted, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('completedAt: $completedAt, ')
+          ..write('titulo: $titulo, ')
+          ..write('subtitulo: $subtitulo, ')
+          ..write('prioridad: $prioridad, ')
+          ..write('puntosXp: $puntosXp, ')
+          ..write('estaTerminada: $estaTerminada, ')
+          ..write('fechaTope: $fechaTope, ')
+          ..write('creadaEl: $creadaEl, ')
+          ..write('terminadaEl: $terminadaEl, ')
           ..write('color: $color, ')
-          ..write('pendingPush: $pendingPush')
+          ..write('pendienteSincro: $pendienteSincro')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(
+    idUsuario,
     id,
-    title,
-    subtitle,
-    priority,
-    xpReward,
-    isCompleted,
-    dueDate,
-    createdAt,
-    completedAt,
+    titulo,
+    subtitulo,
+    prioridad,
+    puntosXp,
+    estaTerminada,
+    fechaTope,
+    creadaEl,
+    terminadaEl,
     color,
-    pendingPush,
+    pendienteSincro,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is LocalTask &&
+      (other is TasksTableData &&
+          other.idUsuario == this.idUsuario &&
           other.id == this.id &&
-          other.title == this.title &&
-          other.subtitle == this.subtitle &&
-          other.priority == this.priority &&
-          other.xpReward == this.xpReward &&
-          other.isCompleted == this.isCompleted &&
-          other.dueDate == this.dueDate &&
-          other.createdAt == this.createdAt &&
-          other.completedAt == this.completedAt &&
+          other.titulo == this.titulo &&
+          other.subtitulo == this.subtitulo &&
+          other.prioridad == this.prioridad &&
+          other.puntosXp == this.puntosXp &&
+          other.estaTerminada == this.estaTerminada &&
+          other.fechaTope == this.fechaTope &&
+          other.creadaEl == this.creadaEl &&
+          other.terminadaEl == this.terminadaEl &&
           other.color == this.color &&
-          other.pendingPush == this.pendingPush);
+          other.pendienteSincro == this.pendienteSincro);
 }
 
-class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
+class TasksTableCompanion extends UpdateCompanion<TasksTableData> {
+  final Value<String> idUsuario;
   final Value<String> id;
-  final Value<String> title;
-  final Value<String> subtitle;
-  final Value<String> priority;
-  final Value<int> xpReward;
-  final Value<bool> isCompleted;
-  final Value<DateTime?> dueDate;
-  final Value<DateTime?> createdAt;
-  final Value<DateTime?> completedAt;
+  final Value<String> titulo;
+  final Value<String> subtitulo;
+  final Value<String> prioridad;
+  final Value<int> puntosXp;
+  final Value<bool> estaTerminada;
+  final Value<DateTime?> fechaTope;
+  final Value<DateTime?> creadaEl;
+  final Value<DateTime?> terminadaEl;
   final Value<String?> color;
-  final Value<bool> pendingPush;
+  final Value<bool> pendienteSincro;
   final Value<int> rowid;
-  const LocalTasksCompanion({
+  const TasksTableCompanion({
+    this.idUsuario = const Value.absent(),
     this.id = const Value.absent(),
-    this.title = const Value.absent(),
-    this.subtitle = const Value.absent(),
-    this.priority = const Value.absent(),
-    this.xpReward = const Value.absent(),
-    this.isCompleted = const Value.absent(),
-    this.dueDate = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.completedAt = const Value.absent(),
+    this.titulo = const Value.absent(),
+    this.subtitulo = const Value.absent(),
+    this.prioridad = const Value.absent(),
+    this.puntosXp = const Value.absent(),
+    this.estaTerminada = const Value.absent(),
+    this.fechaTope = const Value.absent(),
+    this.creadaEl = const Value.absent(),
+    this.terminadaEl = const Value.absent(),
     this.color = const Value.absent(),
-    this.pendingPush = const Value.absent(),
+    this.pendienteSincro = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  LocalTasksCompanion.insert({
+  TasksTableCompanion.insert({
+    required String idUsuario,
     required String id,
-    required String title,
-    this.subtitle = const Value.absent(),
-    this.priority = const Value.absent(),
-    this.xpReward = const Value.absent(),
-    this.isCompleted = const Value.absent(),
-    this.dueDate = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.completedAt = const Value.absent(),
+    required String titulo,
+    this.subtitulo = const Value.absent(),
+    this.prioridad = const Value.absent(),
+    this.puntosXp = const Value.absent(),
+    this.estaTerminada = const Value.absent(),
+    this.fechaTope = const Value.absent(),
+    this.creadaEl = const Value.absent(),
+    this.terminadaEl = const Value.absent(),
     this.color = const Value.absent(),
-    this.pendingPush = const Value.absent(),
+    this.pendienteSincro = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       title = Value(title);
-  static Insertable<LocalTask> custom({
+  }) : idUsuario = Value(idUsuario),
+       id = Value(id),
+       titulo = Value(titulo);
+  static Insertable<TasksTableData> custom({
+    Expression<String>? idUsuario,
     Expression<String>? id,
-    Expression<String>? title,
-    Expression<String>? subtitle,
-    Expression<String>? priority,
-    Expression<int>? xpReward,
-    Expression<bool>? isCompleted,
-    Expression<DateTime>? dueDate,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? completedAt,
+    Expression<String>? titulo,
+    Expression<String>? subtitulo,
+    Expression<String>? prioridad,
+    Expression<int>? puntosXp,
+    Expression<bool>? estaTerminada,
+    Expression<DateTime>? fechaTope,
+    Expression<DateTime>? creadaEl,
+    Expression<DateTime>? terminadaEl,
     Expression<String>? color,
-    Expression<bool>? pendingPush,
+    Expression<bool>? pendienteSincro,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (idUsuario != null) 'id_usuario': idUsuario,
       if (id != null) 'id': id,
-      if (title != null) 'title': title,
-      if (subtitle != null) 'subtitle': subtitle,
-      if (priority != null) 'priority': priority,
-      if (xpReward != null) 'xp_reward': xpReward,
-      if (isCompleted != null) 'is_completed': isCompleted,
-      if (dueDate != null) 'due_date': dueDate,
-      if (createdAt != null) 'created_at': createdAt,
-      if (completedAt != null) 'completed_at': completedAt,
+      if (titulo != null) 'titulo': titulo,
+      if (subtitulo != null) 'subtitulo': subtitulo,
+      if (prioridad != null) 'prioridad': prioridad,
+      if (puntosXp != null) 'puntos_xp': puntosXp,
+      if (estaTerminada != null) 'esta_terminada': estaTerminada,
+      if (fechaTope != null) 'fecha_tope': fechaTope,
+      if (creadaEl != null) 'creada_el': creadaEl,
+      if (terminadaEl != null) 'terminada_el': terminadaEl,
       if (color != null) 'color': color,
-      if (pendingPush != null) 'pending_push': pendingPush,
+      if (pendienteSincro != null) 'pendiente_sincro': pendienteSincro,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  LocalTasksCompanion copyWith({
+  TasksTableCompanion copyWith({
+    Value<String>? idUsuario,
     Value<String>? id,
-    Value<String>? title,
-    Value<String>? subtitle,
-    Value<String>? priority,
-    Value<int>? xpReward,
-    Value<bool>? isCompleted,
-    Value<DateTime?>? dueDate,
-    Value<DateTime?>? createdAt,
-    Value<DateTime?>? completedAt,
+    Value<String>? titulo,
+    Value<String>? subtitulo,
+    Value<String>? prioridad,
+    Value<int>? puntosXp,
+    Value<bool>? estaTerminada,
+    Value<DateTime?>? fechaTope,
+    Value<DateTime?>? creadaEl,
+    Value<DateTime?>? terminadaEl,
     Value<String?>? color,
-    Value<bool>? pendingPush,
+    Value<bool>? pendienteSincro,
     Value<int>? rowid,
   }) {
-    return LocalTasksCompanion(
+    return TasksTableCompanion(
+      idUsuario: idUsuario ?? this.idUsuario,
       id: id ?? this.id,
-      title: title ?? this.title,
-      subtitle: subtitle ?? this.subtitle,
-      priority: priority ?? this.priority,
-      xpReward: xpReward ?? this.xpReward,
-      isCompleted: isCompleted ?? this.isCompleted,
-      dueDate: dueDate ?? this.dueDate,
-      createdAt: createdAt ?? this.createdAt,
-      completedAt: completedAt ?? this.completedAt,
+      titulo: titulo ?? this.titulo,
+      subtitulo: subtitulo ?? this.subtitulo,
+      prioridad: prioridad ?? this.prioridad,
+      puntosXp: puntosXp ?? this.puntosXp,
+      estaTerminada: estaTerminada ?? this.estaTerminada,
+      fechaTope: fechaTope ?? this.fechaTope,
+      creadaEl: creadaEl ?? this.creadaEl,
+      terminadaEl: terminadaEl ?? this.terminadaEl,
       color: color ?? this.color,
-      pendingPush: pendingPush ?? this.pendingPush,
+      pendienteSincro: pendienteSincro ?? this.pendienteSincro,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -616,38 +656,41 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (idUsuario.present) {
+      map['id_usuario'] = Variable<String>(idUsuario.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
+    if (titulo.present) {
+      map['titulo'] = Variable<String>(titulo.value);
     }
-    if (subtitle.present) {
-      map['subtitle'] = Variable<String>(subtitle.value);
+    if (subtitulo.present) {
+      map['subtitulo'] = Variable<String>(subtitulo.value);
     }
-    if (priority.present) {
-      map['priority'] = Variable<String>(priority.value);
+    if (prioridad.present) {
+      map['prioridad'] = Variable<String>(prioridad.value);
     }
-    if (xpReward.present) {
-      map['xp_reward'] = Variable<int>(xpReward.value);
+    if (puntosXp.present) {
+      map['puntos_xp'] = Variable<int>(puntosXp.value);
     }
-    if (isCompleted.present) {
-      map['is_completed'] = Variable<bool>(isCompleted.value);
+    if (estaTerminada.present) {
+      map['esta_terminada'] = Variable<bool>(estaTerminada.value);
     }
-    if (dueDate.present) {
-      map['due_date'] = Variable<DateTime>(dueDate.value);
+    if (fechaTope.present) {
+      map['fecha_tope'] = Variable<DateTime>(fechaTope.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
+    if (creadaEl.present) {
+      map['creada_el'] = Variable<DateTime>(creadaEl.value);
     }
-    if (completedAt.present) {
-      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    if (terminadaEl.present) {
+      map['terminada_el'] = Variable<DateTime>(terminadaEl.value);
     }
     if (color.present) {
       map['color'] = Variable<String>(color.value);
     }
-    if (pendingPush.present) {
-      map['pending_push'] = Variable<bool>(pendingPush.value);
+    if (pendienteSincro.present) {
+      map['pendiente_sincro'] = Variable<bool>(pendienteSincro.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -657,30 +700,42 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
 
   @override
   String toString() {
-    return (StringBuffer('LocalTasksCompanion(')
+    return (StringBuffer('TasksTableCompanion(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('id: $id, ')
-          ..write('title: $title, ')
-          ..write('subtitle: $subtitle, ')
-          ..write('priority: $priority, ')
-          ..write('xpReward: $xpReward, ')
-          ..write('isCompleted: $isCompleted, ')
-          ..write('dueDate: $dueDate, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('completedAt: $completedAt, ')
+          ..write('titulo: $titulo, ')
+          ..write('subtitulo: $subtitulo, ')
+          ..write('prioridad: $prioridad, ')
+          ..write('puntosXp: $puntosXp, ')
+          ..write('estaTerminada: $estaTerminada, ')
+          ..write('fechaTope: $fechaTope, ')
+          ..write('creadaEl: $creadaEl, ')
+          ..write('terminadaEl: $terminadaEl, ')
           ..write('color: $color, ')
-          ..write('pendingPush: $pendingPush, ')
+          ..write('pendienteSincro: $pendienteSincro, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
 }
 
-class $LocalCalendarAccountsTable extends LocalCalendarAccounts
-    with TableInfo<$LocalCalendarAccountsTable, LocalCalendarAccount> {
+class $AccountsTableTable extends AccountsTable
+    with TableInfo<$AccountsTableTable, AccountsTableData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $LocalCalendarAccountsTable(this.attachedDatabase, [this._alias]);
+  $AccountsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idUsuarioMeta = const VerificationMeta(
+    'idUsuario',
+  );
+  @override
+  late final GeneratedColumn<String> idUsuario = GeneratedColumn<String>(
+    'id_usuario',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _emailMeta = const VerificationMeta('email');
   @override
   late final GeneratedColumn<String> email = GeneratedColumn<String>(
@@ -690,58 +745,59 @@ class $LocalCalendarAccountsTable extends LocalCalendarAccounts
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _colorValueMeta = const VerificationMeta(
-    'colorValue',
+  static const VerificationMeta _valorColorMeta = const VerificationMeta(
+    'valorColor',
   );
   @override
-  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
-    'color_value',
+  late final GeneratedColumn<int> valorColor = GeneratedColumn<int>(
+    'valor_color',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _colorIndexMeta = const VerificationMeta(
-    'colorIndex',
+  static const VerificationMeta _indiceColorMeta = const VerificationMeta(
+    'indiceColor',
   );
   @override
-  late final GeneratedColumn<int> colorIndex = GeneratedColumn<int>(
-    'color_index',
+  late final GeneratedColumn<int> indiceColor = GeneratedColumn<int>(
+    'indice_color',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
     defaultValue: const Constant(-1),
   );
-  static const VerificationMeta _accessTokenMeta = const VerificationMeta(
-    'accessToken',
+  static const VerificationMeta _tokenAccesoMeta = const VerificationMeta(
+    'tokenAcceso',
   );
   @override
-  late final GeneratedColumn<String> accessToken = GeneratedColumn<String>(
-    'access_token',
+  late final GeneratedColumn<String> tokenAcceso = GeneratedColumn<String>(
+    'token_acceso',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
-  static const VerificationMeta _tokenExpiryMeta = const VerificationMeta(
-    'tokenExpiry',
+  static const VerificationMeta _expiracionTokenMeta = const VerificationMeta(
+    'expiracionToken',
   );
   @override
-  late final GeneratedColumn<DateTime> tokenExpiry = GeneratedColumn<DateTime>(
-    'token_expiry',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _connectedAtMeta = const VerificationMeta(
-    'connectedAt',
+  late final GeneratedColumn<DateTime> expiracionToken =
+      GeneratedColumn<DateTime>(
+        'expiracion_token',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _conectadaElMeta = const VerificationMeta(
+    'conectadaEl',
   );
   @override
-  late final GeneratedColumn<DateTime> connectedAt = GeneratedColumn<DateTime>(
-    'connected_at',
+  late final GeneratedColumn<DateTime> conectadaEl = GeneratedColumn<DateTime>(
+    'conectada_el',
     aliasedName,
     true,
     type: DriftSqlType.dateTime,
@@ -749,25 +805,34 @@ class $LocalCalendarAccountsTable extends LocalCalendarAccounts
   );
   @override
   List<GeneratedColumn> get $columns => [
+    idUsuario,
     email,
-    colorValue,
-    colorIndex,
-    accessToken,
-    tokenExpiry,
-    connectedAt,
+    valorColor,
+    indiceColor,
+    tokenAcceso,
+    expiracionToken,
+    conectadaEl,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'local_calendar_accounts';
+  static const String $name = 'accounts_table';
   @override
   VerificationContext validateIntegrity(
-    Insertable<LocalCalendarAccount> instance, {
+    Insertable<AccountsTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('id_usuario')) {
+      context.handle(
+        _idUsuarioMeta,
+        idUsuario.isAcceptableOrUnknown(data['id_usuario']!, _idUsuarioMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_idUsuarioMeta);
+    }
     if (data.containsKey('email')) {
       context.handle(
         _emailMeta,
@@ -776,44 +841,47 @@ class $LocalCalendarAccountsTable extends LocalCalendarAccounts
     } else if (isInserting) {
       context.missing(_emailMeta);
     }
-    if (data.containsKey('color_value')) {
+    if (data.containsKey('valor_color')) {
       context.handle(
-        _colorValueMeta,
-        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+        _valorColorMeta,
+        valorColor.isAcceptableOrUnknown(data['valor_color']!, _valorColorMeta),
       );
     } else if (isInserting) {
-      context.missing(_colorValueMeta);
+      context.missing(_valorColorMeta);
     }
-    if (data.containsKey('color_index')) {
+    if (data.containsKey('indice_color')) {
       context.handle(
-        _colorIndexMeta,
-        colorIndex.isAcceptableOrUnknown(data['color_index']!, _colorIndexMeta),
-      );
-    }
-    if (data.containsKey('access_token')) {
-      context.handle(
-        _accessTokenMeta,
-        accessToken.isAcceptableOrUnknown(
-          data['access_token']!,
-          _accessTokenMeta,
+        _indiceColorMeta,
+        indiceColor.isAcceptableOrUnknown(
+          data['indice_color']!,
+          _indiceColorMeta,
         ),
       );
     }
-    if (data.containsKey('token_expiry')) {
+    if (data.containsKey('token_acceso')) {
       context.handle(
-        _tokenExpiryMeta,
-        tokenExpiry.isAcceptableOrUnknown(
-          data['token_expiry']!,
-          _tokenExpiryMeta,
+        _tokenAccesoMeta,
+        tokenAcceso.isAcceptableOrUnknown(
+          data['token_acceso']!,
+          _tokenAccesoMeta,
         ),
       );
     }
-    if (data.containsKey('connected_at')) {
+    if (data.containsKey('expiracion_token')) {
       context.handle(
-        _connectedAtMeta,
-        connectedAt.isAcceptableOrUnknown(
-          data['connected_at']!,
-          _connectedAtMeta,
+        _expiracionTokenMeta,
+        expiracionToken.isAcceptableOrUnknown(
+          data['expiracion_token']!,
+          _expiracionTokenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('conectada_el')) {
+      context.handle(
+        _conectadaElMeta,
+        conectadaEl.isAcceptableOrUnknown(
+          data['conectada_el']!,
+          _conectadaElMeta,
         ),
       );
     }
@@ -821,256 +889,277 @@ class $LocalCalendarAccountsTable extends LocalCalendarAccounts
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {email};
+  Set<GeneratedColumn> get $primaryKey => {email, idUsuario};
   @override
-  LocalCalendarAccount map(Map<String, dynamic> data, {String? tablePrefix}) {
+  AccountsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return LocalCalendarAccount(
+    return AccountsTableData(
+      idUsuario: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id_usuario'],
+      )!,
       email: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}email'],
       )!,
-      colorValue: attachedDatabase.typeMapping.read(
+      valorColor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}color_value'],
+        data['${effectivePrefix}valor_color'],
       )!,
-      colorIndex: attachedDatabase.typeMapping.read(
+      indiceColor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}color_index'],
+        data['${effectivePrefix}indice_color'],
       )!,
-      accessToken: attachedDatabase.typeMapping.read(
+      tokenAcceso: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}access_token'],
+        data['${effectivePrefix}token_acceso'],
       )!,
-      tokenExpiry: attachedDatabase.typeMapping.read(
+      expiracionToken: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}token_expiry'],
+        data['${effectivePrefix}expiracion_token'],
       ),
-      connectedAt: attachedDatabase.typeMapping.read(
+      conectadaEl: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}connected_at'],
+        data['${effectivePrefix}conectada_el'],
       ),
     );
   }
 
   @override
-  $LocalCalendarAccountsTable createAlias(String alias) {
-    return $LocalCalendarAccountsTable(attachedDatabase, alias);
+  $AccountsTableTable createAlias(String alias) {
+    return $AccountsTableTable(attachedDatabase, alias);
   }
 }
 
-class LocalCalendarAccount extends DataClass
-    implements Insertable<LocalCalendarAccount> {
+class AccountsTableData extends DataClass
+    implements Insertable<AccountsTableData> {
+  final String idUsuario;
   final String email;
-
-  /// ARGB del color asignado a la cuenta para los puntitos del grid.
-  final int colorValue;
-
-  /// Índice usado en la paleta — para no repetir color al reconectar.
-  final int colorIndex;
-  final String accessToken;
-  final DateTime? tokenExpiry;
-  final DateTime? connectedAt;
-  const LocalCalendarAccount({
+  final int valorColor;
+  final int indiceColor;
+  final String tokenAcceso;
+  final DateTime? expiracionToken;
+  final DateTime? conectadaEl;
+  const AccountsTableData({
+    required this.idUsuario,
     required this.email,
-    required this.colorValue,
-    required this.colorIndex,
-    required this.accessToken,
-    this.tokenExpiry,
-    this.connectedAt,
+    required this.valorColor,
+    required this.indiceColor,
+    required this.tokenAcceso,
+    this.expiracionToken,
+    this.conectadaEl,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['id_usuario'] = Variable<String>(idUsuario);
     map['email'] = Variable<String>(email);
-    map['color_value'] = Variable<int>(colorValue);
-    map['color_index'] = Variable<int>(colorIndex);
-    map['access_token'] = Variable<String>(accessToken);
-    if (!nullToAbsent || tokenExpiry != null) {
-      map['token_expiry'] = Variable<DateTime>(tokenExpiry);
+    map['valor_color'] = Variable<int>(valorColor);
+    map['indice_color'] = Variable<int>(indiceColor);
+    map['token_acceso'] = Variable<String>(tokenAcceso);
+    if (!nullToAbsent || expiracionToken != null) {
+      map['expiracion_token'] = Variable<DateTime>(expiracionToken);
     }
-    if (!nullToAbsent || connectedAt != null) {
-      map['connected_at'] = Variable<DateTime>(connectedAt);
+    if (!nullToAbsent || conectadaEl != null) {
+      map['conectada_el'] = Variable<DateTime>(conectadaEl);
     }
     return map;
   }
 
-  LocalCalendarAccountsCompanion toCompanion(bool nullToAbsent) {
-    return LocalCalendarAccountsCompanion(
+  AccountsTableCompanion toCompanion(bool nullToAbsent) {
+    return AccountsTableCompanion(
+      idUsuario: Value(idUsuario),
       email: Value(email),
-      colorValue: Value(colorValue),
-      colorIndex: Value(colorIndex),
-      accessToken: Value(accessToken),
-      tokenExpiry: tokenExpiry == null && nullToAbsent
+      valorColor: Value(valorColor),
+      indiceColor: Value(indiceColor),
+      tokenAcceso: Value(tokenAcceso),
+      expiracionToken: expiracionToken == null && nullToAbsent
           ? const Value.absent()
-          : Value(tokenExpiry),
-      connectedAt: connectedAt == null && nullToAbsent
+          : Value(expiracionToken),
+      conectadaEl: conectadaEl == null && nullToAbsent
           ? const Value.absent()
-          : Value(connectedAt),
+          : Value(conectadaEl),
     );
   }
 
-  factory LocalCalendarAccount.fromJson(
+  factory AccountsTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return LocalCalendarAccount(
+    return AccountsTableData(
+      idUsuario: serializer.fromJson<String>(json['idUsuario']),
       email: serializer.fromJson<String>(json['email']),
-      colorValue: serializer.fromJson<int>(json['colorValue']),
-      colorIndex: serializer.fromJson<int>(json['colorIndex']),
-      accessToken: serializer.fromJson<String>(json['accessToken']),
-      tokenExpiry: serializer.fromJson<DateTime?>(json['tokenExpiry']),
-      connectedAt: serializer.fromJson<DateTime?>(json['connectedAt']),
+      valorColor: serializer.fromJson<int>(json['valorColor']),
+      indiceColor: serializer.fromJson<int>(json['indiceColor']),
+      tokenAcceso: serializer.fromJson<String>(json['tokenAcceso']),
+      expiracionToken: serializer.fromJson<DateTime?>(json['expiracionToken']),
+      conectadaEl: serializer.fromJson<DateTime?>(json['conectadaEl']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'idUsuario': serializer.toJson<String>(idUsuario),
       'email': serializer.toJson<String>(email),
-      'colorValue': serializer.toJson<int>(colorValue),
-      'colorIndex': serializer.toJson<int>(colorIndex),
-      'accessToken': serializer.toJson<String>(accessToken),
-      'tokenExpiry': serializer.toJson<DateTime?>(tokenExpiry),
-      'connectedAt': serializer.toJson<DateTime?>(connectedAt),
+      'valorColor': serializer.toJson<int>(valorColor),
+      'indiceColor': serializer.toJson<int>(indiceColor),
+      'tokenAcceso': serializer.toJson<String>(tokenAcceso),
+      'expiracionToken': serializer.toJson<DateTime?>(expiracionToken),
+      'conectadaEl': serializer.toJson<DateTime?>(conectadaEl),
     };
   }
 
-  LocalCalendarAccount copyWith({
+  AccountsTableData copyWith({
+    String? idUsuario,
     String? email,
-    int? colorValue,
-    int? colorIndex,
-    String? accessToken,
-    Value<DateTime?> tokenExpiry = const Value.absent(),
-    Value<DateTime?> connectedAt = const Value.absent(),
-  }) => LocalCalendarAccount(
+    int? valorColor,
+    int? indiceColor,
+    String? tokenAcceso,
+    Value<DateTime?> expiracionToken = const Value.absent(),
+    Value<DateTime?> conectadaEl = const Value.absent(),
+  }) => AccountsTableData(
+    idUsuario: idUsuario ?? this.idUsuario,
     email: email ?? this.email,
-    colorValue: colorValue ?? this.colorValue,
-    colorIndex: colorIndex ?? this.colorIndex,
-    accessToken: accessToken ?? this.accessToken,
-    tokenExpiry: tokenExpiry.present ? tokenExpiry.value : this.tokenExpiry,
-    connectedAt: connectedAt.present ? connectedAt.value : this.connectedAt,
+    valorColor: valorColor ?? this.valorColor,
+    indiceColor: indiceColor ?? this.indiceColor,
+    tokenAcceso: tokenAcceso ?? this.tokenAcceso,
+    expiracionToken: expiracionToken.present
+        ? expiracionToken.value
+        : this.expiracionToken,
+    conectadaEl: conectadaEl.present ? conectadaEl.value : this.conectadaEl,
   );
-  LocalCalendarAccount copyWithCompanion(LocalCalendarAccountsCompanion data) {
-    return LocalCalendarAccount(
+  AccountsTableData copyWithCompanion(AccountsTableCompanion data) {
+    return AccountsTableData(
+      idUsuario: data.idUsuario.present ? data.idUsuario.value : this.idUsuario,
       email: data.email.present ? data.email.value : this.email,
-      colorValue: data.colorValue.present
-          ? data.colorValue.value
-          : this.colorValue,
-      colorIndex: data.colorIndex.present
-          ? data.colorIndex.value
-          : this.colorIndex,
-      accessToken: data.accessToken.present
-          ? data.accessToken.value
-          : this.accessToken,
-      tokenExpiry: data.tokenExpiry.present
-          ? data.tokenExpiry.value
-          : this.tokenExpiry,
-      connectedAt: data.connectedAt.present
-          ? data.connectedAt.value
-          : this.connectedAt,
+      valorColor: data.valorColor.present
+          ? data.valorColor.value
+          : this.valorColor,
+      indiceColor: data.indiceColor.present
+          ? data.indiceColor.value
+          : this.indiceColor,
+      tokenAcceso: data.tokenAcceso.present
+          ? data.tokenAcceso.value
+          : this.tokenAcceso,
+      expiracionToken: data.expiracionToken.present
+          ? data.expiracionToken.value
+          : this.expiracionToken,
+      conectadaEl: data.conectadaEl.present
+          ? data.conectadaEl.value
+          : this.conectadaEl,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('LocalCalendarAccount(')
+    return (StringBuffer('AccountsTableData(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('email: $email, ')
-          ..write('colorValue: $colorValue, ')
-          ..write('colorIndex: $colorIndex, ')
-          ..write('accessToken: $accessToken, ')
-          ..write('tokenExpiry: $tokenExpiry, ')
-          ..write('connectedAt: $connectedAt')
+          ..write('valorColor: $valorColor, ')
+          ..write('indiceColor: $indiceColor, ')
+          ..write('tokenAcceso: $tokenAcceso, ')
+          ..write('expiracionToken: $expiracionToken, ')
+          ..write('conectadaEl: $conectadaEl')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(
+    idUsuario,
     email,
-    colorValue,
-    colorIndex,
-    accessToken,
-    tokenExpiry,
-    connectedAt,
+    valorColor,
+    indiceColor,
+    tokenAcceso,
+    expiracionToken,
+    conectadaEl,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is LocalCalendarAccount &&
+      (other is AccountsTableData &&
+          other.idUsuario == this.idUsuario &&
           other.email == this.email &&
-          other.colorValue == this.colorValue &&
-          other.colorIndex == this.colorIndex &&
-          other.accessToken == this.accessToken &&
-          other.tokenExpiry == this.tokenExpiry &&
-          other.connectedAt == this.connectedAt);
+          other.valorColor == this.valorColor &&
+          other.indiceColor == this.indiceColor &&
+          other.tokenAcceso == this.tokenAcceso &&
+          other.expiracionToken == this.expiracionToken &&
+          other.conectadaEl == this.conectadaEl);
 }
 
-class LocalCalendarAccountsCompanion
-    extends UpdateCompanion<LocalCalendarAccount> {
+class AccountsTableCompanion extends UpdateCompanion<AccountsTableData> {
+  final Value<String> idUsuario;
   final Value<String> email;
-  final Value<int> colorValue;
-  final Value<int> colorIndex;
-  final Value<String> accessToken;
-  final Value<DateTime?> tokenExpiry;
-  final Value<DateTime?> connectedAt;
+  final Value<int> valorColor;
+  final Value<int> indiceColor;
+  final Value<String> tokenAcceso;
+  final Value<DateTime?> expiracionToken;
+  final Value<DateTime?> conectadaEl;
   final Value<int> rowid;
-  const LocalCalendarAccountsCompanion({
+  const AccountsTableCompanion({
+    this.idUsuario = const Value.absent(),
     this.email = const Value.absent(),
-    this.colorValue = const Value.absent(),
-    this.colorIndex = const Value.absent(),
-    this.accessToken = const Value.absent(),
-    this.tokenExpiry = const Value.absent(),
-    this.connectedAt = const Value.absent(),
+    this.valorColor = const Value.absent(),
+    this.indiceColor = const Value.absent(),
+    this.tokenAcceso = const Value.absent(),
+    this.expiracionToken = const Value.absent(),
+    this.conectadaEl = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  LocalCalendarAccountsCompanion.insert({
+  AccountsTableCompanion.insert({
+    required String idUsuario,
     required String email,
-    required int colorValue,
-    this.colorIndex = const Value.absent(),
-    this.accessToken = const Value.absent(),
-    this.tokenExpiry = const Value.absent(),
-    this.connectedAt = const Value.absent(),
+    required int valorColor,
+    this.indiceColor = const Value.absent(),
+    this.tokenAcceso = const Value.absent(),
+    this.expiracionToken = const Value.absent(),
+    this.conectadaEl = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : email = Value(email),
-       colorValue = Value(colorValue);
-  static Insertable<LocalCalendarAccount> custom({
+  }) : idUsuario = Value(idUsuario),
+       email = Value(email),
+       valorColor = Value(valorColor);
+  static Insertable<AccountsTableData> custom({
+    Expression<String>? idUsuario,
     Expression<String>? email,
-    Expression<int>? colorValue,
-    Expression<int>? colorIndex,
-    Expression<String>? accessToken,
-    Expression<DateTime>? tokenExpiry,
-    Expression<DateTime>? connectedAt,
+    Expression<int>? valorColor,
+    Expression<int>? indiceColor,
+    Expression<String>? tokenAcceso,
+    Expression<DateTime>? expiracionToken,
+    Expression<DateTime>? conectadaEl,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (idUsuario != null) 'id_usuario': idUsuario,
       if (email != null) 'email': email,
-      if (colorValue != null) 'color_value': colorValue,
-      if (colorIndex != null) 'color_index': colorIndex,
-      if (accessToken != null) 'access_token': accessToken,
-      if (tokenExpiry != null) 'token_expiry': tokenExpiry,
-      if (connectedAt != null) 'connected_at': connectedAt,
+      if (valorColor != null) 'valor_color': valorColor,
+      if (indiceColor != null) 'indice_color': indiceColor,
+      if (tokenAcceso != null) 'token_acceso': tokenAcceso,
+      if (expiracionToken != null) 'expiracion_token': expiracionToken,
+      if (conectadaEl != null) 'conectada_el': conectadaEl,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  LocalCalendarAccountsCompanion copyWith({
+  AccountsTableCompanion copyWith({
+    Value<String>? idUsuario,
     Value<String>? email,
-    Value<int>? colorValue,
-    Value<int>? colorIndex,
-    Value<String>? accessToken,
-    Value<DateTime?>? tokenExpiry,
-    Value<DateTime?>? connectedAt,
+    Value<int>? valorColor,
+    Value<int>? indiceColor,
+    Value<String>? tokenAcceso,
+    Value<DateTime?>? expiracionToken,
+    Value<DateTime?>? conectadaEl,
     Value<int>? rowid,
   }) {
-    return LocalCalendarAccountsCompanion(
+    return AccountsTableCompanion(
+      idUsuario: idUsuario ?? this.idUsuario,
       email: email ?? this.email,
-      colorValue: colorValue ?? this.colorValue,
-      colorIndex: colorIndex ?? this.colorIndex,
-      accessToken: accessToken ?? this.accessToken,
-      tokenExpiry: tokenExpiry ?? this.tokenExpiry,
-      connectedAt: connectedAt ?? this.connectedAt,
+      valorColor: valorColor ?? this.valorColor,
+      indiceColor: indiceColor ?? this.indiceColor,
+      tokenAcceso: tokenAcceso ?? this.tokenAcceso,
+      expiracionToken: expiracionToken ?? this.expiracionToken,
+      conectadaEl: conectadaEl ?? this.conectadaEl,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1078,23 +1167,26 @@ class LocalCalendarAccountsCompanion
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (idUsuario.present) {
+      map['id_usuario'] = Variable<String>(idUsuario.value);
+    }
     if (email.present) {
       map['email'] = Variable<String>(email.value);
     }
-    if (colorValue.present) {
-      map['color_value'] = Variable<int>(colorValue.value);
+    if (valorColor.present) {
+      map['valor_color'] = Variable<int>(valorColor.value);
     }
-    if (colorIndex.present) {
-      map['color_index'] = Variable<int>(colorIndex.value);
+    if (indiceColor.present) {
+      map['indice_color'] = Variable<int>(indiceColor.value);
     }
-    if (accessToken.present) {
-      map['access_token'] = Variable<String>(accessToken.value);
+    if (tokenAcceso.present) {
+      map['token_acceso'] = Variable<String>(tokenAcceso.value);
     }
-    if (tokenExpiry.present) {
-      map['token_expiry'] = Variable<DateTime>(tokenExpiry.value);
+    if (expiracionToken.present) {
+      map['expiracion_token'] = Variable<DateTime>(expiracionToken.value);
     }
-    if (connectedAt.present) {
-      map['connected_at'] = Variable<DateTime>(connectedAt.value);
+    if (conectadaEl.present) {
+      map['conectada_el'] = Variable<DateTime>(conectadaEl.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1104,25 +1196,37 @@ class LocalCalendarAccountsCompanion
 
   @override
   String toString() {
-    return (StringBuffer('LocalCalendarAccountsCompanion(')
+    return (StringBuffer('AccountsTableCompanion(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('email: $email, ')
-          ..write('colorValue: $colorValue, ')
-          ..write('colorIndex: $colorIndex, ')
-          ..write('accessToken: $accessToken, ')
-          ..write('tokenExpiry: $tokenExpiry, ')
-          ..write('connectedAt: $connectedAt, ')
+          ..write('valorColor: $valorColor, ')
+          ..write('indiceColor: $indiceColor, ')
+          ..write('tokenAcceso: $tokenAcceso, ')
+          ..write('expiracionToken: $expiracionToken, ')
+          ..write('conectadaEl: $conectadaEl, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
 }
 
-class $LocalCalendarsTable extends LocalCalendars
-    with TableInfo<$LocalCalendarsTable, LocalCalendar> {
+class $CalendarsTableTable extends CalendarsTable
+    with TableInfo<$CalendarsTableTable, CalendarsTableData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $LocalCalendarsTable(this.attachedDatabase, [this._alias]);
+  $CalendarsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idUsuarioMeta = const VerificationMeta(
+    'idUsuario',
+  );
+  @override
+  late final GeneratedColumn<String> idUsuario = GeneratedColumn<String>(
+    'id_usuario',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -1132,373 +1236,400 @@ class $LocalCalendarsTable extends LocalCalendars
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _accountEmailMeta = const VerificationMeta(
-    'accountEmail',
+  static const VerificationMeta _emailCuentaMeta = const VerificationMeta(
+    'emailCuenta',
   );
   @override
-  late final GeneratedColumn<String> accountEmail = GeneratedColumn<String>(
-    'account_email',
+  late final GeneratedColumn<String> emailCuenta = GeneratedColumn<String>(
+    'email_cuenta',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _summaryMeta = const VerificationMeta(
-    'summary',
+  static const VerificationMeta _resumenMeta = const VerificationMeta(
+    'resumen',
   );
   @override
-  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
-    'summary',
+  late final GeneratedColumn<String> resumen = GeneratedColumn<String>(
+    'resumen',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('Calendario'),
   );
-  static const VerificationMeta _backgroundColorMeta = const VerificationMeta(
-    'backgroundColor',
+  static const VerificationMeta _colorFondoMeta = const VerificationMeta(
+    'colorFondo',
   );
   @override
-  late final GeneratedColumn<String> backgroundColor = GeneratedColumn<String>(
-    'background_color',
+  late final GeneratedColumn<String> colorFondo = GeneratedColumn<String>(
+    'color_fondo',
     aliasedName,
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _accessRoleMeta = const VerificationMeta(
-    'accessRole',
+  static const VerificationMeta _rolAccesoMeta = const VerificationMeta(
+    'rolAcceso',
   );
   @override
-  late final GeneratedColumn<String> accessRole = GeneratedColumn<String>(
-    'access_role',
+  late final GeneratedColumn<String> rolAcceso = GeneratedColumn<String>(
+    'rol_acceso',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('reader'),
   );
-  static const VerificationMeta _isVisibleMeta = const VerificationMeta(
-    'isVisible',
+  static const VerificationMeta _esVisibleMeta = const VerificationMeta(
+    'esVisible',
   );
   @override
-  late final GeneratedColumn<bool> isVisible = GeneratedColumn<bool>(
-    'is_visible',
+  late final GeneratedColumn<bool> esVisible = GeneratedColumn<bool>(
+    'es_visible',
     aliasedName,
     false,
     type: DriftSqlType.bool,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_visible" IN (0, 1))',
+      'CHECK ("es_visible" IN (0, 1))',
     ),
     defaultValue: const Constant(true),
   );
   @override
   List<GeneratedColumn> get $columns => [
+    idUsuario,
     id,
-    accountEmail,
-    summary,
-    backgroundColor,
-    accessRole,
-    isVisible,
+    emailCuenta,
+    resumen,
+    colorFondo,
+    rolAcceso,
+    esVisible,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'local_calendars';
+  static const String $name = 'calendars_table';
   @override
   VerificationContext validateIntegrity(
-    Insertable<LocalCalendar> instance, {
+    Insertable<CalendarsTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('id_usuario')) {
+      context.handle(
+        _idUsuarioMeta,
+        idUsuario.isAcceptableOrUnknown(data['id_usuario']!, _idUsuarioMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_idUsuarioMeta);
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('account_email')) {
+    if (data.containsKey('email_cuenta')) {
       context.handle(
-        _accountEmailMeta,
-        accountEmail.isAcceptableOrUnknown(
-          data['account_email']!,
-          _accountEmailMeta,
+        _emailCuentaMeta,
+        emailCuenta.isAcceptableOrUnknown(
+          data['email_cuenta']!,
+          _emailCuentaMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_accountEmailMeta);
+      context.missing(_emailCuentaMeta);
     }
-    if (data.containsKey('summary')) {
+    if (data.containsKey('resumen')) {
       context.handle(
-        _summaryMeta,
-        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+        _resumenMeta,
+        resumen.isAcceptableOrUnknown(data['resumen']!, _resumenMeta),
       );
     }
-    if (data.containsKey('background_color')) {
+    if (data.containsKey('color_fondo')) {
       context.handle(
-        _backgroundColorMeta,
-        backgroundColor.isAcceptableOrUnknown(
-          data['background_color']!,
-          _backgroundColorMeta,
-        ),
+        _colorFondoMeta,
+        colorFondo.isAcceptableOrUnknown(data['color_fondo']!, _colorFondoMeta),
       );
     }
-    if (data.containsKey('access_role')) {
+    if (data.containsKey('rol_acceso')) {
       context.handle(
-        _accessRoleMeta,
-        accessRole.isAcceptableOrUnknown(data['access_role']!, _accessRoleMeta),
+        _rolAccesoMeta,
+        rolAcceso.isAcceptableOrUnknown(data['rol_acceso']!, _rolAccesoMeta),
       );
     }
-    if (data.containsKey('is_visible')) {
+    if (data.containsKey('es_visible')) {
       context.handle(
-        _isVisibleMeta,
-        isVisible.isAcceptableOrUnknown(data['is_visible']!, _isVisibleMeta),
+        _esVisibleMeta,
+        esVisible.isAcceptableOrUnknown(data['es_visible']!, _esVisibleMeta),
       );
     }
     return context;
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id, accountEmail};
+  Set<GeneratedColumn> get $primaryKey => {id, emailCuenta, idUsuario};
   @override
-  LocalCalendar map(Map<String, dynamic> data, {String? tablePrefix}) {
+  CalendarsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return LocalCalendar(
+    return CalendarsTableData(
+      idUsuario: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id_usuario'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      accountEmail: attachedDatabase.typeMapping.read(
+      emailCuenta: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}account_email'],
+        data['${effectivePrefix}email_cuenta'],
       )!,
-      summary: attachedDatabase.typeMapping.read(
+      resumen: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}summary'],
+        data['${effectivePrefix}resumen'],
       )!,
-      backgroundColor: attachedDatabase.typeMapping.read(
+      colorFondo: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}background_color'],
+        data['${effectivePrefix}color_fondo'],
       ),
-      accessRole: attachedDatabase.typeMapping.read(
+      rolAcceso: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}access_role'],
+        data['${effectivePrefix}rol_acceso'],
       )!,
-      isVisible: attachedDatabase.typeMapping.read(
+      esVisible: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
-        data['${effectivePrefix}is_visible'],
+        data['${effectivePrefix}es_visible'],
       )!,
     );
   }
 
   @override
-  $LocalCalendarsTable createAlias(String alias) {
-    return $LocalCalendarsTable(attachedDatabase, alias);
+  $CalendarsTableTable createAlias(String alias) {
+    return $CalendarsTableTable(attachedDatabase, alias);
   }
 }
 
-class LocalCalendar extends DataClass implements Insertable<LocalCalendar> {
+class CalendarsTableData extends DataClass
+    implements Insertable<CalendarsTableData> {
+  final String idUsuario;
   final String id;
-  final String accountEmail;
-  final String summary;
-  final String? backgroundColor;
-  final String accessRole;
-  final bool isVisible;
-  const LocalCalendar({
+  final String emailCuenta;
+  final String resumen;
+  final String? colorFondo;
+  final String rolAcceso;
+  final bool esVisible;
+  const CalendarsTableData({
+    required this.idUsuario,
     required this.id,
-    required this.accountEmail,
-    required this.summary,
-    this.backgroundColor,
-    required this.accessRole,
-    required this.isVisible,
+    required this.emailCuenta,
+    required this.resumen,
+    this.colorFondo,
+    required this.rolAcceso,
+    required this.esVisible,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['id_usuario'] = Variable<String>(idUsuario);
     map['id'] = Variable<String>(id);
-    map['account_email'] = Variable<String>(accountEmail);
-    map['summary'] = Variable<String>(summary);
-    if (!nullToAbsent || backgroundColor != null) {
-      map['background_color'] = Variable<String>(backgroundColor);
+    map['email_cuenta'] = Variable<String>(emailCuenta);
+    map['resumen'] = Variable<String>(resumen);
+    if (!nullToAbsent || colorFondo != null) {
+      map['color_fondo'] = Variable<String>(colorFondo);
     }
-    map['access_role'] = Variable<String>(accessRole);
-    map['is_visible'] = Variable<bool>(isVisible);
+    map['rol_acceso'] = Variable<String>(rolAcceso);
+    map['es_visible'] = Variable<bool>(esVisible);
     return map;
   }
 
-  LocalCalendarsCompanion toCompanion(bool nullToAbsent) {
-    return LocalCalendarsCompanion(
+  CalendarsTableCompanion toCompanion(bool nullToAbsent) {
+    return CalendarsTableCompanion(
+      idUsuario: Value(idUsuario),
       id: Value(id),
-      accountEmail: Value(accountEmail),
-      summary: Value(summary),
-      backgroundColor: backgroundColor == null && nullToAbsent
+      emailCuenta: Value(emailCuenta),
+      resumen: Value(resumen),
+      colorFondo: colorFondo == null && nullToAbsent
           ? const Value.absent()
-          : Value(backgroundColor),
-      accessRole: Value(accessRole),
-      isVisible: Value(isVisible),
+          : Value(colorFondo),
+      rolAcceso: Value(rolAcceso),
+      esVisible: Value(esVisible),
     );
   }
 
-  factory LocalCalendar.fromJson(
+  factory CalendarsTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return LocalCalendar(
+    return CalendarsTableData(
+      idUsuario: serializer.fromJson<String>(json['idUsuario']),
       id: serializer.fromJson<String>(json['id']),
-      accountEmail: serializer.fromJson<String>(json['accountEmail']),
-      summary: serializer.fromJson<String>(json['summary']),
-      backgroundColor: serializer.fromJson<String?>(json['backgroundColor']),
-      accessRole: serializer.fromJson<String>(json['accessRole']),
-      isVisible: serializer.fromJson<bool>(json['isVisible']),
+      emailCuenta: serializer.fromJson<String>(json['emailCuenta']),
+      resumen: serializer.fromJson<String>(json['resumen']),
+      colorFondo: serializer.fromJson<String?>(json['colorFondo']),
+      rolAcceso: serializer.fromJson<String>(json['rolAcceso']),
+      esVisible: serializer.fromJson<bool>(json['esVisible']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'idUsuario': serializer.toJson<String>(idUsuario),
       'id': serializer.toJson<String>(id),
-      'accountEmail': serializer.toJson<String>(accountEmail),
-      'summary': serializer.toJson<String>(summary),
-      'backgroundColor': serializer.toJson<String?>(backgroundColor),
-      'accessRole': serializer.toJson<String>(accessRole),
-      'isVisible': serializer.toJson<bool>(isVisible),
+      'emailCuenta': serializer.toJson<String>(emailCuenta),
+      'resumen': serializer.toJson<String>(resumen),
+      'colorFondo': serializer.toJson<String?>(colorFondo),
+      'rolAcceso': serializer.toJson<String>(rolAcceso),
+      'esVisible': serializer.toJson<bool>(esVisible),
     };
   }
 
-  LocalCalendar copyWith({
+  CalendarsTableData copyWith({
+    String? idUsuario,
     String? id,
-    String? accountEmail,
-    String? summary,
-    Value<String?> backgroundColor = const Value.absent(),
-    String? accessRole,
-    bool? isVisible,
-  }) => LocalCalendar(
+    String? emailCuenta,
+    String? resumen,
+    Value<String?> colorFondo = const Value.absent(),
+    String? rolAcceso,
+    bool? esVisible,
+  }) => CalendarsTableData(
+    idUsuario: idUsuario ?? this.idUsuario,
     id: id ?? this.id,
-    accountEmail: accountEmail ?? this.accountEmail,
-    summary: summary ?? this.summary,
-    backgroundColor: backgroundColor.present
-        ? backgroundColor.value
-        : this.backgroundColor,
-    accessRole: accessRole ?? this.accessRole,
-    isVisible: isVisible ?? this.isVisible,
+    emailCuenta: emailCuenta ?? this.emailCuenta,
+    resumen: resumen ?? this.resumen,
+    colorFondo: colorFondo.present ? colorFondo.value : this.colorFondo,
+    rolAcceso: rolAcceso ?? this.rolAcceso,
+    esVisible: esVisible ?? this.esVisible,
   );
-  LocalCalendar copyWithCompanion(LocalCalendarsCompanion data) {
-    return LocalCalendar(
+  CalendarsTableData copyWithCompanion(CalendarsTableCompanion data) {
+    return CalendarsTableData(
+      idUsuario: data.idUsuario.present ? data.idUsuario.value : this.idUsuario,
       id: data.id.present ? data.id.value : this.id,
-      accountEmail: data.accountEmail.present
-          ? data.accountEmail.value
-          : this.accountEmail,
-      summary: data.summary.present ? data.summary.value : this.summary,
-      backgroundColor: data.backgroundColor.present
-          ? data.backgroundColor.value
-          : this.backgroundColor,
-      accessRole: data.accessRole.present
-          ? data.accessRole.value
-          : this.accessRole,
-      isVisible: data.isVisible.present ? data.isVisible.value : this.isVisible,
+      emailCuenta: data.emailCuenta.present
+          ? data.emailCuenta.value
+          : this.emailCuenta,
+      resumen: data.resumen.present ? data.resumen.value : this.resumen,
+      colorFondo: data.colorFondo.present
+          ? data.colorFondo.value
+          : this.colorFondo,
+      rolAcceso: data.rolAcceso.present ? data.rolAcceso.value : this.rolAcceso,
+      esVisible: data.esVisible.present ? data.esVisible.value : this.esVisible,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('LocalCalendar(')
+    return (StringBuffer('CalendarsTableData(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('id: $id, ')
-          ..write('accountEmail: $accountEmail, ')
-          ..write('summary: $summary, ')
-          ..write('backgroundColor: $backgroundColor, ')
-          ..write('accessRole: $accessRole, ')
-          ..write('isVisible: $isVisible')
+          ..write('emailCuenta: $emailCuenta, ')
+          ..write('resumen: $resumen, ')
+          ..write('colorFondo: $colorFondo, ')
+          ..write('rolAcceso: $rolAcceso, ')
+          ..write('esVisible: $esVisible')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(
+    idUsuario,
     id,
-    accountEmail,
-    summary,
-    backgroundColor,
-    accessRole,
-    isVisible,
+    emailCuenta,
+    resumen,
+    colorFondo,
+    rolAcceso,
+    esVisible,
   );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is LocalCalendar &&
+      (other is CalendarsTableData &&
+          other.idUsuario == this.idUsuario &&
           other.id == this.id &&
-          other.accountEmail == this.accountEmail &&
-          other.summary == this.summary &&
-          other.backgroundColor == this.backgroundColor &&
-          other.accessRole == this.accessRole &&
-          other.isVisible == this.isVisible);
+          other.emailCuenta == this.emailCuenta &&
+          other.resumen == this.resumen &&
+          other.colorFondo == this.colorFondo &&
+          other.rolAcceso == this.rolAcceso &&
+          other.esVisible == this.esVisible);
 }
 
-class LocalCalendarsCompanion extends UpdateCompanion<LocalCalendar> {
+class CalendarsTableCompanion extends UpdateCompanion<CalendarsTableData> {
+  final Value<String> idUsuario;
   final Value<String> id;
-  final Value<String> accountEmail;
-  final Value<String> summary;
-  final Value<String?> backgroundColor;
-  final Value<String> accessRole;
-  final Value<bool> isVisible;
+  final Value<String> emailCuenta;
+  final Value<String> resumen;
+  final Value<String?> colorFondo;
+  final Value<String> rolAcceso;
+  final Value<bool> esVisible;
   final Value<int> rowid;
-  const LocalCalendarsCompanion({
+  const CalendarsTableCompanion({
+    this.idUsuario = const Value.absent(),
     this.id = const Value.absent(),
-    this.accountEmail = const Value.absent(),
-    this.summary = const Value.absent(),
-    this.backgroundColor = const Value.absent(),
-    this.accessRole = const Value.absent(),
-    this.isVisible = const Value.absent(),
+    this.emailCuenta = const Value.absent(),
+    this.resumen = const Value.absent(),
+    this.colorFondo = const Value.absent(),
+    this.rolAcceso = const Value.absent(),
+    this.esVisible = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  LocalCalendarsCompanion.insert({
+  CalendarsTableCompanion.insert({
+    required String idUsuario,
     required String id,
-    required String accountEmail,
-    this.summary = const Value.absent(),
-    this.backgroundColor = const Value.absent(),
-    this.accessRole = const Value.absent(),
-    this.isVisible = const Value.absent(),
+    required String emailCuenta,
+    this.resumen = const Value.absent(),
+    this.colorFondo = const Value.absent(),
+    this.rolAcceso = const Value.absent(),
+    this.esVisible = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       accountEmail = Value(accountEmail);
-  static Insertable<LocalCalendar> custom({
+  }) : idUsuario = Value(idUsuario),
+       id = Value(id),
+       emailCuenta = Value(emailCuenta);
+  static Insertable<CalendarsTableData> custom({
+    Expression<String>? idUsuario,
     Expression<String>? id,
-    Expression<String>? accountEmail,
-    Expression<String>? summary,
-    Expression<String>? backgroundColor,
-    Expression<String>? accessRole,
-    Expression<bool>? isVisible,
+    Expression<String>? emailCuenta,
+    Expression<String>? resumen,
+    Expression<String>? colorFondo,
+    Expression<String>? rolAcceso,
+    Expression<bool>? esVisible,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (idUsuario != null) 'id_usuario': idUsuario,
       if (id != null) 'id': id,
-      if (accountEmail != null) 'account_email': accountEmail,
-      if (summary != null) 'summary': summary,
-      if (backgroundColor != null) 'background_color': backgroundColor,
-      if (accessRole != null) 'access_role': accessRole,
-      if (isVisible != null) 'is_visible': isVisible,
+      if (emailCuenta != null) 'email_cuenta': emailCuenta,
+      if (resumen != null) 'resumen': resumen,
+      if (colorFondo != null) 'color_fondo': colorFondo,
+      if (rolAcceso != null) 'rol_acceso': rolAcceso,
+      if (esVisible != null) 'es_visible': esVisible,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  LocalCalendarsCompanion copyWith({
+  CalendarsTableCompanion copyWith({
+    Value<String>? idUsuario,
     Value<String>? id,
-    Value<String>? accountEmail,
-    Value<String>? summary,
-    Value<String?>? backgroundColor,
-    Value<String>? accessRole,
-    Value<bool>? isVisible,
+    Value<String>? emailCuenta,
+    Value<String>? resumen,
+    Value<String?>? colorFondo,
+    Value<String>? rolAcceso,
+    Value<bool>? esVisible,
     Value<int>? rowid,
   }) {
-    return LocalCalendarsCompanion(
+    return CalendarsTableCompanion(
+      idUsuario: idUsuario ?? this.idUsuario,
       id: id ?? this.id,
-      accountEmail: accountEmail ?? this.accountEmail,
-      summary: summary ?? this.summary,
-      backgroundColor: backgroundColor ?? this.backgroundColor,
-      accessRole: accessRole ?? this.accessRole,
-      isVisible: isVisible ?? this.isVisible,
+      emailCuenta: emailCuenta ?? this.emailCuenta,
+      resumen: resumen ?? this.resumen,
+      colorFondo: colorFondo ?? this.colorFondo,
+      rolAcceso: rolAcceso ?? this.rolAcceso,
+      esVisible: esVisible ?? this.esVisible,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1506,23 +1637,26 @@ class LocalCalendarsCompanion extends UpdateCompanion<LocalCalendar> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (idUsuario.present) {
+      map['id_usuario'] = Variable<String>(idUsuario.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (accountEmail.present) {
-      map['account_email'] = Variable<String>(accountEmail.value);
+    if (emailCuenta.present) {
+      map['email_cuenta'] = Variable<String>(emailCuenta.value);
     }
-    if (summary.present) {
-      map['summary'] = Variable<String>(summary.value);
+    if (resumen.present) {
+      map['resumen'] = Variable<String>(resumen.value);
     }
-    if (backgroundColor.present) {
-      map['background_color'] = Variable<String>(backgroundColor.value);
+    if (colorFondo.present) {
+      map['color_fondo'] = Variable<String>(colorFondo.value);
     }
-    if (accessRole.present) {
-      map['access_role'] = Variable<String>(accessRole.value);
+    if (rolAcceso.present) {
+      map['rol_acceso'] = Variable<String>(rolAcceso.value);
     }
-    if (isVisible.present) {
-      map['is_visible'] = Variable<bool>(isVisible.value);
+    if (esVisible.present) {
+      map['es_visible'] = Variable<bool>(esVisible.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1532,13 +1666,14 @@ class LocalCalendarsCompanion extends UpdateCompanion<LocalCalendar> {
 
   @override
   String toString() {
-    return (StringBuffer('LocalCalendarsCompanion(')
+    return (StringBuffer('CalendarsTableCompanion(')
+          ..write('idUsuario: $idUsuario, ')
           ..write('id: $id, ')
-          ..write('accountEmail: $accountEmail, ')
-          ..write('summary: $summary, ')
-          ..write('backgroundColor: $backgroundColor, ')
-          ..write('accessRole: $accessRole, ')
-          ..write('isVisible: $isVisible, ')
+          ..write('emailCuenta: $emailCuenta, ')
+          ..write('resumen: $resumen, ')
+          ..write('colorFondo: $colorFondo, ')
+          ..write('rolAcceso: $rolAcceso, ')
+          ..write('esVisible: $esVisible, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1548,103 +1683,109 @@ class LocalCalendarsCompanion extends UpdateCompanion<LocalCalendar> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $LocalTasksTable localTasks = $LocalTasksTable(this);
-  late final $LocalCalendarAccountsTable localCalendarAccounts =
-      $LocalCalendarAccountsTable(this);
-  late final $LocalCalendarsTable localCalendars = $LocalCalendarsTable(this);
+  late final $TasksTableTable tasksTable = $TasksTableTable(this);
+  late final $AccountsTableTable accountsTable = $AccountsTableTable(this);
+  late final $CalendarsTableTable calendarsTable = $CalendarsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    localTasks,
-    localCalendarAccounts,
-    localCalendars,
+    tasksTable,
+    accountsTable,
+    calendarsTable,
   ];
 }
 
-typedef $$LocalTasksTableCreateCompanionBuilder =
-    LocalTasksCompanion Function({
+typedef $$TasksTableTableCreateCompanionBuilder =
+    TasksTableCompanion Function({
+      required String idUsuario,
       required String id,
-      required String title,
-      Value<String> subtitle,
-      Value<String> priority,
-      Value<int> xpReward,
-      Value<bool> isCompleted,
-      Value<DateTime?> dueDate,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> completedAt,
+      required String titulo,
+      Value<String> subtitulo,
+      Value<String> prioridad,
+      Value<int> puntosXp,
+      Value<bool> estaTerminada,
+      Value<DateTime?> fechaTope,
+      Value<DateTime?> creadaEl,
+      Value<DateTime?> terminadaEl,
       Value<String?> color,
-      Value<bool> pendingPush,
+      Value<bool> pendienteSincro,
       Value<int> rowid,
     });
-typedef $$LocalTasksTableUpdateCompanionBuilder =
-    LocalTasksCompanion Function({
+typedef $$TasksTableTableUpdateCompanionBuilder =
+    TasksTableCompanion Function({
+      Value<String> idUsuario,
       Value<String> id,
-      Value<String> title,
-      Value<String> subtitle,
-      Value<String> priority,
-      Value<int> xpReward,
-      Value<bool> isCompleted,
-      Value<DateTime?> dueDate,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> completedAt,
+      Value<String> titulo,
+      Value<String> subtitulo,
+      Value<String> prioridad,
+      Value<int> puntosXp,
+      Value<bool> estaTerminada,
+      Value<DateTime?> fechaTope,
+      Value<DateTime?> creadaEl,
+      Value<DateTime?> terminadaEl,
       Value<String?> color,
-      Value<bool> pendingPush,
+      Value<bool> pendienteSincro,
       Value<int> rowid,
     });
 
-class $$LocalTasksTableFilterComposer
-    extends Composer<_$AppDatabase, $LocalTasksTable> {
-  $$LocalTasksTableFilterComposer({
+class $$TasksTableTableFilterComposer
+    extends Composer<_$AppDatabase, $TasksTableTable> {
+  $$TasksTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get title => $composableBuilder(
-    column: $table.title,
+  ColumnFilters<String> get titulo => $composableBuilder(
+    column: $table.titulo,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get subtitle => $composableBuilder(
-    column: $table.subtitle,
+  ColumnFilters<String> get subtitulo => $composableBuilder(
+    column: $table.subtitulo,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnFilters<String> get prioridad => $composableBuilder(
+    column: $table.prioridad,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get xpReward => $composableBuilder(
-    column: $table.xpReward,
+  ColumnFilters<int> get puntosXp => $composableBuilder(
+    column: $table.puntosXp,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isCompleted => $composableBuilder(
-    column: $table.isCompleted,
+  ColumnFilters<bool> get estaTerminada => $composableBuilder(
+    column: $table.estaTerminada,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get dueDate => $composableBuilder(
-    column: $table.dueDate,
+  ColumnFilters<DateTime> get fechaTope => $composableBuilder(
+    column: $table.fechaTope,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnFilters<DateTime> get creadaEl => $composableBuilder(
+    column: $table.creadaEl,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get completedAt => $composableBuilder(
-    column: $table.completedAt,
+  ColumnFilters<DateTime> get terminadaEl => $composableBuilder(
+    column: $table.terminadaEl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1653,63 +1794,68 @@ class $$LocalTasksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get pendingPush => $composableBuilder(
-    column: $table.pendingPush,
+  ColumnFilters<bool> get pendienteSincro => $composableBuilder(
+    column: $table.pendienteSincro,
     builder: (column) => ColumnFilters(column),
   );
 }
 
-class $$LocalTasksTableOrderingComposer
-    extends Composer<_$AppDatabase, $LocalTasksTable> {
-  $$LocalTasksTableOrderingComposer({
+class $$TasksTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $TasksTableTable> {
+  $$TasksTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get title => $composableBuilder(
-    column: $table.title,
+  ColumnOrderings<String> get titulo => $composableBuilder(
+    column: $table.titulo,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get subtitle => $composableBuilder(
-    column: $table.subtitle,
+  ColumnOrderings<String> get subtitulo => $composableBuilder(
+    column: $table.subtitulo,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnOrderings<String> get prioridad => $composableBuilder(
+    column: $table.prioridad,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get xpReward => $composableBuilder(
-    column: $table.xpReward,
+  ColumnOrderings<int> get puntosXp => $composableBuilder(
+    column: $table.puntosXp,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isCompleted => $composableBuilder(
-    column: $table.isCompleted,
+  ColumnOrderings<bool> get estaTerminada => $composableBuilder(
+    column: $table.estaTerminada,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
-    column: $table.dueDate,
+  ColumnOrderings<DateTime> get fechaTope => $composableBuilder(
+    column: $table.fechaTope,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnOrderings<DateTime> get creadaEl => $composableBuilder(
+    column: $table.creadaEl,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
-    column: $table.completedAt,
+  ColumnOrderings<DateTime> get terminadaEl => $composableBuilder(
+    column: $table.terminadaEl,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1718,144 +1864,151 @@ class $$LocalTasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get pendingPush => $composableBuilder(
-    column: $table.pendingPush,
+  ColumnOrderings<bool> get pendienteSincro => $composableBuilder(
+    column: $table.pendienteSincro,
     builder: (column) => ColumnOrderings(column),
   );
 }
 
-class $$LocalTasksTableAnnotationComposer
-    extends Composer<_$AppDatabase, $LocalTasksTable> {
-  $$LocalTasksTableAnnotationComposer({
+class $$TasksTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TasksTableTable> {
+  $$TasksTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get idUsuario =>
+      $composableBuilder(column: $table.idUsuario, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get titulo =>
+      $composableBuilder(column: $table.titulo, builder: (column) => column);
 
-  GeneratedColumn<String> get subtitle =>
-      $composableBuilder(column: $table.subtitle, builder: (column) => column);
+  GeneratedColumn<String> get subtitulo =>
+      $composableBuilder(column: $table.subtitulo, builder: (column) => column);
 
-  GeneratedColumn<String> get priority =>
-      $composableBuilder(column: $table.priority, builder: (column) => column);
+  GeneratedColumn<String> get prioridad =>
+      $composableBuilder(column: $table.prioridad, builder: (column) => column);
 
-  GeneratedColumn<int> get xpReward =>
-      $composableBuilder(column: $table.xpReward, builder: (column) => column);
+  GeneratedColumn<int> get puntosXp =>
+      $composableBuilder(column: $table.puntosXp, builder: (column) => column);
 
-  GeneratedColumn<bool> get isCompleted => $composableBuilder(
-    column: $table.isCompleted,
+  GeneratedColumn<bool> get estaTerminada => $composableBuilder(
+    column: $table.estaTerminada,
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get dueDate =>
-      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+  GeneratedColumn<DateTime> get fechaTope =>
+      $composableBuilder(column: $table.fechaTope, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get creadaEl =>
+      $composableBuilder(column: $table.creadaEl, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
-    column: $table.completedAt,
+  GeneratedColumn<DateTime> get terminadaEl => $composableBuilder(
+    column: $table.terminadaEl,
     builder: (column) => column,
   );
 
   GeneratedColumn<String> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
 
-  GeneratedColumn<bool> get pendingPush => $composableBuilder(
-    column: $table.pendingPush,
+  GeneratedColumn<bool> get pendienteSincro => $composableBuilder(
+    column: $table.pendienteSincro,
     builder: (column) => column,
   );
 }
 
-class $$LocalTasksTableTableManager
+class $$TasksTableTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $LocalTasksTable,
-          LocalTask,
-          $$LocalTasksTableFilterComposer,
-          $$LocalTasksTableOrderingComposer,
-          $$LocalTasksTableAnnotationComposer,
-          $$LocalTasksTableCreateCompanionBuilder,
-          $$LocalTasksTableUpdateCompanionBuilder,
+          $TasksTableTable,
+          TasksTableData,
+          $$TasksTableTableFilterComposer,
+          $$TasksTableTableOrderingComposer,
+          $$TasksTableTableAnnotationComposer,
+          $$TasksTableTableCreateCompanionBuilder,
+          $$TasksTableTableUpdateCompanionBuilder,
           (
-            LocalTask,
-            BaseReferences<_$AppDatabase, $LocalTasksTable, LocalTask>,
+            TasksTableData,
+            BaseReferences<_$AppDatabase, $TasksTableTable, TasksTableData>,
           ),
-          LocalTask,
+          TasksTableData,
           PrefetchHooks Function()
         > {
-  $$LocalTasksTableTableManager(_$AppDatabase db, $LocalTasksTable table)
+  $$TasksTableTableTableManager(_$AppDatabase db, $TasksTableTable table)
     : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$LocalTasksTableFilterComposer($db: db, $table: table),
+              $$TasksTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$LocalTasksTableOrderingComposer($db: db, $table: table),
+              $$TasksTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$LocalTasksTableAnnotationComposer($db: db, $table: table),
+              $$TasksTableTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> idUsuario = const Value.absent(),
                 Value<String> id = const Value.absent(),
-                Value<String> title = const Value.absent(),
-                Value<String> subtitle = const Value.absent(),
-                Value<String> priority = const Value.absent(),
-                Value<int> xpReward = const Value.absent(),
-                Value<bool> isCompleted = const Value.absent(),
-                Value<DateTime?> dueDate = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> completedAt = const Value.absent(),
+                Value<String> titulo = const Value.absent(),
+                Value<String> subtitulo = const Value.absent(),
+                Value<String> prioridad = const Value.absent(),
+                Value<int> puntosXp = const Value.absent(),
+                Value<bool> estaTerminada = const Value.absent(),
+                Value<DateTime?> fechaTope = const Value.absent(),
+                Value<DateTime?> creadaEl = const Value.absent(),
+                Value<DateTime?> terminadaEl = const Value.absent(),
                 Value<String?> color = const Value.absent(),
-                Value<bool> pendingPush = const Value.absent(),
+                Value<bool> pendienteSincro = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalTasksCompanion(
+              }) => TasksTableCompanion(
+                idUsuario: idUsuario,
                 id: id,
-                title: title,
-                subtitle: subtitle,
-                priority: priority,
-                xpReward: xpReward,
-                isCompleted: isCompleted,
-                dueDate: dueDate,
-                createdAt: createdAt,
-                completedAt: completedAt,
+                titulo: titulo,
+                subtitulo: subtitulo,
+                prioridad: prioridad,
+                puntosXp: puntosXp,
+                estaTerminada: estaTerminada,
+                fechaTope: fechaTope,
+                creadaEl: creadaEl,
+                terminadaEl: terminadaEl,
                 color: color,
-                pendingPush: pendingPush,
+                pendienteSincro: pendienteSincro,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
+                required String idUsuario,
                 required String id,
-                required String title,
-                Value<String> subtitle = const Value.absent(),
-                Value<String> priority = const Value.absent(),
-                Value<int> xpReward = const Value.absent(),
-                Value<bool> isCompleted = const Value.absent(),
-                Value<DateTime?> dueDate = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> completedAt = const Value.absent(),
+                required String titulo,
+                Value<String> subtitulo = const Value.absent(),
+                Value<String> prioridad = const Value.absent(),
+                Value<int> puntosXp = const Value.absent(),
+                Value<bool> estaTerminada = const Value.absent(),
+                Value<DateTime?> fechaTope = const Value.absent(),
+                Value<DateTime?> creadaEl = const Value.absent(),
+                Value<DateTime?> terminadaEl = const Value.absent(),
                 Value<String?> color = const Value.absent(),
-                Value<bool> pendingPush = const Value.absent(),
+                Value<bool> pendienteSincro = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalTasksCompanion.insert(
+              }) => TasksTableCompanion.insert(
+                idUsuario: idUsuario,
                 id: id,
-                title: title,
-                subtitle: subtitle,
-                priority: priority,
-                xpReward: xpReward,
-                isCompleted: isCompleted,
-                dueDate: dueDate,
-                createdAt: createdAt,
-                completedAt: completedAt,
+                titulo: titulo,
+                subtitulo: subtitulo,
+                prioridad: prioridad,
+                puntosXp: puntosXp,
+                estaTerminada: estaTerminada,
+                fechaTope: fechaTope,
+                creadaEl: creadaEl,
+                terminadaEl: terminadaEl,
                 color: color,
-                pendingPush: pendingPush,
+                pendienteSincro: pendienteSincro,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -1866,237 +2019,248 @@ class $$LocalTasksTableTableManager
       );
 }
 
-typedef $$LocalTasksTableProcessedTableManager =
+typedef $$TasksTableTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $LocalTasksTable,
-      LocalTask,
-      $$LocalTasksTableFilterComposer,
-      $$LocalTasksTableOrderingComposer,
-      $$LocalTasksTableAnnotationComposer,
-      $$LocalTasksTableCreateCompanionBuilder,
-      $$LocalTasksTableUpdateCompanionBuilder,
-      (LocalTask, BaseReferences<_$AppDatabase, $LocalTasksTable, LocalTask>),
-      LocalTask,
+      $TasksTableTable,
+      TasksTableData,
+      $$TasksTableTableFilterComposer,
+      $$TasksTableTableOrderingComposer,
+      $$TasksTableTableAnnotationComposer,
+      $$TasksTableTableCreateCompanionBuilder,
+      $$TasksTableTableUpdateCompanionBuilder,
+      (
+        TasksTableData,
+        BaseReferences<_$AppDatabase, $TasksTableTable, TasksTableData>,
+      ),
+      TasksTableData,
       PrefetchHooks Function()
     >;
-typedef $$LocalCalendarAccountsTableCreateCompanionBuilder =
-    LocalCalendarAccountsCompanion Function({
+typedef $$AccountsTableTableCreateCompanionBuilder =
+    AccountsTableCompanion Function({
+      required String idUsuario,
       required String email,
-      required int colorValue,
-      Value<int> colorIndex,
-      Value<String> accessToken,
-      Value<DateTime?> tokenExpiry,
-      Value<DateTime?> connectedAt,
+      required int valorColor,
+      Value<int> indiceColor,
+      Value<String> tokenAcceso,
+      Value<DateTime?> expiracionToken,
+      Value<DateTime?> conectadaEl,
       Value<int> rowid,
     });
-typedef $$LocalCalendarAccountsTableUpdateCompanionBuilder =
-    LocalCalendarAccountsCompanion Function({
+typedef $$AccountsTableTableUpdateCompanionBuilder =
+    AccountsTableCompanion Function({
+      Value<String> idUsuario,
       Value<String> email,
-      Value<int> colorValue,
-      Value<int> colorIndex,
-      Value<String> accessToken,
-      Value<DateTime?> tokenExpiry,
-      Value<DateTime?> connectedAt,
+      Value<int> valorColor,
+      Value<int> indiceColor,
+      Value<String> tokenAcceso,
+      Value<DateTime?> expiracionToken,
+      Value<DateTime?> conectadaEl,
       Value<int> rowid,
     });
 
-class $$LocalCalendarAccountsTableFilterComposer
-    extends Composer<_$AppDatabase, $LocalCalendarAccountsTable> {
-  $$LocalCalendarAccountsTableFilterComposer({
+class $$AccountsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountsTableTable> {
+  $$AccountsTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get email => $composableBuilder(
     column: $table.email,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get colorValue => $composableBuilder(
-    column: $table.colorValue,
+  ColumnFilters<int> get valorColor => $composableBuilder(
+    column: $table.valorColor,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get colorIndex => $composableBuilder(
-    column: $table.colorIndex,
+  ColumnFilters<int> get indiceColor => $composableBuilder(
+    column: $table.indiceColor,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get accessToken => $composableBuilder(
-    column: $table.accessToken,
+  ColumnFilters<String> get tokenAcceso => $composableBuilder(
+    column: $table.tokenAcceso,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get tokenExpiry => $composableBuilder(
-    column: $table.tokenExpiry,
+  ColumnFilters<DateTime> get expiracionToken => $composableBuilder(
+    column: $table.expiracionToken,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get connectedAt => $composableBuilder(
-    column: $table.connectedAt,
+  ColumnFilters<DateTime> get conectadaEl => $composableBuilder(
+    column: $table.conectadaEl,
     builder: (column) => ColumnFilters(column),
   );
 }
 
-class $$LocalCalendarAccountsTableOrderingComposer
-    extends Composer<_$AppDatabase, $LocalCalendarAccountsTable> {
-  $$LocalCalendarAccountsTableOrderingComposer({
+class $$AccountsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountsTableTable> {
+  $$AccountsTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get email => $composableBuilder(
     column: $table.email,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get colorValue => $composableBuilder(
-    column: $table.colorValue,
+  ColumnOrderings<int> get valorColor => $composableBuilder(
+    column: $table.valorColor,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get colorIndex => $composableBuilder(
-    column: $table.colorIndex,
+  ColumnOrderings<int> get indiceColor => $composableBuilder(
+    column: $table.indiceColor,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get accessToken => $composableBuilder(
-    column: $table.accessToken,
+  ColumnOrderings<String> get tokenAcceso => $composableBuilder(
+    column: $table.tokenAcceso,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get tokenExpiry => $composableBuilder(
-    column: $table.tokenExpiry,
+  ColumnOrderings<DateTime> get expiracionToken => $composableBuilder(
+    column: $table.expiracionToken,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get connectedAt => $composableBuilder(
-    column: $table.connectedAt,
+  ColumnOrderings<DateTime> get conectadaEl => $composableBuilder(
+    column: $table.conectadaEl,
     builder: (column) => ColumnOrderings(column),
   );
 }
 
-class $$LocalCalendarAccountsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $LocalCalendarAccountsTable> {
-  $$LocalCalendarAccountsTableAnnotationComposer({
+class $$AccountsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountsTableTable> {
+  $$AccountsTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get idUsuario =>
+      $composableBuilder(column: $table.idUsuario, builder: (column) => column);
+
   GeneratedColumn<String> get email =>
       $composableBuilder(column: $table.email, builder: (column) => column);
 
-  GeneratedColumn<int> get colorValue => $composableBuilder(
-    column: $table.colorValue,
+  GeneratedColumn<int> get valorColor => $composableBuilder(
+    column: $table.valorColor,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get colorIndex => $composableBuilder(
-    column: $table.colorIndex,
+  GeneratedColumn<int> get indiceColor => $composableBuilder(
+    column: $table.indiceColor,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get accessToken => $composableBuilder(
-    column: $table.accessToken,
+  GeneratedColumn<String> get tokenAcceso => $composableBuilder(
+    column: $table.tokenAcceso,
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get tokenExpiry => $composableBuilder(
-    column: $table.tokenExpiry,
+  GeneratedColumn<DateTime> get expiracionToken => $composableBuilder(
+    column: $table.expiracionToken,
     builder: (column) => column,
   );
 
-  GeneratedColumn<DateTime> get connectedAt => $composableBuilder(
-    column: $table.connectedAt,
+  GeneratedColumn<DateTime> get conectadaEl => $composableBuilder(
+    column: $table.conectadaEl,
     builder: (column) => column,
   );
 }
 
-class $$LocalCalendarAccountsTableTableManager
+class $$AccountsTableTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $LocalCalendarAccountsTable,
-          LocalCalendarAccount,
-          $$LocalCalendarAccountsTableFilterComposer,
-          $$LocalCalendarAccountsTableOrderingComposer,
-          $$LocalCalendarAccountsTableAnnotationComposer,
-          $$LocalCalendarAccountsTableCreateCompanionBuilder,
-          $$LocalCalendarAccountsTableUpdateCompanionBuilder,
+          $AccountsTableTable,
+          AccountsTableData,
+          $$AccountsTableTableFilterComposer,
+          $$AccountsTableTableOrderingComposer,
+          $$AccountsTableTableAnnotationComposer,
+          $$AccountsTableTableCreateCompanionBuilder,
+          $$AccountsTableTableUpdateCompanionBuilder,
           (
-            LocalCalendarAccount,
+            AccountsTableData,
             BaseReferences<
               _$AppDatabase,
-              $LocalCalendarAccountsTable,
-              LocalCalendarAccount
+              $AccountsTableTable,
+              AccountsTableData
             >,
           ),
-          LocalCalendarAccount,
+          AccountsTableData,
           PrefetchHooks Function()
         > {
-  $$LocalCalendarAccountsTableTableManager(
-    _$AppDatabase db,
-    $LocalCalendarAccountsTable table,
-  ) : super(
+  $$AccountsTableTableTableManager(_$AppDatabase db, $AccountsTableTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$LocalCalendarAccountsTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$AccountsTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$LocalCalendarAccountsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$AccountsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$LocalCalendarAccountsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
+              $$AccountsTableTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> idUsuario = const Value.absent(),
                 Value<String> email = const Value.absent(),
-                Value<int> colorValue = const Value.absent(),
-                Value<int> colorIndex = const Value.absent(),
-                Value<String> accessToken = const Value.absent(),
-                Value<DateTime?> tokenExpiry = const Value.absent(),
-                Value<DateTime?> connectedAt = const Value.absent(),
+                Value<int> valorColor = const Value.absent(),
+                Value<int> indiceColor = const Value.absent(),
+                Value<String> tokenAcceso = const Value.absent(),
+                Value<DateTime?> expiracionToken = const Value.absent(),
+                Value<DateTime?> conectadaEl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalCalendarAccountsCompanion(
+              }) => AccountsTableCompanion(
+                idUsuario: idUsuario,
                 email: email,
-                colorValue: colorValue,
-                colorIndex: colorIndex,
-                accessToken: accessToken,
-                tokenExpiry: tokenExpiry,
-                connectedAt: connectedAt,
+                valorColor: valorColor,
+                indiceColor: indiceColor,
+                tokenAcceso: tokenAcceso,
+                expiracionToken: expiracionToken,
+                conectadaEl: conectadaEl,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
+                required String idUsuario,
                 required String email,
-                required int colorValue,
-                Value<int> colorIndex = const Value.absent(),
-                Value<String> accessToken = const Value.absent(),
-                Value<DateTime?> tokenExpiry = const Value.absent(),
-                Value<DateTime?> connectedAt = const Value.absent(),
+                required int valorColor,
+                Value<int> indiceColor = const Value.absent(),
+                Value<String> tokenAcceso = const Value.absent(),
+                Value<DateTime?> expiracionToken = const Value.absent(),
+                Value<DateTime?> conectadaEl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalCalendarAccountsCompanion.insert(
+              }) => AccountsTableCompanion.insert(
+                idUsuario: idUsuario,
                 email: email,
-                colorValue: colorValue,
-                colorIndex: colorIndex,
-                accessToken: accessToken,
-                tokenExpiry: tokenExpiry,
-                connectedAt: connectedAt,
+                valorColor: valorColor,
+                indiceColor: indiceColor,
+                tokenAcceso: tokenAcceso,
+                expiracionToken: expiracionToken,
+                conectadaEl: conectadaEl,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2107,227 +2271,244 @@ class $$LocalCalendarAccountsTableTableManager
       );
 }
 
-typedef $$LocalCalendarAccountsTableProcessedTableManager =
+typedef $$AccountsTableTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $LocalCalendarAccountsTable,
-      LocalCalendarAccount,
-      $$LocalCalendarAccountsTableFilterComposer,
-      $$LocalCalendarAccountsTableOrderingComposer,
-      $$LocalCalendarAccountsTableAnnotationComposer,
-      $$LocalCalendarAccountsTableCreateCompanionBuilder,
-      $$LocalCalendarAccountsTableUpdateCompanionBuilder,
+      $AccountsTableTable,
+      AccountsTableData,
+      $$AccountsTableTableFilterComposer,
+      $$AccountsTableTableOrderingComposer,
+      $$AccountsTableTableAnnotationComposer,
+      $$AccountsTableTableCreateCompanionBuilder,
+      $$AccountsTableTableUpdateCompanionBuilder,
       (
-        LocalCalendarAccount,
-        BaseReferences<
-          _$AppDatabase,
-          $LocalCalendarAccountsTable,
-          LocalCalendarAccount
-        >,
+        AccountsTableData,
+        BaseReferences<_$AppDatabase, $AccountsTableTable, AccountsTableData>,
       ),
-      LocalCalendarAccount,
+      AccountsTableData,
       PrefetchHooks Function()
     >;
-typedef $$LocalCalendarsTableCreateCompanionBuilder =
-    LocalCalendarsCompanion Function({
+typedef $$CalendarsTableTableCreateCompanionBuilder =
+    CalendarsTableCompanion Function({
+      required String idUsuario,
       required String id,
-      required String accountEmail,
-      Value<String> summary,
-      Value<String?> backgroundColor,
-      Value<String> accessRole,
-      Value<bool> isVisible,
+      required String emailCuenta,
+      Value<String> resumen,
+      Value<String?> colorFondo,
+      Value<String> rolAcceso,
+      Value<bool> esVisible,
       Value<int> rowid,
     });
-typedef $$LocalCalendarsTableUpdateCompanionBuilder =
-    LocalCalendarsCompanion Function({
+typedef $$CalendarsTableTableUpdateCompanionBuilder =
+    CalendarsTableCompanion Function({
+      Value<String> idUsuario,
       Value<String> id,
-      Value<String> accountEmail,
-      Value<String> summary,
-      Value<String?> backgroundColor,
-      Value<String> accessRole,
-      Value<bool> isVisible,
+      Value<String> emailCuenta,
+      Value<String> resumen,
+      Value<String?> colorFondo,
+      Value<String> rolAcceso,
+      Value<bool> esVisible,
       Value<int> rowid,
     });
 
-class $$LocalCalendarsTableFilterComposer
-    extends Composer<_$AppDatabase, $LocalCalendarsTable> {
-  $$LocalCalendarsTableFilterComposer({
+class $$CalendarsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CalendarsTableTable> {
+  $$CalendarsTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get accountEmail => $composableBuilder(
-    column: $table.accountEmail,
+  ColumnFilters<String> get emailCuenta => $composableBuilder(
+    column: $table.emailCuenta,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get summary => $composableBuilder(
-    column: $table.summary,
+  ColumnFilters<String> get resumen => $composableBuilder(
+    column: $table.resumen,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get backgroundColor => $composableBuilder(
-    column: $table.backgroundColor,
+  ColumnFilters<String> get colorFondo => $composableBuilder(
+    column: $table.colorFondo,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get accessRole => $composableBuilder(
-    column: $table.accessRole,
+  ColumnFilters<String> get rolAcceso => $composableBuilder(
+    column: $table.rolAcceso,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isVisible => $composableBuilder(
-    column: $table.isVisible,
+  ColumnFilters<bool> get esVisible => $composableBuilder(
+    column: $table.esVisible,
     builder: (column) => ColumnFilters(column),
   );
 }
 
-class $$LocalCalendarsTableOrderingComposer
-    extends Composer<_$AppDatabase, $LocalCalendarsTable> {
-  $$LocalCalendarsTableOrderingComposer({
+class $$CalendarsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CalendarsTableTable> {
+  $$CalendarsTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get idUsuario => $composableBuilder(
+    column: $table.idUsuario,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get accountEmail => $composableBuilder(
-    column: $table.accountEmail,
+  ColumnOrderings<String> get emailCuenta => $composableBuilder(
+    column: $table.emailCuenta,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get summary => $composableBuilder(
-    column: $table.summary,
+  ColumnOrderings<String> get resumen => $composableBuilder(
+    column: $table.resumen,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get backgroundColor => $composableBuilder(
-    column: $table.backgroundColor,
+  ColumnOrderings<String> get colorFondo => $composableBuilder(
+    column: $table.colorFondo,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get accessRole => $composableBuilder(
-    column: $table.accessRole,
+  ColumnOrderings<String> get rolAcceso => $composableBuilder(
+    column: $table.rolAcceso,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isVisible => $composableBuilder(
-    column: $table.isVisible,
+  ColumnOrderings<bool> get esVisible => $composableBuilder(
+    column: $table.esVisible,
     builder: (column) => ColumnOrderings(column),
   );
 }
 
-class $$LocalCalendarsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $LocalCalendarsTable> {
-  $$LocalCalendarsTableAnnotationComposer({
+class $$CalendarsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CalendarsTableTable> {
+  $$CalendarsTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get idUsuario =>
+      $composableBuilder(column: $table.idUsuario, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get accountEmail => $composableBuilder(
-    column: $table.accountEmail,
+  GeneratedColumn<String> get emailCuenta => $composableBuilder(
+    column: $table.emailCuenta,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get summary =>
-      $composableBuilder(column: $table.summary, builder: (column) => column);
+  GeneratedColumn<String> get resumen =>
+      $composableBuilder(column: $table.resumen, builder: (column) => column);
 
-  GeneratedColumn<String> get backgroundColor => $composableBuilder(
-    column: $table.backgroundColor,
+  GeneratedColumn<String> get colorFondo => $composableBuilder(
+    column: $table.colorFondo,
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get accessRole => $composableBuilder(
-    column: $table.accessRole,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get rolAcceso =>
+      $composableBuilder(column: $table.rolAcceso, builder: (column) => column);
 
-  GeneratedColumn<bool> get isVisible =>
-      $composableBuilder(column: $table.isVisible, builder: (column) => column);
+  GeneratedColumn<bool> get esVisible =>
+      $composableBuilder(column: $table.esVisible, builder: (column) => column);
 }
 
-class $$LocalCalendarsTableTableManager
+class $$CalendarsTableTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $LocalCalendarsTable,
-          LocalCalendar,
-          $$LocalCalendarsTableFilterComposer,
-          $$LocalCalendarsTableOrderingComposer,
-          $$LocalCalendarsTableAnnotationComposer,
-          $$LocalCalendarsTableCreateCompanionBuilder,
-          $$LocalCalendarsTableUpdateCompanionBuilder,
+          $CalendarsTableTable,
+          CalendarsTableData,
+          $$CalendarsTableTableFilterComposer,
+          $$CalendarsTableTableOrderingComposer,
+          $$CalendarsTableTableAnnotationComposer,
+          $$CalendarsTableTableCreateCompanionBuilder,
+          $$CalendarsTableTableUpdateCompanionBuilder,
           (
-            LocalCalendar,
-            BaseReferences<_$AppDatabase, $LocalCalendarsTable, LocalCalendar>,
+            CalendarsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CalendarsTableTable,
+              CalendarsTableData
+            >,
           ),
-          LocalCalendar,
+          CalendarsTableData,
           PrefetchHooks Function()
         > {
-  $$LocalCalendarsTableTableManager(
+  $$CalendarsTableTableTableManager(
     _$AppDatabase db,
-    $LocalCalendarsTable table,
+    $CalendarsTableTable table,
   ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$LocalCalendarsTableFilterComposer($db: db, $table: table),
+              $$CalendarsTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$LocalCalendarsTableOrderingComposer($db: db, $table: table),
+              $$CalendarsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$LocalCalendarsTableAnnotationComposer($db: db, $table: table),
+              $$CalendarsTableTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> idUsuario = const Value.absent(),
                 Value<String> id = const Value.absent(),
-                Value<String> accountEmail = const Value.absent(),
-                Value<String> summary = const Value.absent(),
-                Value<String?> backgroundColor = const Value.absent(),
-                Value<String> accessRole = const Value.absent(),
-                Value<bool> isVisible = const Value.absent(),
+                Value<String> emailCuenta = const Value.absent(),
+                Value<String> resumen = const Value.absent(),
+                Value<String?> colorFondo = const Value.absent(),
+                Value<String> rolAcceso = const Value.absent(),
+                Value<bool> esVisible = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalCalendarsCompanion(
+              }) => CalendarsTableCompanion(
+                idUsuario: idUsuario,
                 id: id,
-                accountEmail: accountEmail,
-                summary: summary,
-                backgroundColor: backgroundColor,
-                accessRole: accessRole,
-                isVisible: isVisible,
+                emailCuenta: emailCuenta,
+                resumen: resumen,
+                colorFondo: colorFondo,
+                rolAcceso: rolAcceso,
+                esVisible: esVisible,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
+                required String idUsuario,
                 required String id,
-                required String accountEmail,
-                Value<String> summary = const Value.absent(),
-                Value<String?> backgroundColor = const Value.absent(),
-                Value<String> accessRole = const Value.absent(),
-                Value<bool> isVisible = const Value.absent(),
+                required String emailCuenta,
+                Value<String> resumen = const Value.absent(),
+                Value<String?> colorFondo = const Value.absent(),
+                Value<String> rolAcceso = const Value.absent(),
+                Value<bool> esVisible = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => LocalCalendarsCompanion.insert(
+              }) => CalendarsTableCompanion.insert(
+                idUsuario: idUsuario,
                 id: id,
-                accountEmail: accountEmail,
-                summary: summary,
-                backgroundColor: backgroundColor,
-                accessRole: accessRole,
-                isVisible: isVisible,
+                emailCuenta: emailCuenta,
+                resumen: resumen,
+                colorFondo: colorFondo,
+                rolAcceso: rolAcceso,
+                esVisible: esVisible,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2338,31 +2519,31 @@ class $$LocalCalendarsTableTableManager
       );
 }
 
-typedef $$LocalCalendarsTableProcessedTableManager =
+typedef $$CalendarsTableTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $LocalCalendarsTable,
-      LocalCalendar,
-      $$LocalCalendarsTableFilterComposer,
-      $$LocalCalendarsTableOrderingComposer,
-      $$LocalCalendarsTableAnnotationComposer,
-      $$LocalCalendarsTableCreateCompanionBuilder,
-      $$LocalCalendarsTableUpdateCompanionBuilder,
+      $CalendarsTableTable,
+      CalendarsTableData,
+      $$CalendarsTableTableFilterComposer,
+      $$CalendarsTableTableOrderingComposer,
+      $$CalendarsTableTableAnnotationComposer,
+      $$CalendarsTableTableCreateCompanionBuilder,
+      $$CalendarsTableTableUpdateCompanionBuilder,
       (
-        LocalCalendar,
-        BaseReferences<_$AppDatabase, $LocalCalendarsTable, LocalCalendar>,
+        CalendarsTableData,
+        BaseReferences<_$AppDatabase, $CalendarsTableTable, CalendarsTableData>,
       ),
-      LocalCalendar,
+      CalendarsTableData,
       PrefetchHooks Function()
     >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$LocalTasksTableTableManager get localTasks =>
-      $$LocalTasksTableTableManager(_db, _db.localTasks);
-  $$LocalCalendarAccountsTableTableManager get localCalendarAccounts =>
-      $$LocalCalendarAccountsTableTableManager(_db, _db.localCalendarAccounts);
-  $$LocalCalendarsTableTableManager get localCalendars =>
-      $$LocalCalendarsTableTableManager(_db, _db.localCalendars);
+  $$TasksTableTableTableManager get tasksTable =>
+      $$TasksTableTableTableManager(_db, _db.tasksTable);
+  $$AccountsTableTableTableManager get accountsTable =>
+      $$AccountsTableTableTableManager(_db, _db.accountsTable);
+  $$CalendarsTableTableTableManager get calendarsTable =>
+      $$CalendarsTableTableTableManager(_db, _db.calendarsTable);
 }

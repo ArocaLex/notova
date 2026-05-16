@@ -7,15 +7,27 @@ import '../models/calendar_event.dart';
 import '../viewmodel/calendar_viewmodel.dart';
 import '../theme/app_colors.dart';
 
-/// Muestra la lista completa de eventos del día seleccionado en el calendario.
+/// Muestra los próximos eventos de los siguientes 7 días.
 class AllEventsScreen extends StatelessWidget {
   const AllEventsScreen({super.key});
+
+  String _dayLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = d.difference(today).inDays;
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Mañana';
+    const wd = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const mo = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return '${wd[date.weekday - 1]} ${date.day} ${mo[date.month - 1]}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final isSignedIn = context.select((CalendarViewModel vm) => vm.isSignedIn);
-    final events = context.select((CalendarViewModel vm) => vm.events);
+    final estaIdentificado = context.select((CalendarViewModel vm) => vm.isSignedIn);
+    final eventos = context.select((CalendarViewModel vm) => vm.upcomingEvents);
     final vm = context.read<CalendarViewModel>();
 
     return Scaffold(
@@ -41,30 +53,12 @@ class AllEventsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s.get('todays_schedule'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${events.length} ${s.get('today_events').toLowerCase()}',
-                          style: TextStyle(
-                            color: AppColors.neonCyan.withOpacity(0.7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  Text(
+                    s.get('todays_schedule'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -91,7 +85,7 @@ class AllEventsScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             Expanded(
-              child: !isSignedIn
+              child: !estaIdentificado
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -108,7 +102,7 @@ class AllEventsScreen extends StatelessWidget {
                         ],
                       ),
                     )
-                  : events.isEmpty
+                  : eventos.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -127,10 +121,10 @@ class AllEventsScreen extends StatelessWidget {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: events.length,
+                          itemCount: eventos.length,
                           itemBuilder: (context, index) {
-                            return _buildEventItem(
-                                context, events[index], vm);
+                            return _filaEvento(
+                                context, eventos[index], vm);
                           },
                         ),
             ),
@@ -140,20 +134,22 @@ class AllEventsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEventItem(
+  Widget _filaEvento(
     BuildContext context,
     CalendarEvent event,
     CalendarViewModel vm,
   ) {
     final color = vm.calendarColor(event.calendarId);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
-        boxShadow: [
+    return GestureDetector(
+      onTap: () => Navigator.pop(context, event),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+          boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.1),
             blurRadius: 10,
@@ -183,7 +179,7 @@ class AllEventsScreen extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -191,14 +187,32 @@ class AllEventsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            event.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  event.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (event.start != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  _dayLabel(event.start!),
+                                  style: TextStyle(
+                                    color: color.withOpacity(0.85),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           if (event.location != null &&
                               event.location!.isNotEmpty) ...[
@@ -206,14 +220,14 @@ class AllEventsScreen extends StatelessWidget {
                             Row(
                               children: [
                                 Icon(Icons.location_on_outlined,
-                                    color: Colors.grey.shade500, size: 13),
+                                    color: AppColors.textMuted, size: 13),
                                 const SizedBox(width: 3),
                                 Expanded(
                                   child: Text(
                                     event.location!,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -225,23 +239,14 @@ class AllEventsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: color.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        event.isAllDay
-                            ? 'Todo el día'
-                            : event.formattedTimeRange,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      event.isAllDay
+                          ? 'Todo el día'
+                          : event.formattedTime,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -251,6 +256,7 @@ class AllEventsScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
+

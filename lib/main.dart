@@ -30,13 +30,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TasksViewModel()),
         ChangeNotifierProvider(create: (_) => CalendarViewModel()),
       ],
-      child: const NotovaApp(),
+      child: const AppNotova(),
     ),
   );
 }
 
-class NotovaApp extends StatelessWidget {
-  const NotovaApp({super.key});
+class AppNotova extends StatelessWidget {
+  const AppNotova({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -11,105 +11,138 @@ import '../repositories/audio_repository.dart';
 import '../repositories/notification_repository.dart';
 import '../repositories/task_repository.dart';
 import '../repositories/user_repository.dart';
+import '../services/daily_counter_service.dart';
 
-/// ViewModel de tareas — offline-first real.
+/// ViewModel de tareas (quests).
 ///
-/// SQLite es la fuente de verdad. Cada mutación:
-///   1. Escribe en SQLite (síncrono, marcado pendingPush).
-///   2. Actualiza la lista en memoria y notifica.
-///   3. Empuja a Firestore en background (`unawaited`). Si falla, queda
-///      `pendingPush=true` y se reintenta en el próximo arranque/refresh.
-///
-/// Los efectos secundarios (audio, notificaciones, racha) van cada uno en
-/// su propio try/catch para que un fallo en ellos NUNCA cause rollback de
-/// la mutación. Esto arregla el bug en el que completar una tarea sumaba
-/// XP pero la dejaba en pendientes.
+/// Mantiene listas locales de tareas pendientes y completadas, y orquesta
+/// el flujo offline-first: SQLite es source of truth de la UI; Firestore se
+/// sincroniza en background.
 class TasksViewModel extends ChangeNotifier {
-  late final TasksRepository _repository;
+  late final TaskRepository _repository;
   late final UserRepository _userRepository;
   late final AudioRepository _audioRepository;
   late final NotificationRepository _notificationRepository;
   late final AppDatabase _db;
 
-  StreamSubscription<User?>? _authSub;
+  StreamSubscription<firebase_auth.User?>? _authSub;
+  Timer? _midnightTimer;
 
   List<TaskModel> pending = [];
   List<TaskModel> completed = [];
   bool isLoading = true;
   String? errorMessage;
 
-  /// Contador de tareas completadas hoy. Solo aumenta, nunca baja al eliminar,
-  /// para que borrar una tarea completada no reduzca el progreso diario.
-  int _completedTodayCount = 0; // ignore: prefer_final_fields
+  int _completedTodayCount = 0;
+  late final DailyCounterService _dailyCounter;
 
-  /// Fecha del último reset del contador diario (para evitar desincronización).
-  DateTime? _lastDailyReset;
+  String? get _userId =>
+      firebase_auth.FirebaseAuth.instance.currentUser?.uid;
 
-  /// Devuelve las tareas completadas el día de hoy
-  List<TaskModel> get completedToday {
+  /// Tareas pendientes con fecha de vencimiento en los próximos 7 días,
+  /// ordenadas de más cercana a más lejana.
+  List<TaskModel> get pendingNext7Days {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-
-    // Reset automático del contador si cambió el día
-    if (_lastDailyReset == null || !_isSameDay(_lastDailyReset!, today)) {
-      _completedTodayCount = completed.where((t) =>
-          t.completedAt != null &&
-          t.completedAt!.year == today.year &&
-          t.completedAt!.month == today.month &&
-          t.completedAt!.day == today.day).length;
-      _lastDailyReset = today;
-    }
-
-    return completed.where((t) =>
-        t.completedAt != null &&
-        t.completedAt!.year == now.year &&
-        t.completedAt!.month == now.month &&
-        t.completedAt!.day == now.day).toList();
+    final limit = DateTime(now.year, now.month, now.day + 7, 23, 59, 59);
+    return pending
+        .where((t) =>
+            t.dueDate != null &&
+            !t.dueDate!.isBefore(today) &&
+            !t.dueDate!.isAfter(limit))
+        .toList()
+      ..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
   }
 
-  /// Calcula el progreso diario. Usa [_completedTodayCount] como numerador
-  /// para que eliminar tareas completadas no reduzca el progreso.
+  /// Tareas completadas hoy — filtro puro sin efectos secundarios.
+  List<TaskModel> get completedToday {
+    final now = DateTime.now();
+    return completed
+        .where(
+          (t) =>
+              t.completedAt != null &&
+              t.completedAt!.year == now.year &&
+              t.completedAt!.month == now.month &&
+              t.completedAt!.day == now.day,
+        )
+        .toList();
+  }
+
   double get dailyProgress {
     final total = _completedTodayCount + pending.length;
     return total > 0 ? _completedTodayCount / total : 0.0;
   }
 
-  /// Numerador estable del progreso diario mostrado en UI.
   int get completedTodayProgressCount => _completedTodayCount;
-
-  /// Denominador estable del progreso diario mostrado en UI.
   int get totalDailyProgressCount => _completedTodayCount + pending.length;
 
   TasksViewModel({
-    TasksRepository? repository,
+    TaskRepository? repository,
     UserRepository? userRepository,
     AudioRepository? audioRepository,
     NotificationRepository? notificationRepository,
     AppDatabase? db,
-  })  : _repository = repository ?? TasksRepository(),
+    DailyCounterService? dailyCounter,
+  })  : _repository = repository ?? TaskRepository(),
         _userRepository = userRepository ?? UserRepository(),
         _audioRepository = audioRepository ?? AudioRepository(),
         _notificationRepository =
             notificationRepository ?? NotificationRepository(),
-        _db = db ?? AppDatabase() {
-    _loadFromLocalThenSync();
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
-      _loadFromLocalThenSync();
+        _db = db ?? AppDatabase(),
+        _dailyCounter = dailyCounter ?? DailyCounterService() {
+    _authSub =
+        firebase_auth.FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        pending.clear();
+        completed.clear();
+        _completedTodayCount = 0;
+        isLoading = false;
+        _midnightTimer?.cancel();
+        _midnightTimer = null;
+        notifyListeners();
+      } else {
+        _loadFromLocalThenSync();
+      }
+    });
+  }
+
+  /// Programa un timer que se dispara justo después de las 00:00 para resetear
+  /// el contador diario y reprogramarse para el día siguiente.
+  void _scheduleMidnightReset() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final delay = tomorrow.difference(now) + const Duration(seconds: 1);
+    _midnightTimer = Timer(delay, () {
+      final uid = _userId;
+      if (uid != null) {
+        unawaited(_dailyCounter.resetForUser(uid));
+      }
+      _completedTodayCount = 0;
+      notifyListeners();
+      _scheduleMidnightReset();
     });
   }
 
   /// Carga inmediatamente desde SQLite y luego sincroniza con Firestore en
   /// segundo plano mediante [_backgroundSync].
   Future<void> _loadFromLocalThenSync() async {
+    final uid = _userId;
+    if (uid == null) return;
+
     isLoading = true;
     notifyListeners();
 
     try {
-      final localPending = await _db.getPendingTasks();
-      final localCompleted = await _db.getCompletedTasks();
-      pending = localPending.map(_localToModel).toList();
-      completed = localCompleted.map(_localToModel).toList();
-      _completedTodayCount = completedToday.length;
+      final dbResults = await Future.wait<List<TasksTableData>>([
+        _db.obtenerPendientes(uid),
+        _db.obtenerHechas(uid),
+      ]);
+      final p = dbResults[0].map(_rowToModel).toList();
+      _sortTasks(p);
+      pending = p;
+      completed = dbResults[1].map(_rowToModel).toList();
+      _completedTodayCount = await _dailyCounter.getCount(uid);
     } catch (e) {
       debugPrint('[TasksVM] Error reading local DB: $e');
     }
@@ -117,66 +150,69 @@ class TasksViewModel extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
 
+    _scheduleMidnightReset();
     unawaited(_backgroundSync());
   }
 
   /// Sincronización en segundo plano. Nunca lanza ni modifica `errorMessage`
   /// si la red no está disponible — el modo offline es funcional al 100%.
   Future<void> _backgroundSync() async {
+    final uid = _userId;
+    if (uid == null) return;
+
     try {
-      final pendingPush = await _db.getPendingPushTasks();
+      final pendingPush = await _db.obtenerPendientesSincro(uid);
       for (final row in pendingPush) {
         try {
-          if (row.isCompleted) {
-            await _repository.completeTask(row.id, row.xpReward);
+          if (row.estaTerminada) {
+            await _repository.completeTask(row.id, row.puntosXp);
           } else {
-            await _repository.setTask(
+            await _repository.saveTask(
               taskId: row.id,
-              title: row.title,
-              subtitle: row.subtitle,
-              priority: row.priority,
-              xpReward: row.xpReward,
-              isCompleted: row.isCompleted,
-              dueDate: row.dueDate,
-              createdAt: row.createdAt,
-              completedAt: row.completedAt,
+              title: row.titulo,
+              subtitle: row.subtitulo,
+              priority: row.prioridad,
+              xpReward: row.puntosXp,
+              isCompleted: row.estaTerminada,
+              dueDate: row.fechaTope,
+              createdAt: row.creadaEl,
+              completedAt: row.terminadaEl,
               color: row.color,
             );
           }
-          await _db.clearPendingPush(row.id);
+          await _db.limpiarPendienteSincro(uid, row.id);
         } catch (e) {
-          debugPrint('[TasksVM] push pending failed for ${row.id}: $e');
+          debugPrint('[TasksVM] Error pushing ${row.id}: $e');
         }
       }
     } catch (e) {
-      debugPrint('[TasksVM] background push failed: $e');
+      debugPrint('[TasksVM] Error en sincro background: $e');
     }
 
     try {
       final remote = await _repository.getAllTasks();
-      final companions = remote.map(_modelToCompanion).toList();
-      await _db.mergeFromFirestore(companions);
+      final companions = remote.map((m) => _modelToCompanion(uid, m)).toList();
+      await _db.fusionarDesdeNube(uid, companions);
 
-      final localPending = await _db.getPendingTasks();
-      final localCompleted = await _db.getCompletedTasks();
-      pending = localPending.map(_localToModel).toList();
-      completed = localCompleted.map(_localToModel).toList();
-      _completedTodayCount = completedToday.length;
+      final dbResults = await Future.wait<List<TasksTableData>>([
+        _db.obtenerPendientes(uid),
+        _db.obtenerHechas(uid),
+      ]);
+      final p = dbResults[0].map(_rowToModel).toList();
+      _sortTasks(p);
+      pending = p;
+      completed = dbResults[1].map(_rowToModel).toList();
       notifyListeners();
     } catch (e) {
-      debugPrint('[TasksVM] Firestore pull failed (offline?): $e');
+      debugPrint('[TasksVM] Error pulling from Firestore: $e');
     }
   }
 
-  /// Recarga las tareas desde SQLite y dispara una sincronización en
-  /// segundo plano.
   Future<void> refresh() => _loadFromLocalThenSync();
 
-  /// Crea una nueva tarea y la persiste en SQLite como fuente de verdad.
-  ///
-  /// El ID se genera localmente para no depender de la red. La tarea se
-  /// empuja a Firestore en background marcada con `pendingPush`. Retorna
-  /// `true` si la operación local fue exitosa.
+  void checkStreakOnView() => _updateStreak();
+
+  /// Crea una nueva tarea local + Firestore.
   Future<bool> createTask(
     String title,
     String subtitle,
@@ -185,17 +221,14 @@ class TasksViewModel extends ChangeNotifier {
     DateTime? dueDate,
     String? color,
   }) async {
-    errorMessage = null;
+    final uid = _userId;
+    if (uid == null) return false;
 
-    final taskId = _repository.generateTaskId();
-    if (taskId == null) {
-      errorMessage = 'Tienes que iniciar sesión para crear quests.';
-      notifyListeners();
-      return false;
-    }
+    final newId = _repository.generateId();
+    if (newId == null) return false;
 
-    final task = TaskModel(
-      id: taskId,
+    final t = TaskModel(
+      id: newId,
       title: title,
       subtitle: subtitle,
       priority: priority,
@@ -207,34 +240,30 @@ class TasksViewModel extends ChangeNotifier {
     );
 
     try {
-      await _db.upsertTask(_modelToCompanion(task, pendingPush: true));
-    } catch (e) {
-      errorMessage = 'No se pudo guardar la quest localmente.';
-      notifyListeners();
+      await _db.insertarTarea(_modelToCompanion(uid, t, pending: true));
+    } catch (_) {
       return false;
     }
 
-    pending.insert(0, task);
+    final p = [t, ...pending];
+    _sortTasks(p);
+    pending = p;
     notifyListeners();
 
-    _safeNotify(
-      title: '🎯 Nueva Quest añadida',
+    _showLocalNotification(
+      title: '🎯 Tarea añadida',
       body: '"$title" — ¡a por ella!',
-      id: '${taskId}_created'.hashCode,
+      id: '${newId}_created'.hashCode,
     );
     if (dueDate != null) {
-      _safeScheduleReminder(taskId: taskId, title: title, dueDate: dueDate);
+      _scheduleReminder(taskId: newId, title: title, dueDate: dueDate);
     }
 
-    unawaited(_pushTask(task));
+    unawaited(_pushToCloud(uid, t));
 
     return true;
   }
 
-  /// Actualiza los campos de una tarea existente, persiste el cambio en
-  /// SQLite y empuja a Firestore en background.
-  ///
-  /// Retorna `true` si la actualización local fue exitosa.
   Future<bool> updateTask(
     String taskId,
     String title,
@@ -244,11 +273,12 @@ class TasksViewModel extends ChangeNotifier {
     DateTime? dueDate,
     String? color,
   }) async {
-    errorMessage = null;
+    final uid = _userId;
+    if (uid == null) return false;
 
-    final idx = pending.indexWhere((t) => t.id == taskId);
-    if (idx == -1) return false;
-    final updated = pending[idx].copyWith(
+    final index = pending.indexWhere((t) => t.id == taskId);
+    if (index == -1) return false;
+    final edited = pending[index].copyWith(
       title: title,
       subtitle: subtitle,
       priority: priority,
@@ -258,65 +288,65 @@ class TasksViewModel extends ChangeNotifier {
     );
 
     try {
-      await _db.upsertTask(_modelToCompanion(updated, pendingPush: true));
-    } catch (e) {
-      errorMessage = 'No se pudieron guardar los cambios.';
-      notifyListeners();
+      await _db.insertarTarea(_modelToCompanion(uid, edited, pending: true));
+    } catch (_) {
       return false;
     }
 
-    pending[idx] = updated;
+    final p = List<TaskModel>.from(pending);
+    p[index] = edited;
+    _sortTasks(p);
+    pending = p;
     notifyListeners();
 
-    _safeCancelReminder(taskId);
+    _cancelReminder(taskId);
     if (dueDate != null) {
-      _safeScheduleReminder(taskId: taskId, title: title, dueDate: dueDate);
+      _scheduleReminder(taskId: taskId, title: title, dueDate: dueDate);
     }
 
-    unawaited(_pushTask(updated));
+    unawaited(_pushToCloud(uid, edited));
     return true;
   }
 
-  /// Marca la tarea como completada. SQLite + UI son la fuente de verdad;
-  /// Firestore y efectos secundarios viajan en segundo plano y nunca
-  /// causan rollback (era el bug).
+  /// Marca la tarea como completada. Devuelve `true` si subió de nivel.
   Future<bool> toggleTaskCompletion(String taskId, int xpReward) async {
-    final idx = pending.indexWhere((t) => t.id == taskId);
-    if (idx == -1) return false;
-    final task = pending[idx];
-    final completedTask = task.copyWith(
-      isCompleted: true,
-      completedAt: DateTime.now(),
-    );
+    final uid = _userId;
+    if (uid == null) return false;
+
+    final index = pending.indexWhere((t) => t.id == taskId);
+    if (index == -1) return false;
+    final t = pending[index];
+    final completedTask =
+        t.copyWith(isCompleted: true, completedAt: DateTime.now());
 
     try {
-      await _db.markCompleted(taskId, needsPush: true);
-    } catch (e) {
-      errorMessage = 'No se pudo completar la quest localmente.';
-      notifyListeners();
+      await _db.marcarTerminada(uid, taskId, necesitaSubir: true);
+    } catch (_) {
       return false;
     }
 
-    pending.removeAt(idx);
-    completed.insert(0, completedTask);
+    final newPending = List<TaskModel>.from(pending)..removeAt(index);
+    pending = newPending;
+    completed = [completedTask, ...completed];
     _completedTodayCount++;
+    unawaited(_dailyCounter.increment(uid));
     notifyListeners();
 
     bool didLevelUp = false;
     try {
       didLevelUp = await _repository.completeTask(taskId, xpReward);
-      await _db.clearPendingPush(taskId);
+      await _db.limpiarPendienteSincro(uid, taskId);
     } catch (e) {
-      debugPrint('[TasksVM] Firestore complete failed (offline?): $e');
+      debugPrint('[TasksVM] Error en Firestore: $e');
     }
 
-    _safeCancelReminder(taskId);
-    _safeUpdateStreak();
-    _safeCheckBadges();
-    _safePlayTaskComplete();
-    if (didLevelUp) _safePlayLevelUp();
-    _safeNotify(
-      title: '✅ Quest completada',
+    _cancelReminder(taskId);
+    _updateStreak();
+    _refreshBadges();
+    _playCompletedSound();
+    if (didLevelUp) _playLevelUpSound();
+    _showLocalNotification(
+      title: '✅ Tarea completada',
       body: '"${completedTask.title}" — +${completedTask.xpReward} XP',
       id: '${taskId}_done'.hashCode,
     );
@@ -324,91 +354,91 @@ class TasksViewModel extends ChangeNotifier {
     return didLevelUp;
   }
 
-  /// Elimina permanentemente una tarea completada de SQLite y de Firestore.
-  ///
-  /// La eliminación local es inmediata; Firestore se actualiza en background.
   Future<void> deleteTask(String taskId) async {
-    try {
-      await _db.deleteTask(taskId);
-    } catch (e) {
-      debugPrint('[TasksVM] deleteTask local failed: $e');
-      return;
-    }
-    completed.removeWhere((t) => t.id == taskId);
+    final uid = _userId;
+    if (uid == null) return;
+
+    completed = List.from(completed)..removeWhere((t) => t.id == taskId);
+    pending = List.from(pending)..removeWhere((t) => t.id == taskId);
     notifyListeners();
+
     unawaited(() async {
+      try {
+        await _db.borrarTarea(uid, taskId);
+      } catch (e) {
+        debugPrint('[TasksVM] Error borrar local: $e');
+      }
       try {
         await _repository.deleteTask(taskId);
       } catch (e) {
-        debugPrint('[TasksVM] deleteTask Firestore failed: $e');
+        debugPrint('[TasksVM] Error borrar Firestore: $e');
       }
     }());
   }
 
-  /// Elimina todas las tareas completadas de SQLite y de Firestore.
   Future<void> deleteAllCompleted() async {
+    final uid = _userId;
+    if (uid == null) return;
+
     final ids = completed.map((t) => t.id).toList();
-    for (final id in ids) {
-      try {
-        await _db.deleteTask(id);
-      } catch (_) {}
-    }
-    completed.clear();
+    completed = [];
     notifyListeners();
-    for (final id in ids) {
-      unawaited(() async {
+
+    unawaited(() async {
+      for (final id in ids) {
+        try {
+          await _db.borrarTarea(uid, id);
+        } catch (_) {}
         try {
           await _repository.deleteTask(id);
         } catch (_) {}
-      }());
-    }
-  }
-
-  /// Verifica y actualiza la racha diaria del usuario.
-  Future<void> checkStreakOnView() async {
-    await _userRepository.checkAndUpdateStreak();
-  }
-
-  /// Empuja una [TaskModel] a Firestore y, si tiene éxito, limpia la marca
-  /// `pendingPush` en SQLite.
-  Future<void> _pushTask(TaskModel task) async {
-    try {
-      if (task.isCompleted) {
-        await _repository.completeTask(task.id, task.xpReward);
-      } else {
-        await _repository.setTask(
-          taskId: task.id,
-          title: task.title,
-          subtitle: task.subtitle,
-          priority: task.priority,
-          xpReward: task.xpReward,
-          isCompleted: task.isCompleted,
-          dueDate: task.dueDate,
-          createdAt: task.createdAt,
-          completedAt: task.completedAt,
-          color: task.color,
-        );
-      }
-      await _db.clearPendingPush(task.id);
-    } catch (e) {
-      debugPrint('[TasksVM] _pushTask failed for ${task.id}: $e');
-    }
-  }
-
-  /// Muestra una notificación instantánea sin propagar el error si falla.
-  void _safeNotify({required String title, required String body, int? id}) {
-    unawaited(() async {
-      try {
-        await _notificationRepository.showInstant(
-            title: title, body: body, id: id);
-      } catch (e) {
-        debugPrint('[TasksVM] notify failed: $e');
       }
     }());
   }
 
-  /// Programa un recordatorio para la tarea sin propagar el error si falla.
-  void _safeScheduleReminder({
+  Future<void> _pushToCloud(String uid, TaskModel t) async {
+    try {
+      if (t.isCompleted) {
+        await _repository.completeTask(t.id, t.xpReward);
+      } else {
+        await _repository.saveTask(
+          taskId: t.id,
+          title: t.title,
+          subtitle: t.subtitle,
+          priority: t.priority,
+          xpReward: t.xpReward,
+          isCompleted: t.isCompleted,
+          dueDate: t.dueDate,
+          createdAt: t.createdAt,
+          completedAt: t.completedAt,
+          color: t.color,
+        );
+      }
+      await _db.limpiarPendienteSincro(uid, t.id);
+    } catch (e) {
+      debugPrint('[TasksVM] Fallo al subir tarea ${t.id}: $e');
+    }
+  }
+
+  void _showLocalNotification({
+    required String title,
+    required String body,
+    int? id,
+  }) {
+    unawaited(() async {
+      try {
+        await _notificationRepository.showImmediate(
+          title: title,
+          body: body,
+          id: id,
+        );
+      } catch (e) {
+        debugPrint('[TasksVM] Fallo al notificar: $e');
+      }
+    }());
+  }
+
+  void _scheduleReminder({
     required String taskId,
     required String title,
     required DateTime dueDate,
@@ -416,113 +446,120 @@ class TasksViewModel extends ChangeNotifier {
     unawaited(() async {
       try {
         await _notificationRepository.scheduleTaskReminder(
-            taskId: taskId, title: title, dueDate: dueDate);
+          taskId: taskId,
+          title: title,
+          dueDate: dueDate,
+        );
       } catch (e) {
-        debugPrint('[TasksVM] schedule reminder failed: $e');
+        debugPrint('[TasksVM] Fallo al programar aviso: $e');
       }
     }());
   }
 
-  /// Cancela el recordatorio de la tarea sin propagar el error si falla.
-  void _safeCancelReminder(String taskId) {
+  void _cancelReminder(String taskId) {
     unawaited(() async {
       try {
         await _notificationRepository.cancelTaskReminder(taskId);
       } catch (e) {
-        debugPrint('[TasksVM] cancel reminder failed: $e');
+        debugPrint('[TasksVM] Fallo al cancelar aviso: $e');
       }
     }());
   }
 
-  /// Verifica y otorga badges tras completar una tarea.
-  void _safeCheckBadges() {
+  void _refreshBadges() {
     unawaited(() async {
       try {
-        await _userRepository.refreshAndCheckBadges();
+        await _userRepository.refreshBadges();
       } catch (e) {
-        debugPrint('[TasksVM] badge check failed: $e');
+        debugPrint('[TasksVM] Fallo al refrescar badges: $e');
       }
     }());
   }
 
-  /// Actualiza la racha diaria sin propagar el error si falla.
-  void _safeUpdateStreak() {
+  void _updateStreak() {
     unawaited(() async {
       try {
         await _userRepository.checkAndUpdateStreak();
       } catch (e) {
-        debugPrint('[TasksVM] streak update failed: $e');
+        debugPrint('[TasksVM] Fallo al actualizar racha: $e');
       }
     }());
   }
 
-  /// Reproduce el sonido de tarea completada sin propagar el error si falla.
-  void _safePlayTaskComplete() {
+  void _playCompletedSound() {
     unawaited(() async {
       try {
-        await _audioRepository.playTaskComplete();
+        await _audioRepository.playTaskCompleted();
       } catch (e) {
-        debugPrint('[TasksVM] audio task complete failed: $e');
+        debugPrint('[TasksVM] Fallo al sonar: $e');
       }
     }());
   }
 
-  /// Reproduce el sonido de subida de nivel sin propagar el error si falla.
-  void _safePlayLevelUp() {
+  void _playLevelUpSound() {
     unawaited(() async {
       try {
         await _audioRepository.playLevelUp();
       } catch (e) {
-        debugPrint('[TasksVM] audio level up failed: $e');
+        debugPrint('[TasksVM] Fallo al sonar subida: $e');
       }
     }());
   }
 
-  /// Convierte una fila [LocalTask] de SQLite a un [TaskModel] de dominio.
-  TaskModel _localToModel(LocalTask row) {
+  void _sortTasks(List<TaskModel> list) {
+    list.sort((a, b) {
+      if (a.dueDate != null && b.dueDate != null) {
+        return a.dueDate!.compareTo(b.dueDate!);
+      }
+      if (a.dueDate != null) return -1;
+      if (b.dueDate != null) return 1;
+      
+      final dateA = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final dateB = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return dateB.compareTo(dateA);
+    });
+  }
+
+  TaskModel _rowToModel(TasksTableData row) {
     return TaskModel(
       id: row.id,
-      title: row.title,
-      subtitle: row.subtitle,
-      priority: row.priority,
-      xpReward: row.xpReward,
-      isCompleted: row.isCompleted,
-      dueDate: row.dueDate,
-      createdAt: row.createdAt,
-      completedAt: row.completedAt,
+      title: row.titulo,
+      subtitle: row.subtitulo,
+      priority: row.prioridad,
+      xpReward: row.puntosXp,
+      isCompleted: row.estaTerminada,
+      dueDate: row.fechaTope,
+      createdAt: row.creadaEl,
+      completedAt: row.terminadaEl,
       color: row.color,
     );
   }
 
-  /// Convierte un [TaskModel] en un [LocalTasksCompanion] para drift.
-  ///
-  /// Si [pendingPush] es `true`, la fila queda marcada para ser enviada a
-  /// Firestore en la siguiente sincronización.
-  LocalTasksCompanion _modelToCompanion(TaskModel task,
-      {bool pendingPush = false}) {
-    return LocalTasksCompanion(
-      id: Value(task.id),
-      title: Value(task.title),
-      subtitle: Value(task.subtitle),
-      priority: Value(task.priority),
-      xpReward: Value(task.xpReward),
-      isCompleted: Value(task.isCompleted),
-      dueDate: Value(task.dueDate),
-      createdAt: Value(task.createdAt),
-      completedAt: Value(task.completedAt),
-      color: Value(task.color),
-      pendingPush: Value(pendingPush),
+  TasksTableCompanion _modelToCompanion(
+    String uid,
+    TaskModel t, {
+    bool pending = false,
+  }) {
+    return TasksTableCompanion(
+      idUsuario: Value(uid),
+      id: Value(t.id),
+      titulo: Value(t.title),
+      subtitulo: Value(t.subtitle),
+      prioridad: Value(t.priority),
+      puntosXp: Value(t.xpReward),
+      estaTerminada: Value(t.isCompleted),
+      fechaTope: Value(t.dueDate),
+      creadaEl: Value(t.createdAt),
+      terminadaEl: Value(t.completedAt),
+      color: Value(t.color),
+      pendienteSincro: Value(pending),
     );
-  }
-
-  /// Verifica si dos fechas corresponden al mismo día.
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   @override
   void dispose() {
     _authSub?.cancel();
+    _midnightTimer?.cancel();
     super.dispose();
   }
 }

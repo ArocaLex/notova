@@ -8,11 +8,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
-
 import '../l10n/app_strings.dart';
+import '../models/calendar_event.dart';
+import '../models/task_model.dart';
 import '../theme/app_colors.dart';
 import '../utils/tutorial_keys.dart';
 import '../viewmodel/calendar_viewmodel.dart';
+import '../viewmodel/task_viewmodel.dart';
 import '../widgets/tutorial_bridge_dialog.dart';
 import 'calendar_screen.dart';
 import 'home_screen.dart';
@@ -52,25 +54,41 @@ class MainScreen extends StatefulWidget {
   MainScreenState createState() => MainScreenState();
 }
 
-/// Estado de [MainScreen].
-///
-/// Usa [WidgetsBindingObserver] para detectar el retorno de la app desde
-/// background y reposicionar el calendario en el día de hoy cuando la
-/// pestaña activa es la de calendario.
 class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   /// Índice de la pestaña del calendario dentro de [_screens].
   static const int _calendarTabIndex = 1;
 
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    CalendarScreen(),
-    TasksScreen(),
-    ProfileScreen(),
+  final GlobalKey<CalendarScreenState> calendarKey = GlobalKey<CalendarScreenState>();
+  final GlobalKey<TasksScreenState> tasksKey = GlobalKey<TasksScreenState>();
+
+  late final List<Widget> _screens = [
+    const HomeScreen(),
+    CalendarScreen(key: calendarKey),
+    TasksScreen(key: tasksKey),
+    const ProfileScreen(),
   ];
 
   final List<GlobalKey> _navKeys = List.generate(4, (_) => GlobalKey());
+
+
+
+  void navigateToTask(TaskModel task) {
+    selectTab(2);
+    Future.delayed(const Duration(milliseconds: 250), () {
+      tasksKey.currentState?.abrirDialogoTarea(context, context.read<TasksViewModel>(), context.read<AppStrings>(), tareaAntigua: task);
+    });
+  }
+
+  void navigateToEvent(CalendarEvent event) {
+    selectTab(1);
+    if (event.start != null) {
+      final vm = context.read<CalendarViewModel>();
+      vm.onDateSelected(event.start!);
+      vm.onMonthChanged(DateTime(event.start!.year, event.start!.month, 1));
+    }
+  }
 
   @override
   void initState() {
@@ -91,8 +109,6 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       });
       return;
     }
-    // Para usuarios que ingresan por login (no onboarding): ofrecer tutorial
-    // si todavía no lo han visto.
     final prefs = await SharedPreferences.getInstance();
     final hasSeen = prefs.getBool('hasSeenFullTutorial') ?? false;
     if (!hasSeen && mounted) {
@@ -109,13 +125,21 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       setState(() => _currentIndex = 0);
       _showHomeTutorial();
     } else {
-      // Marcamos visto para no volver a preguntar.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasSeenFullTutorial', true);
     }
   }
 
-  void _showHomeTutorial() {
+  void _showHomeTutorial({int retry = 0}) {
+    if (TutorialKeys.homeXpCard.currentContext == null) {
+      if (retry < 20) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _showHomeTutorial(retry: retry + 1);
+        });
+      }
+      return;
+    }
+
     final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
@@ -126,6 +150,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           contents: [
             TargetContent(
               align: ContentAlign.bottom,
+              padding: const EdgeInsets.only(top: 250),
               builder: (context, controller) => _buildTutorialContent(
                 title: s.get('tutorial_home_title'),
                 desc: s.get('tutorial_home_desc'),
@@ -152,7 +177,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ).show(context: context);
   }
 
-  void _showCalendarTutorial() {
+  void _showCalendarTutorial({int retry = 0}) {
+    if (TutorialKeys.calAddEvent.currentContext == null) {
+      if (retry < 20) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _showCalendarTutorial(retry: retry + 1);
+        });
+      }
+      return;
+    }
+
     final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
@@ -162,8 +196,8 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           alignSkip: Alignment.bottomRight,
           contents: [
             TargetContent(
-              align: ContentAlign.bottom,
-              padding: const EdgeInsets.only(top: 40),
+              align: ContentAlign.top,
+              padding: const EdgeInsets.only(bottom:300),
               builder: (context, controller) => _buildTutorialContent(
                 title: s.get('tutorial_calendar_title'),
                 desc: s.get('tutorial_calendar_desc'),
@@ -190,7 +224,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ).show(context: context);
   }
 
-  void _showTasksTutorial() {
+  void _showTasksTutorial({int retry = 0}) {
+    if (TutorialKeys.tasksFab.currentContext == null) {
+      if (retry < 20) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _showTasksTutorial(retry: retry + 1);
+        });
+      }
+      return;
+    }
+
     final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
@@ -227,7 +270,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ).show(context: context);
   }
 
-  void _showProfileTutorial() {
+  void _showProfileTutorial({int retry = 0}) {
+    if (TutorialKeys.profileSettings.currentContext == null) {
+      if (retry < 20) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _showProfileTutorial(retry: retry + 1);
+        });
+      }
+      return;
+    }
+
     final s = context.read<AppStrings>();
     TutorialCoachMark(
       targets: [
@@ -296,22 +348,27 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// Al volver a primer plano con la pestaña calendario activa, reposiciona
-  /// el calendario en el día de hoy para que no quede "atascado" en una
-  /// fecha previamente seleccionada.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _currentIndex == _calendarTabIndex) {
-      context.read<CalendarViewModel>().resetToToday();
+    if (state == AppLifecycleState.resumed) {
+      if (_currentIndex == _calendarTabIndex) {
+        context.read<CalendarViewModel>().resetToToday();
+      } else if (_currentIndex == 0) {
+        context.read<CalendarViewModel>().refreshUpcoming();
+        context.read<TasksViewModel>().refresh();
+      }
     }
   }
 
-  /// Cambia la pestaña activa y, al entrar al calendario desde otra pestaña,
-  /// reposiciona la vista en el día de hoy.
+  void selectTab(int index) => _onTabTap(index);
+
   void _onTabTap(int index) {
     if (index == _calendarTabIndex && _currentIndex != _calendarTabIndex) {
       context.read<CalendarViewModel>().resetToToday();
+    }
+    if (index == 0 && _currentIndex != 0) {
+      context.read<CalendarViewModel>().refreshUpcoming();
+      context.read<TasksViewModel>().refresh();
     }
     setState(() => _currentIndex = index);
   }
@@ -463,7 +520,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           children: [
             Icon(
               icon,
-              color: isSelected ? primaryPurple : Colors.grey.shade600,
+              color: isSelected ? primaryPurple : Colors.grey.shade400,
               size: 26,
             ),
             AnimatedSize(

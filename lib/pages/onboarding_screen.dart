@@ -21,28 +21,28 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class OnboardingScreenState extends State<OnboardingScreen> {
-  final _controller = PageController();
-  int _currentPage = 0;
+  final _controlador = PageController();
+  int _paginaActual = 0;
 
   static const _bgColor = Color(0xFF120E1A);
   static const _primaryPurple = Color(0xFF7B2CBF);
 
-  static const _pageIcons = [
+  static const _iconosPagina = [
     Icons.bolt,
     Icons.military_tech_rounded,
     Icons.calendar_month_rounded,
   ];
-  static const _pageIconColors = [
+  static const _coloresIconoPagina = [
     Color(0xFFDEB7FF),
     Color(0xFFDEB7FF),
     Color(0xFF7B2CBF),
   ];
-  static const _pageTitleKeys = [
+  static const _clavesTituloPagina = [
     'onboarding_title_1',
     'onboarding_title_2',
     'onboarding_title_3',
   ];
-  static const _pageSubKeys = [
+  static const _clavesSubtituloPagina = [
     'onboarding_sub_1',
     'onboarding_sub_2',
     'onboarding_sub_3',
@@ -50,7 +50,7 @@ class OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controlador.dispose();
     super.dispose();
   }
 
@@ -87,15 +87,15 @@ class OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final pageCount = _pageIcons.length;
+    final cantidadPaginas = _iconosPagina.length;
 
-    final pages = List.generate(
-      pageCount,
-      (i) => _OnboardingPage(
-        icon: _pageIcons[i],
-        iconColor: _pageIconColors[i],
-        title: s.get(_pageTitleKeys[i]),
-        subtitle: s.get(_pageSubKeys[i]),
+    final paginas = List.generate(
+      cantidadPaginas,
+      (i) => _PaginaOnboarding(
+        icon: _iconosPagina[i],
+        iconColor: _coloresIconoPagina[i],
+        title: s.get(_clavesTituloPagina[i]),
+        subtitle: s.get(_clavesSubtituloPagina[i]),
       ),
     );
 
@@ -116,24 +116,24 @@ class OnboardingScreenState extends State<OnboardingScreen> {
 
             Expanded(
               child: PageView(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                children: pages,
+                controller: _controlador,
+                onPageChanged: (i) => setState(() => _paginaActual = i),
+                children: paginas,
               ),
             ),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(pageCount, (i) {
+              children: List.generate(cantidadPaginas, (i) {
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentPage == i ? 24 : 8,
+                  width: _paginaActual == i ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: _currentPage == i
+                    color: _paginaActual == i
                         ? _primaryPurple
-                        : Colors.grey.shade700,
+                        : Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 );
@@ -155,8 +155,8 @@ class OnboardingScreenState extends State<OnboardingScreen> {
                     shadowColor: _primaryPurple.withOpacity(0.4),
                   ),
                   onPressed: () {
-                    if (_currentPage < pageCount - 1) {
-                      _controller.nextPage(
+                    if (_paginaActual < cantidadPaginas - 1) {
+                      _controlador.nextPage(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOut,
                       );
@@ -165,7 +165,7 @@ class OnboardingScreenState extends State<OnboardingScreen> {
                     }
                   },
                   child: Text(
-                    _currentPage < pageCount - 1
+                    _paginaActual < cantidadPaginas - 1
                         ? s.get('next')
                         : s.get('start'),
                     style: const TextStyle(
@@ -184,13 +184,13 @@ class OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _OnboardingPage extends StatelessWidget {
+class _PaginaOnboarding extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
   final String subtitle;
 
-  const _OnboardingPage({
+  const _PaginaOnboarding({
     required this.icon,
     required this.iconColor,
     required this.title,
@@ -246,3 +246,4 @@ class _OnboardingPage extends StatelessWidget {
     );
   }
 }
+

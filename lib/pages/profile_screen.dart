@@ -23,7 +23,7 @@ import '../utils/tutorial_keys.dart';
 import 'main_screen.dart';
 import 'welcome_screen.dart';
 
-/// Pantalla de perfil del usuario.
+/// Pantalla de perfil del User.
 ///
 /// Permite editar nombre y avatar, gestionar ajustes (audio/notificaciones)
 /// y exportar el historial de quests mediante [ExportRepository].
@@ -45,7 +45,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   static const _textMuted = AppColors.textMuted;
 
   final _audio = AudioRepository();
-  final _export = ExportRepository();
+  final _exportar = ExportRepository();
 
   static const _badgeDefs = {
     'first_quest': (Icons.flag_rounded, 'badge_first_quest', Color(0xFF7B2CBF)),
@@ -56,7 +56,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     'nivel_7': (Icons.emoji_events, 'badge_nivel_7', Colors.amber),
   };
 
-  void _showExportSheet() {
+  void _hojaExportar() {
     final s = context.read<AppStrings>();
     showModalBottomSheet(
       context: context,
@@ -90,14 +90,14 @@ class ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.table_chart_outlined,
               label: s.get('export_csv'),
               color: _cyanAccent,
-              onTap: () => _doExport(sheetCtx, 'csv'),
+              onTap: () => _hacerExportacion(sheetCtx, 'csv'),
             ),
             const SizedBox(height: 10),
             _ExportButton(
               icon: Icons.text_snippet_outlined,
               label: s.get('export_txt'),
               color: const Color(0xFFDEB7FF),
-              onTap: () => _doExport(sheetCtx, 'txt'),
+              onTap: () => _hacerExportacion(sheetCtx, 'txt'),
             ),
           ],
         ),
@@ -105,31 +105,15 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _doExport(BuildContext sheetCtx, String format) async {
+  Future<void> _hacerExportacion(BuildContext sheetCtx, String format) async {
     Navigator.pop(sheetCtx);
 
-    final s = context.read<AppStrings>();
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(SnackBar(
-      content: Text(s.get('preparing_file')),
-      duration: const Duration(seconds: 1),
-      backgroundColor: const Color(0xFF1E1A29),
-    ));
-
     try {
-      await _export.shareExport(format);
-      if (!mounted) return;
-      messenger.hideCurrentSnackBar();
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(s.get('export_failed')),
-        backgroundColor: Colors.redAccent,
-      ));
-    }
+      await _exportar.shareExport(format);
+    } catch (_) {}
   }
 
-  void _showSfxDialog() async {
+  void _dialogoSonido() async {
     final current = await _audio.getSfxEnabled();
     if (!mounted) return;
 
@@ -173,7 +157,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showEditNameDialog() {
+  void _dialogoEditarNombre() {
     final user = context.read<UserViewModel>().user;
     if (user == null) return;
     final s = context.read<AppStrings>();
@@ -230,7 +214,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showLanguageDialog() {
+  void _dialogoIdioma() {
     final s = context.read<AppStrings>();
     showDialog(
       context: context,
@@ -255,20 +239,20 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _LanguageOption(
+              _OpcionIdioma(
                 flag: '🇪🇸',
                 label: 'Español',
-                isSelected: s.isSpanish,
+                estaSeleccionado: s.isSpanish,
                 onTap: () {
                   context.read<AppStrings>().setLocale('es');
                   Navigator.pop(dialogContext);
                 },
               ),
               const SizedBox(height: 10),
-              _LanguageOption(
+              _OpcionIdioma(
                 flag: '🇬🇧',
                 label: 'English',
-                isSelected: !s.isSpanish,
+                estaSeleccionado: !s.isSpanish,
                 onTap: () {
                   context.read<AppStrings>().setLocale('en');
                   Navigator.pop(dialogContext);
@@ -281,7 +265,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showDeleteAccountDialog() {
+  void _dialogoBorrarCuenta() {
     final s = context.read<AppStrings>();
     showDialog(
       context: context,
@@ -322,13 +306,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   ),
                   (route) => false,
                 );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('${s.get('delete_account_error')} $e'),
-                  backgroundColor: Colors.redAccent,
-                ));
-              }
+              } catch (_) {}
             },
             child: Text(
               s.get('delete_account'),
@@ -340,7 +318,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showSettingsSheet() {
+  void _hojaAjustes() {
     final s = context.read<AppStrings>();
     showModalBottomSheet(
       context: context,
@@ -385,7 +363,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.get('edit_name_subtitle'),
               onTap: () {
                 Navigator.pop(context);
-                _showEditNameDialog();
+                _dialogoEditarNombre();
               },
             ),
             _SettingsTile(
@@ -395,7 +373,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.get('export_subtitle'),
               onTap: () {
                 Navigator.pop(context);
-                _showExportSheet();
+                _hojaExportar();
               },
             ),
             _SettingsTile(
@@ -405,7 +383,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.get('sound_subtitle'),
               onTap: () {
                 Navigator.pop(context);
-                _showSfxDialog();
+                _dialogoSonido();
               },
             ),
             _SettingsTile(
@@ -415,7 +393,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.get('avatar_subtitle'),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndCropAvatar();
+                _elegirYCortarAvatar();
               },
             ),
             _SettingsTile(
@@ -425,7 +403,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.isSpanish ? 'Español / English' : 'English / Español',
               onTap: () {
                 Navigator.pop(context);
-                _showLanguageDialog();
+                _dialogoIdioma();
               },
             ),
             _SettingsTile(
@@ -484,7 +462,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               subtitle: s.get('delete_account_subtitle'),
               onTap: () {
                 Navigator.pop(context);
-                _showDeleteAccountDialog();
+                _dialogoBorrarCuenta();
               },
             ),
           ],
@@ -496,11 +474,11 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userVM = context.watch<UserViewModel>();
+    final gestorU = context.watch<UserViewModel>();
     final s = context.watch<AppStrings>();
     final navHeight = MainScreen.navBarHeight(context);
 
-    if (userVM.isLoading) {
+    if (gestorU.isLoading) {
       return Scaffold(
         backgroundColor: _bgColor,
         body: Center(
@@ -510,13 +488,13 @@ class ProfileScreenState extends State<ProfileScreen> {
                 const CircularProgressIndicator(color: _primaryPurple),
                 const SizedBox(height: 16),
                 Text(s.get('loading_profile'),
-                    style: const TextStyle(color: Colors.grey)),
+                    style: const TextStyle(color: AppColors.textMuted)),
               ],
             )),
       );
     }
 
-    final user = userVM.user;
+    final user = gestorU.user;
     if (user == null) {
       return Scaffold(
         backgroundColor: _bgColor,
@@ -543,7 +521,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             key: TutorialKeys.profileSettings,
             icon: const Icon(Icons.settings_outlined,
                 color: Color(0xFFDEB7FF)),
-            onPressed: _showSettingsSheet,
+            onPressed: _hojaAjustes,
           ),
         ],
       ),
@@ -556,7 +534,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: GestureDetector(
                 onLongPress: () {
-                  final img = userVM.avatarImage;
+                  final img = gestorU.avatarImage;
                   if (img == null) return;
                   showDialog(
                     context: context,
@@ -569,7 +547,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                         child: Hero(
                           tag: 'profile_avatar',
                           child: CircleAvatar(
-                            key: ValueKey('avatar_full_${userVM.avatarVersion}'),
+                            key: ValueKey('avatar_full_${gestorU.avatarVersion}'),
                             radius: 140,
                             backgroundColor: const Color(0xFF2A223E),
                             backgroundImage: img,
@@ -605,11 +583,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         child: CircleAvatar(
-                          key: ValueKey('avatar_${userVM.avatarVersion}'),
+                          key: ValueKey('avatar_${gestorU.avatarVersion}'),
                           radius: 56,
                           backgroundColor: const Color(0xFF2A223E),
-                          backgroundImage: userVM.avatarImage,
-                          child: userVM.avatarImage == null
+                          backgroundImage: gestorU.avatarImage,
+                          child: gestorU.avatarImage == null
                               ? const Icon(Icons.person,
                                   size: 60, color: _textSecondary)
                               : null,
@@ -629,13 +607,21 @@ class ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            Text(
-              user.name,
-              style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5),
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                user.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
+                style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    height: 1.15),
+              ),
             ),
             const SizedBox(height: 10),
             Container(
@@ -648,7 +634,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                     color: _primaryPurple.withOpacity(0.3)),
               ),
               child: Text(
-                '${user.rank.toUpperCase()} · ${s.get('level')} ${user.level}',
+                '${s.get(UserModel.rankKeyForLevel(user.level)).toUpperCase()} · ${s.get('level')} ${user.level}',
                 style: const TextStyle(
                     color: Color(0xFFDEB7FF),
                     fontSize: 10,
@@ -686,7 +672,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                           RichText(
                             text: TextSpan(children: [
                               TextSpan(
-                                text: _formatNumber(user.totalXpEver),
+                                text: _formatearNumero(user.totalXpEver),
                                 style: const TextStyle(
                                     color: Color(0xFFDEB7FF),
                                     fontSize: 26,
@@ -694,7 +680,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                               ),
                               if (user.level < 7)
                                 TextSpan(
-                                  text: ' / ${_formatNumber(user.nextLevelMinXp)} XP',
+                                  text: ' / ${_formatearNumero(user.nextLevelMinXp)} XP',
                                   style: const TextStyle(
                                       color: _textSecondary,
                                       fontSize: 14),
@@ -750,7 +736,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 14),
                   Text(
                     user.level < 7
-                        ? '${_formatNumber(user.xpRemaining)} ${s.get('xp_to_reach')} ${_nextRankName(user.level)}'
+                        ? '${_formatearNumero(user.xpRemaining)} ${s.get('xp_to_reach')} ${s.get(UserModel.rankKeyForLevel(user.level + 1))}'
                         : s.get('max_level'),
                     style: const TextStyle(
                         color: _textSecondary,
@@ -765,18 +751,18 @@ class ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
+                  child: _tarjetaDato(
                     title: s.get('rank'),
-                    value: user.rank,
+                    value: s.get(UserModel.rankKeyForLevel(user.level)),
                     icon: Icons.military_tech,
                     iconColor: _primaryPurple,
                   ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: _buildStatCard(
+                  child: _tarjetaDato(
                     title: s.get('total_xp'),
-                    value: _formatNumber(user.totalXpEver),
+                    value: _formatearNumero(user.totalXpEver),
                     icon: Icons.star_rounded,
                     iconColor: const Color(0xFFDEB7FF),
                   ),
@@ -787,7 +773,7 @@ class ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
+                  child: _tarjetaDato(
                     title: s.get('streak_label'),
                     value: '${user.dayStreak} ${s.get('days')}',
                     icon: Icons.local_fire_department,
@@ -796,9 +782,9 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: _buildStatCard(
+                  child: _tarjetaDato(
                     title: s.get('badges_label'),
-                    value: '${user.badgesCount}',
+                    value: '${user.badges.length}',
                     icon: Icons.shield_rounded,
                     iconColor: _cyanAccent,
                   ),
@@ -826,7 +812,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 final id = entry.key;
                 final (icon, labelKey, color) = entry.value;
                 final unlocked = user.badges.contains(id);
-                return _buildBadgeItem(icon, s.get(labelKey), color,
+                return _itemLogro(icon, s.get(labelKey), color,
                     isLocked: !unlocked);
               }).toList(),
             ),
@@ -838,21 +824,14 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _nextRankName(int currentLevel) {
-    return UserModel.rankForLevel(currentLevel + 1);
-  }
-
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
+  String _formatearNumero(int numero) {
+    return numero.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     );
   }
 
-  Future<void> _pickAndCropAvatar() async {
-    final s = context.read<AppStrings>();
-    final messenger = ScaffoldMessenger.of(context);
-
+  Future<void> _elegirYCortarAvatar() async {
     try {
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
@@ -871,30 +850,11 @@ class ProfileScreenState extends State<ProfileScreen> {
 
       if (croppedFile == null || !mounted) return;
 
-      messenger.showSnackBar(SnackBar(
-        content: Text(s.get('uploading_avatar')),
-        duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFF1E1A29),
-      ));
-
       await context.read<UserViewModel>().uploadAvatar(croppedFile);
-      if (!mounted) return;
-
-      messenger.showSnackBar(SnackBar(
-        content: Text(s.get('avatar_updated')),
-        backgroundColor: Colors.green,
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text('${s.get('avatar_error')} $e'),
-        backgroundColor: Colors.redAccent,
-        duration: const Duration(seconds: 5),
-      ));
-    }
+    } catch (_) {}
   }
 
-  Widget _buildStatCard({
+  Widget _tarjetaDato({
     required String title,
     required String value,
     required IconData icon,
@@ -929,7 +889,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildBadgeItem(
+  Widget _itemLogro(
     IconData icon,
     String label,
     Color color, {
@@ -946,18 +906,18 @@ class ProfileScreenState extends State<ProfileScreen> {
             shape: BoxShape.circle,
             border: Border.all(
                 color: isLocked
-                    ? Colors.grey.shade800
+                    ? Colors.white.withOpacity(0.12)
                     : color.withOpacity(0.5),
                 width: 2),
           ),
           child: Icon(icon,
-              color: isLocked ? Colors.grey.shade700 : color, size: 26),
+              color: isLocked ? AppColors.textMuted : color, size: 26),
         ),
         const SizedBox(height: 6),
         Text(label,
             style: TextStyle(
                 color: isLocked
-                    ? Colors.grey.shade700
+                    ? AppColors.textMuted
                     : Colors.grey.shade400,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
@@ -1013,16 +973,16 @@ class _ExportButton extends StatelessWidget {
 }
 
 /// Opción de idioma con bandera para el diálogo de selección de idioma.
-class _LanguageOption extends StatelessWidget {
+class _OpcionIdioma extends StatelessWidget {
   final String flag;
   final String label;
-  final bool isSelected;
+  final bool estaSeleccionado;
   final VoidCallback onTap;
 
-  const _LanguageOption({
+  const _OpcionIdioma({
     required this.flag,
     required this.label,
-    required this.isSelected,
+    required this.estaSeleccionado,
     required this.onTap,
   });
 
@@ -1037,12 +997,12 @@ class _LanguageOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected
+          color: estaSeleccionado
               ? _primaryPurple.withOpacity(0.15)
               : Colors.white.withOpacity(0.04),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected
+            color: estaSeleccionado
                 ? _primaryPurple.withOpacity(0.5)
                 : Colors.white.withOpacity(0.08),
             width: 1.5,
@@ -1056,13 +1016,13 @@ class _LanguageOption extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey.shade400,
+                  color: estaSeleccionado ? Colors.white : Colors.grey.shade400,
                   fontSize: 16,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: estaSeleccionado ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),
-            if (isSelected)
+            if (estaSeleccionado)
               const Icon(Icons.check_circle, color: _primaryPurple, size: 22),
           ],
         ),
@@ -1117,13 +1077,13 @@ class _SettingsTile extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(subtitle,
-                      style: TextStyle(
-                          color: Colors.grey.shade600, fontSize: 12)),
+                      style: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                color: Colors.grey.shade700, size: 20),
+            const Icon(Icons.chevron_right,
+                color: AppColors.textMuted, size: 20),
           ],
         ),
       ),
@@ -1140,11 +1100,11 @@ class _CropPage extends StatefulWidget {
 }
 
 class _CropPageState extends State<_CropPage> {
-  final _controller = CropController(aspectRatio: 1.0);
+  final _controlador = CropController(aspectRatio: 1.0);
 
-  Future<void> _confirm() async {
+  Future<void> _confirmar() async {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final uiImage = await _controller.crop(pixelRatio: pixelRatio);
+    final uiImage = await _controlador.crop(pixelRatio: pixelRatio);
     if (uiImage == null || !mounted) return;
     final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.png);
     if (byteData == null || !mounted) return;
@@ -1165,13 +1125,13 @@ class _CropPageState extends State<_CropPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            onPressed: _confirm,
+            onPressed: _confirmar,
           ),
         ],
       ),
       body: SafeArea(
         child: Crop(
-          controller: _controller,
+          controller: _controlador,
           overlay: Container(
             decoration: BoxDecoration(
               border: Border.all(color: const Color(0xFF7B2CBF), width: 2),
@@ -1184,3 +1144,4 @@ class _CropPageState extends State<_CropPage> {
     );
   }
 }
+

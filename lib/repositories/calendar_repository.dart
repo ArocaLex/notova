@@ -1,12 +1,12 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:http/http.dart' as http;
 
 import '../models/calendar_event.dart';
 import '../models/calendar_info.dart';
+import '../services/google_oauth_service.dart';
 
 /// Error amigable que el ViewModel/UI puede mostrar directamente al usuario
 /// sin tener que parsear trazas o códigos.
@@ -34,19 +34,13 @@ class _AuthClient extends http.BaseClient {
 
 /// Repositorio de acceso a Google Calendar para Notova.
 ///
-/// Gestiona la autenticación OAuth, la obtención de calendarios y eventos, y
-/// la creación y eliminación de eventos a través de la API de Google Calendar.
-/// Utiliza [GoogleSignIn] de forma silenciosa cuando es posible o interactiva
-/// cuando se requiere autorización inicial.
+/// Auth: usa [GoogleOAuthService] para obtener `refresh_token` mediante el
+/// flujo OAuth 2.0 estándar con `access_type=offline`. El usuario consiente
+/// UNA vez en una pestaña de Chrome y a partir de ese momento la app puede
+/// renovar `access_token` infinitas veces sin UI hasta que el grant sea
+/// revocado explícitamente.
 class CalendarRepository {
-  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  static bool _initialized = false;
-
-  static Future<void> _ensureInitialized() async {
-    if (_initialized) return;
-    await _googleSignIn.initialize();
-    _initialized = true;
-  }
+  final GoogleOAuthService _oauth = GoogleOAuthService();
 
   /// Paleta de colores para asignar aleatoriamente a cada cuenta conectada.
   static const List<Color> _accountPalette = [
@@ -82,158 +76,105 @@ class CalendarRepository {
     return (index: idx, color: _accountPalette[idx]);
   }
 
-  /// Inicia sesión con Google y devuelve una nueva [CalendarAccount] cargada
-  /// con la lista de calendarios y un color aleatorio de la paleta.
+  /// Lanza el flujo OAuth 2.0 estándar con `access_type=offline`.
   ///
-  /// [usedColorIndices] se pasa para evitar repetir colores cuando ya hay
-  /// otras cuentas conectadas.
+  /// Abre Chrome Custom Tabs, el usuario consiente acceso a Calendar UNA
+  /// vez, y la app recibe `(access_token, refresh_token)`. El refresh_token
+  /// se persiste cifrado en `flutter_secure_storage` (`GoogleOAuthService`)
+  /// y permite renovar `access_token` infinitas veces sin UI.
   Future<({CalendarAccount account, int colorIndex})> connectAccount({
     required Set<int> usedColorIndices,
   }) async {
-    await _ensureInitialized();
-    // El usuario pulsó "Conectar" explícitamente: forzamos el picker en lugar
-    // de reusar una sesión cacheada. En Android, `attemptLightweightAuthentication`
-    // a veces devuelve la cuenta previamente desconectada sin volver a pedir
-    // consent, lo que dejaba el botón "sin hacer nada visible" tras un ciclo
-    // conectar → desconectar → reconectar.
+    final GoogleOAuthSession session;
     try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
-
-    GoogleSignInAccount account;
-    try {
-      account = await _googleSignIn.authenticate(
-        scopeHint: const [gcal.CalendarApi.calendarScope],
-      );
-    } on GoogleSignInException catch (e) {
-      throw CalendarException(_friendlyAuthError(e));
+      final result = await _oauth.authorize();
+      if (result == null) {
+        throw CalendarException('Has cancelado la conexión con Google.');
+      }
+      session = result;
+    } on GoogleOAuthException catch (e) {
+      throw CalendarException(e.message);
     } catch (_) {
       throw CalendarException('No se pudo iniciar sesión con Google.');
     }
 
-    final GoogleSignInClientAuthorization auth;
+    // Resolvemos el email de la cuenta consultando el endpoint userinfo
+    // de Google con el access_token recién obtenido.
+    final String email;
     try {
-      final existing = await account.authorizationClient
-          .authorizationForScopes([gcal.CalendarApi.calendarScope]);
-      auth = existing ??
-          await account.authorizationClient
-              .authorizeScopes([gcal.CalendarApi.calendarScope]);
-    } on GoogleSignInException catch (e) {
-      throw CalendarException(_friendlyAuthError(e));
+      email = await _fetchUserEmail(session.accessToken);
     } catch (_) {
-      throw CalendarException(
-          'No se pudo obtener permiso para Google Calendar.');
+      throw CalendarException('No se pudo identificar la cuenta de Google.');
     }
 
     final picked = _pickColor(usedColorIndices);
 
-    final calendars = await _fetchCalendars(
-      accessToken: auth.accessToken,
-      email: account.email,
-    );
-
-    return (
-      account: CalendarAccount(
-        email: account.email,
-        color: picked.color,
-        accessToken: auth.accessToken,
-        calendars: calendars,
-        tokenExpiry: DateTime.now().add(const Duration(minutes: 55)),
-      ),
-      colorIndex: picked.index,
-    );
-  }
-
-  /// Adjunta una cuenta de Google Calendar reusando la sesión obtenida durante
-  /// el login con Google (sin abrir el selector de cuentas).
-  ///
-  /// Lanza [CalendarException] si la API de Google Calendar rechaza el token.
-  Future<({CalendarAccount account, int colorIndex})> attachFromAuthSession({
-    required String email,
-    required String accessToken,
-    required DateTime expiry,
-    required Set<int> usedColorIndices,
-  }) async {
-    final picked = _pickColor(usedColorIndices);
     final List<CalendarInfo> calendars;
     try {
       calendars = await _fetchCalendars(
-        accessToken: accessToken,
+        accessToken: session.accessToken,
         email: email,
       );
     } catch (_) {
       throw CalendarException(
           'No se pudieron cargar los calendarios de $email.');
     }
+
+    // Persistimos el refresh_token cifrado para esta cuenta.
+    await _oauth.storeRefreshToken(email, session.refreshToken);
+
     return (
       account: CalendarAccount(
         email: email,
         color: picked.color,
-        accessToken: accessToken,
+        accessToken: session.accessToken,
         calendars: calendars,
-        tokenExpiry: expiry,
+        tokenExpiry: session.expiry,
       ),
       colorIndex: picked.index,
     );
   }
 
-  /// Desconecta todas las cuentas. Ignora errores (por ejemplo si la sesión
-  /// ya había caducado, o el usuario ya había revocado el permiso).
+  /// Desconecta una cuenta concreta: revoca el grant en Google, borra el
+  /// refresh_token cifrado y deja a Google sin acceso a la cuenta.
+  ///
+  /// Tras esto, una nueva conexión exigirá consentir de nuevo (correcto:
+  /// el usuario ha decidido desconectar explícitamente).
+  Future<void> disconnect(String email) async {
+    final rt = await _oauth.readRefreshToken(email);
+    if (rt != null) {
+      await _oauth.revoke(rt);
+    }
+    await _oauth.deleteRefreshToken(email);
+  }
+
+  /// Desconecta TODAS las cuentas. Limpia los refresh_tokens residuales del
+  /// almacenamiento seguro. El ViewModel debe iterar y llamar a [disconnect]
+  /// para revocar el grant individual de cada cuenta antes de invocarlo.
   Future<void> disconnectAll() async {
-    try {
-      await _googleSignIn.disconnect();
-    } catch (_) {}
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
+    await _oauth.deleteAllRefreshTokens();
   }
 
-  /// Intenta restaurar de forma SILENCIOSA (sin diálogos) una sesión de
-  /// Google previa. Devuelve la cuenta autenticada y un access token válido,
-  /// o `null` si no hay sesión recuperable.
+  /// Refresca silenciosamente el `access_token` de [account] usando el
+  /// refresh_token guardado en el storage seguro.
   ///
-  /// Se usa al arrancar la app para refrescar el token de una de las cuentas
-  /// previamente persistidas en SQLite. NO dispara UI.
-  Future<({String email, String accessToken, DateTime expiry})?>
-      attemptSilentRestore() async {
-    try {
-      await _ensureInitialized();
-      final acc = await _googleSignIn.attemptLightweightAuthentication();
-      if (acc == null) return null;
-      final auth = await acc.authorizationClient
-          .authorizationForScopes([gcal.CalendarApi.calendarScope]);
-      if (auth == null) return null;
-      return (
-        email: acc.email,
-        accessToken: auth.accessToken,
-        expiry: DateTime.now().add(const Duration(minutes: 55)),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Intenta refrescar el access token de [account] de forma SILENCIOSA.
+  /// Devuelve `null` si Google rechaza el refresh_token (revocado, sesión
+  /// caducada por inactividad de meses, etc.). En ese caso, el ViewModel
+  /// debe activar el banner "Reconectar" para que el usuario reautorice.
   ///
-  /// Usa [GoogleSignIn.attemptLightweightAuthentication] para no mostrar
-  /// ningún diálogo. Si no hay sesión restaurable o la cuenta no coincide,
-  /// retorna `null` sin disparar UI; el llamante tratará el fallo de red
-  /// de forma silenciosa y el usuario reconectará manualmente si necesita
-  /// acceder al calendario.
-  Future<String?> refreshToken(CalendarAccount account) async {
-    try {
-        final acc = await _googleSignIn.attemptLightweightAuthentication();
-      if (acc == null) return null;
-      if (acc.email.toLowerCase() != account.email.toLowerCase()) return null;
-      final auth = await acc.authorizationClient
-          .authorizationForScopes([gcal.CalendarApi.calendarScope]);
-      if (auth == null) return null;
-      account.accessToken = auth.accessToken;
-      account.tokenExpiry = DateTime.now().add(const Duration(minutes: 55));
-      return auth.accessToken;
-    } catch (_) {
-      return null;
+  /// Si Google entrega un refresh_token nuevo, lo guarda automáticamente
+  /// reemplazando el anterior. NO muestra UI bajo ningún caso.
+  Future<({String accessToken, DateTime expiry})?> silentRefresh(
+    CalendarAccount account,
+  ) async {
+    final stored = await _oauth.readRefreshToken(account.email);
+    if (stored == null) return null;
+    final session = await _oauth.refresh(stored);
+    if (session == null) return null;
+    if (session.refreshToken != stored) {
+      await _oauth.storeRefreshToken(account.email, session.refreshToken);
     }
+    return (accessToken: session.accessToken, expiry: session.expiry);
   }
 
   /// Timeout aplicado a cualquier llamada a la API de Google Calendar.
@@ -272,11 +213,15 @@ class CalendarRepository {
     }
   }
 
-  /// Verifica que el access token de [account] esté vigente; lo refresca si no.
+  /// Verifica el estado del token sin tocar al SDK de Google.
+  ///
+  /// La política de la app es: nunca disparar el picker de cuenta
+  /// automáticamente. Si el access token cacheado está caducado, se deja
+  /// caducado — la llamada saliente fallará con 401 y el handler del 401
+  /// marcará la cuenta como expirada para que la UI muestre el banner
+  /// "Reconectar". El usuario decide cuándo reautenticar.
   Future<void> _ensureValidToken(CalendarAccount account) async {
-    if (account.isTokenExpired) {
-      await refreshToken(account);
-    }
+    // No-op intencionado.
   }
 
   /// Devuelve los eventos de [date] para TODOS los calendarios visibles
@@ -294,7 +239,7 @@ class CalendarRepository {
       await _ensureValidToken(account);
       final api = gcal.CalendarApi(_AuthClient(account.accessToken));
       final visibleCals = account.calendars.where((c) => c.isVisible).toList();
-      
+
       for (final cal in visibleCals) {
         futures.add(_fetchEventsForCalendar(api, cal, account, dayStart, dayEnd));
       }
@@ -308,7 +253,7 @@ class CalendarRepository {
       if (b.start == null) return -1;
       return a.start!.compareTo(b.start!);
     });
-    return events;
+    return _deduplicateEvents(events);
   }
 
   Future<List<CalendarEvent>> _fetchEventsForCalendar(
@@ -339,18 +284,8 @@ class CalendarRepository {
     try {
       return await doFetch(api);
     } catch (e) {
-      if (!e.toString().contains('401')) return [];
-      // Token vencido antes de los 55 min estimados: refrescar y reintentar.
-      final newToken = await refreshToken(account);
-      if (newToken == null) {
-        _markExpired(account);
-        return [];
-      }
-      try {
-        return await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
-      } catch (_) {
-        return [];
-      }
+      if (_is401(e)) _markExpired(account);
+      return [];
     }
   }
 
@@ -366,7 +301,7 @@ class CalendarRepository {
     int maxResults = 20,
   }) async {
     final now = DateTime.now();
-    final timeMin = now.toUtc();
+    final timeMin = DateTime(now.year, now.month, now.day).toUtc();
     final timeMax = now.add(Duration(days: days)).toUtc();
 
     final futures = <Future<List<CalendarEvent>>>[];
@@ -386,7 +321,26 @@ class CalendarRepository {
         return a.start!.compareTo(b.start!);
       });
 
-    return events.take(maxResults).toList();
+    return _deduplicateEvents(events).take(maxResults).toList();
+  }
+
+  /// Elimina eventos duplicados que provienen de calendarios suscritos en
+  /// varias cuentas (e.g. "Festivos en España" presente en 4 cuentas).
+  /// Dos eventos se consideran duplicados si tienen el mismo título y el
+  /// mismo día de inicio. Se conserva el primero encontrado.
+  List<CalendarEvent> _deduplicateEvents(List<CalendarEvent> events) {
+    final seen = <String>{};
+    return events.where((e) {
+      // Never deduplicate owned events — two personal events can legitimately
+      // share the same title and day on different calendars.
+      if (e.isOwned) return true;
+      final start = e.start;
+      final day = start != null
+          ? '${start.year}-${start.month}-${start.day}'
+          : '_';
+      final key = '${e.title.trim().toLowerCase()}|$day';
+      return seen.add(key);
+    }).toList();
   }
 
   /// Devuelve los días del mes que tienen al menos un evento, mapeados al
@@ -398,40 +352,57 @@ class CalendarRepository {
   ) async {
     final monthStart = DateTime(month.year, month.month, 1).toUtc();
     final monthEnd = DateTime(month.year, month.month + 1, 1).toUtc();
-    final result = <int, List<Color>>{};
 
-    final futures = <Future<void>>[];
+    final futures = <Future<List<({int day, Color color, String title, bool isOwned})>>>[];
 
     for (final account in accounts) {
       await _ensureValidToken(account);
       final api = gcal.CalendarApi(_AuthClient(account.accessToken));
-      
       for (final cal in account.calendars.where((c) => c.isVisible)) {
-        futures.add(_fetchEventDaysForCalendar(api, cal, account, month, monthStart, monthEnd, result));
+        futures.add(_fetchEventDaysRaw(api, cal, account, month, monthStart, monthEnd));
       }
     }
 
-    await Future.wait(futures);
+    final allResults = await Future.wait(futures);
+    final allEntries = allResults.expand((e) => e).toList();
+
+    // Deduplicate non-owned entries by (title, day) so shared subscription
+    // calendars (e.g. holidays) only contribute one dot per day.
+    final seen = <String>{};
+    final result = <int, List<Color>>{};
+    for (final entry in allEntries) {
+      if (!entry.isOwned) {
+        final key = '${entry.title.trim().toLowerCase()}|${entry.day}';
+        if (!seen.add(key)) continue;
+      }
+      final list = result.putIfAbsent(entry.day, () => <Color>[]);
+      if (!list.contains(entry.color)) list.add(entry.color);
+    }
+
     return result;
   }
 
-  Future<void> _fetchEventDaysForCalendar(
+  Future<List<({int day, Color color, String title, bool isOwned})>>
+      _fetchEventDaysRaw(
     gcal.CalendarApi api,
     CalendarInfo cal,
     CalendarAccount account,
     DateTime month,
     DateTime monthStart,
     DateTime monthEnd,
-    Map<int, List<Color>> result,
   ) async {
+    final entries = <({int day, Color color, String title, bool isOwned})>[];
+
     Future<void> doFetch(gcal.CalendarApi client) async {
-      final res = await client.events.list(
-        cal.id,
-        timeMin: monthStart,
-        timeMax: monthEnd,
-        singleEvents: true,
-        orderBy: 'startTime',
-      ).timeout(_apiTimeout);
+      final res = await client.events
+          .list(
+            cal.id,
+            timeMin: monthStart,
+            timeMax: monthEnd,
+            singleEvents: true,
+            orderBy: 'startTime',
+          )
+          .timeout(_apiTimeout);
       for (final e in res.items ?? []) {
         final start = e.start?.dateTime?.toLocal() ??
             (e.start?.date != null
@@ -439,38 +410,42 @@ class CalendarRepository {
                 : null);
         if (start == null) continue;
         if (start.month != month.month || start.year != month.year) continue;
-        final list = result.putIfAbsent(start.day, () => <Color>[]);
-        if (!list.contains(account.color)) list.add(account.color);
+        entries.add((
+          day: start.day,
+          color: account.color,
+          title: e.summary ?? '',
+          isOwned: cal.isOwned,
+        ));
       }
     }
 
     try {
       await doFetch(api);
     } catch (e) {
-      if (!e.toString().contains('401')) return;
-      final newToken = await refreshToken(account);
-      if (newToken == null) {
-        _markExpired(account);
-        return;
-      }
-      try {
-        await doFetch(gcal.CalendarApi(_AuthClient(newToken)));
-      } catch (_) {}
+      if (e.toString().contains('401')) _markExpired(account);
     }
+    return entries;
   }
 
-  /// Fuerza el estado "token caducado" en [account] para que el ViewModel
-  /// active el banner "Reconectar" en la próxima reevaluación.
+  bool _is401(Object e) {
+    final s = e.toString();
+    return s.contains('401') || s.contains('Unauthorized');
+  }
+
+  /// Marca el token de [account] como rechazado por Google (recibido un 401)
+  /// para que el ViewModel active el banner "Reconectar" en la próxima
+  /// reevaluación. El timestamp también se invalida para forzar un intento
+  /// de refresh silencioso en el siguiente arranque.
   void _markExpired(CalendarAccount account) {
     account.tokenExpiry =
         DateTime.now().subtract(const Duration(minutes: 1));
+    account.tokenRejected = true;
   }
 
   /// Crea un evento en el calendario identificado por [calendarId].
   ///
-  /// Resuelve la [CalendarAccount] que contiene el calendario. El llamante
-  /// debe verificar que [CalendarInfo.isOwned] sea `true` antes de invocar
-  /// este método.
+  /// Lanza [CalendarException] si el calendario es de solo lectura o no
+  /// pertenece a ninguna cuenta conectada.
   Future<void> createEvent({
     required List<CalendarAccount> accounts,
     required String calendarId,
@@ -478,72 +453,116 @@ class CalendarRepository {
     required DateTime start,
     required DateTime end,
   }) async {
-    final account = _accountForCalendar(accounts, calendarId);
-    if (account == null) {
-      throw CalendarException('Calendario no encontrado.');
-    }
-    final api = gcal.CalendarApi(_AuthClient(account.accessToken));
+    final (:api, account: _) = _resolveWritable(accounts, calendarId);
     try {
-      await api.events.insert(
-        gcal.Event(
-          summary: title,
-          start: gcal.EventDateTime(dateTime: start.toUtc()),
-          end: gcal.EventDateTime(dateTime: end.toUtc()),
-        ),
-        calendarId,
-      ).timeout(_apiTimeout);
+      await api.events
+          .insert(
+            gcal.Event(
+              summary: title,
+              start: gcal.EventDateTime(dateTime: start.toUtc()),
+              end: gcal.EventDateTime(dateTime: end.toUtc()),
+            ),
+            calendarId,
+          )
+          .timeout(_apiTimeout);
+    } on CalendarException {
+      rethrow;
     } catch (_) {
       throw CalendarException('No se pudo crear el evento.');
     }
   }
 
+  /// Actualiza el título y/o el horario de [eventId] en [calendarId].
+  ///
+  /// Usa `events.patch` para modificar solo los campos indicados sin
+  /// sobreescribir el resto del evento (asistentes, descripción, etc.).
+  /// Lanza [CalendarException] si el calendario es de solo lectura.
+  Future<void> updateEvent({
+    required List<CalendarAccount> accounts,
+    required String calendarId,
+    required String eventId,
+    required String title,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final (:api, account: _) = _resolveWritable(accounts, calendarId);
+    try {
+      await api.events
+          .patch(
+            gcal.Event(
+              summary: title,
+              start: gcal.EventDateTime(dateTime: start.toUtc()),
+              end: gcal.EventDateTime(dateTime: end.toUtc()),
+            ),
+            calendarId,
+            eventId,
+          )
+          .timeout(_apiTimeout);
+    } on CalendarException {
+      rethrow;
+    } catch (_) {
+      throw CalendarException('No se pudo actualizar el evento.');
+    }
+  }
+
   /// Elimina el evento identificado por [eventId] del calendario [calendarId].
+  ///
+  /// Lanza [CalendarException] si el calendario es de solo lectura o no
+  /// pertenece a ninguna cuenta conectada.
   Future<void> deleteEvent({
     required List<CalendarAccount> accounts,
     required String calendarId,
     required String eventId,
   }) async {
-    final account = _accountForCalendar(accounts, calendarId);
-    if (account == null) {
-      throw CalendarException('Calendario no encontrado.');
-    }
-    final api = gcal.CalendarApi(_AuthClient(account.accessToken));
+    final (:api, account: _) = _resolveWritable(accounts, calendarId);
     try {
       await api.events.delete(calendarId, eventId).timeout(_apiTimeout);
+    } on CalendarException {
+      rethrow;
     } catch (_) {
       throw CalendarException('No se pudo eliminar el evento.');
     }
   }
 
-  /// Retorna la [CalendarAccount] que contiene el calendario con [calendarId],
-  /// o `null` si ninguna cuenta lo incluye.
-  CalendarAccount? _accountForCalendar(
+  /// Resuelve el par `(account, calendarInfo)` para [calendarId] y lanza
+  /// [CalendarException] si no existe o si el calendario es de solo lectura.
+  ///
+  /// Centraliza la validación de permisos de escritura para que todos los
+  /// métodos mutantes (`createEvent`, `updateEvent`, `deleteEvent`) la apliquen
+  /// de forma uniforme, independientemente de lo que haga la UI.
+  ({CalendarAccount account, gcal.CalendarApi api}) _resolveWritable(
     List<CalendarAccount> accounts,
     String calendarId,
   ) {
     for (final a in accounts) {
-      if (a.calendars.any((c) => c.id == calendarId)) return a;
+      final cal = a.calendars.where((c) => c.id == calendarId).firstOrNull;
+      if (cal == null) continue;
+      if (cal.isReadOnly) {
+        throw CalendarException(
+          'No tienes permisos de escritura en este calendario.',
+        );
+      }
+      return (account: a, api: gcal.CalendarApi(_AuthClient(a.accessToken)));
     }
-    return null;
+    throw CalendarException('Calendario no encontrado.');
   }
 
-  /// Traduce un [GoogleSignInException] a un mensaje legible en español.
-  String _friendlyAuthError(GoogleSignInException e) {
-    switch (e.code) {
-      case GoogleSignInExceptionCode.canceled:
-        return 'Has cancelado la conexión con Google.';
-      case GoogleSignInExceptionCode.interrupted:
-        return 'La conexión con Google se interrumpió. Revisa tu red.';
-      case GoogleSignInExceptionCode.clientConfigurationError:
-        return 'La app no está configurada correctamente para Google Sign-In.';
-      case GoogleSignInExceptionCode.providerConfigurationError:
-        return 'Error de configuración del proveedor de Google.';
-      case GoogleSignInExceptionCode.uiUnavailable:
-        return 'No se puede mostrar el diálogo de inicio de sesión ahora.';
-      case GoogleSignInExceptionCode.userMismatch:
-        return 'La cuenta elegida no coincide con la esperada.';
-      default:
-        return 'No se pudo iniciar sesión con Google.';
+  /// Consulta el email de la cuenta autenticada usando el endpoint userinfo.
+  /// Necesario porque oauth2_client no devuelve la identidad del usuario,
+  /// solo el access_token.
+  Future<String> _fetchUserEmail(String accessToken) async {
+    final response = await http.get(
+      Uri.parse('https://openidconnect.googleapis.com/v1/userinfo'),
+      headers: {'Authorization': 'Bearer $accessToken'},
+    ).timeout(_apiTimeout);
+    if (response.statusCode != 200) {
+      throw Exception('userinfo HTTP ${response.statusCode}');
     }
+    final body = response.body;
+    final emailMatch = RegExp(r'"email"\s*:\s*"([^"]+)"').firstMatch(body);
+    if (emailMatch == null) {
+      throw Exception('userinfo response sin email');
+    }
+    return emailMatch.group(1)!;
   }
 }

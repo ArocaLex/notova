@@ -52,9 +52,18 @@ class CalendarAccount {
   final Color color;
 
   /// Access token OAuth vigente para llamar a la API de Google Calendar.
-  /// Se refresca cuando caduca vía [CalendarRepository.refreshToken].
+  /// Se persiste en SQLite y se reusa hasta que Google lo rechace con un
+  /// 401; en ese momento la cuenta se marca como expirada y la UI muestra
+  /// el banner "Reconectar" para que el usuario reautentique manualmente.
   String accessToken;
   DateTime? tokenExpiry;
+
+  /// `true` solo cuando Google rechazó explícitamente el token con un 401.
+  /// Es la señal real para mostrar el banner "Reconectar" — el simple paso
+  /// del tiempo (timestamp caducado) no activa el banner: el token podría
+  /// seguir siendo válido para Google. Esta variable se limpia en cuanto se
+  /// refresca exitosamente la cuenta.
+  bool tokenRejected;
 
   List<CalendarInfo> calendars;
 
@@ -64,9 +73,12 @@ class CalendarAccount {
     required this.accessToken,
     required this.calendars,
     this.tokenExpiry,
+    this.tokenRejected = false,
   });
 
-  /// Indica si el access token ha caducado.
+  /// Indica si nuestra ventana conservadora de validez (55 min) ha pasado.
+  /// Solo se usa para decidir si vale la pena intentar un refresh silencioso
+  /// — NO para mostrar el banner "Reconectar" (eso lo hace [tokenRejected]).
   bool get isTokenExpired =>
       tokenExpiry != null && DateTime.now().isAfter(tokenExpiry!);
 }

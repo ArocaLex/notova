@@ -9,13 +9,14 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../repositories/local_task_repository.dart';
 import '../repositories/user_repository.dart';
+import '../viewmodel/calendar_viewmodel.dart';
 import 'main_screen.dart';
 import 'welcome_screen.dart';
 
 /// Pantalla inicial con animación de carga y enrutado.
 ///
 /// Decide el primer destino en función de:
-/// - Sesión de Firebase (si hay usuario autenticado).
+/// - Sesión de Firebase (si hay User autenticado).
 /// - Flag `onboarding_seen` persistido en [SharedPreferences].
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -54,9 +55,10 @@ class SplashScreenState extends State<SplashScreen>
     _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
-    );
+    _logoOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
 
     _contentController = AnimationController(
       vsync: this,
@@ -91,9 +93,10 @@ class SplashScreenState extends State<SplashScreen>
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      precacheImage(const AssetImage('assets/images/notova.png'), context)
-          .then((_) => _checkAuthState())
-          .catchError((_) => _checkAuthState());
+      precacheImage(
+        const AssetImage('assets/images/notova.png'),
+        context,
+      ).then((_) => _checkAuthState()).catchError((_) => _checkAuthState());
     });
   }
 
@@ -119,15 +122,36 @@ class SplashScreenState extends State<SplashScreen>
 
     if (user != null) {
       setState(() {
-        _userName =
-            user.displayName ?? user.email?.split('@')[0] ?? 'Usuario';
+        _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
       });
       LocalTaskRepository().syncFromFirestore();
       unawaited(_updateStreakSilently());
+
+      // Aprovechamos la ventana del splash para refrescar silenciosamente
+      // los tokens de Google Calendar. Así el User solo ve el picker UNA
+      // vez (al conectar la cuenta por primera vez) y a partir de entonces
+      // cada arranque mantiene la sesión sin pedir nada — Credential Manager
+      // devuelve la credencial ya consentida sin diálogos.
+      final calendarVm = context.read<CalendarViewModel>();
+      // 1. Refresca tokens OAuth silenciosamente (necesario antes de llamar API).
+      try {
+        await calendarVm
+            .restoreTokensSilently()
+            .timeout(const Duration(seconds: 4), onTimeout: () {});
+      } catch (_) {}
+      // 2. Misma lógica que el botón "Sincr." en CalendarScreen: descarga la
+      //    lista de calendarios actualizada y recarga eventos + próximos.
+      //    Así home_screen.dart ya tiene datos al primer frame.
+      try {
+        await calendarVm
+            .refresh()
+            .timeout(const Duration(seconds: 5), onTimeout: () {});
+      } catch (_) {}
     }
 
-    final Widget destination =
-        user == null ? const WelcomeScreen() : const MainScreen();
+    final Widget destination = user == null
+        ? const WelcomeScreen()
+        : const MainScreen();
 
     await minDisplay;
     if (!mounted) return;
@@ -156,10 +180,7 @@ class SplashScreenState extends State<SplashScreen>
                 gradient: RadialGradient(
                   center: const Alignment(0, -0.3),
                   radius: 0.8,
-                  colors: [
-                    _primaryPurple.withOpacity(0.12),
-                    _bgColor,
-                  ],
+                  colors: [_primaryPurple.withOpacity(0.12), _bgColor],
                 ),
               ),
             ),
@@ -172,8 +193,10 @@ class SplashScreenState extends State<SplashScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedBuilder(
-                  animation: Listenable.merge(
-                      [_logoController, _pulseController]),
+                  animation: Listenable.merge([
+                    _logoController,
+                    _pulseController,
+                  ]),
                   builder: (context, child) {
                     return Opacity(
                       opacity: _logoOpacity.value,
@@ -191,8 +214,9 @@ class SplashScreenState extends State<SplashScreen>
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: _primaryPurple
-                                          .withOpacity(_pulseAnim.value),
+                                      color: _primaryPurple.withOpacity(
+                                        _pulseAnim.value,
+                                      ),
                                       blurRadius: 50,
                                       spreadRadius: 10,
                                     ),
@@ -251,7 +275,9 @@ class SplashScreenState extends State<SplashScreen>
                           child: Text(
                             _userName != null
                                 ? '${context.watch<AppStrings>().get('hello')}, $_userName'
-                                : context.watch<AppStrings>().get('splash_subtitle'),
+                                : context.watch<AppStrings>().get(
+                                    'splash_subtitle',
+                                  ),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -281,15 +307,15 @@ class SplashScreenState extends State<SplashScreen>
       final delay = Duration(milliseconds: rng.nextInt(2000));
 
       return Positioned(
-        left: MediaQueryData.fromView(
-                    WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .width *
+        left:
+            MediaQueryData.fromView(
+              WidgetsBinding.instance.platformDispatcher.views.first,
+            ).size.width *
             left,
-        top: MediaQueryData.fromView(
-                    WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .height *
+        top:
+            MediaQueryData.fromView(
+              WidgetsBinding.instance.platformDispatcher.views.first,
+            ).size.height *
             top,
         child: _FloatingParticle(
           size: size,
@@ -390,10 +416,7 @@ class _LiquidBarPainter extends CustomPainter {
         ),
       );
 
-    final rrect = RRect.fromRectAndRadius(
-      rect,
-      const Radius.circular(2),
-    );
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(2));
     canvas.drawRRect(rrect, paint);
   }
 

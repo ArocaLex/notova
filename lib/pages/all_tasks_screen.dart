@@ -13,7 +13,7 @@ class AllTasksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppStrings>();
-    final pending = context.select((TasksViewModel vm) => vm.pending);
+    final pendientes = context.select((TasksViewModel vm) => vm.pending);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,7 +53,7 @@ class AllTasksScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${pending.length} ${s.get('active_quests').toLowerCase()}',
+                          '${pendientes.length} ${s.get('active_quests').toLowerCase()}',
                           style: TextStyle(
                             color: AppColors.neonCyan.withOpacity(0.7),
                             fontSize: 12,
@@ -88,7 +88,7 @@ class AllTasksScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             Expanded(
-              child: pending.isEmpty
+              child: pendientes.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -107,10 +107,10 @@ class AllTasksScreen extends StatelessWidget {
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: pending.length,
+                      itemCount: pendientes.length,
                       itemBuilder: (context, index) {
-                        final task = pending[index];
-                        return _buildTaskItem(context, task, s);
+                        final t = pendientes[index];
+                        return _filaTarea(context, t, s);
                       },
                     ),
             ),
@@ -120,35 +120,37 @@ class AllTasksScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskItem(
+  Widget _filaTarea(
     BuildContext context,
-    TaskModel task,
+    TaskModel t,
     AppStrings s,
   ) {
-    final taskColor = _parseColor(task.color);
-    final priorityColor = task.priority == 'HIGH'
+    final colorTarea = _leerColor(t.color);
+    final colorPrioridad = t.priority == 'HIGH'
         ? AppColors.neonPink
-        : task.priority == 'MED'
+        : t.priority == 'MED'
             ? AppColors.priorityMed
             : AppColors.priorityLow;
-    final dueDateColor =
-        task.isOverdue ? AppColors.error : Colors.grey.shade500;
+    final colorFecha =
+        t.isOverdue ? AppColors.error : Colors.grey.shade500;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: taskColor?.withOpacity(0.4) ??
-              (task.isOverdue
+    return GestureDetector(
+      onTap: () => Navigator.pop(context, t),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+          color: colorTarea?.withOpacity(0.4) ??
+              (t.isOverdue
                   ? AppColors.error.withOpacity(0.3)
                   : Colors.white.withOpacity(0.04)),
         ),
-        boxShadow: taskColor != null
+        boxShadow: colorTarea != null
             ? [
                 BoxShadow(
-                  color: taskColor.withOpacity(0.15),
+                  color: colorTarea.withOpacity(0.15),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -161,7 +163,7 @@ class AllTasksScreen extends StatelessWidget {
             Container(
               width: 4,
               decoration: BoxDecoration(
-                color: taskColor ?? priorityColor,
+                color: colorTarea ?? colorPrioridad,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   bottomLeft: Radius.circular(16),
@@ -178,7 +180,7 @@ class AllTasksScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            task.title,
+                            t.title,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 15,
@@ -186,10 +188,10 @@ class AllTasksScreen extends StatelessWidget {
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (task.subtitle.isNotEmpty) ...[
+                          if (t.subtitle.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
-                              task.subtitle,
+                              t.subtitle,
                               style: TextStyle(
                                   color: Colors.grey.shade500, fontSize: 12),
                               maxLines: 2,
@@ -199,18 +201,18 @@ class AllTasksScreen extends StatelessWidget {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              _buildPill(
-                                  _priorityLabel(task.priority, s), priorityColor),
-                              if (task.dueDate != null) ...[
+                              _etiqueta(
+                                  _textoPrioridad(t.priority, s), colorPrioridad),
+                              if (t.dueDate != null) ...[
                                 const SizedBox(width: 8),
                                 Icon(Icons.schedule,
-                                    size: 12, color: dueDateColor),
+                                    size: 12, color: colorFecha),
                                 const SizedBox(width: 3),
                                 Expanded(
                                   child: Text(
-                                    task.formattedDueDate,
+                                    t.formattedDueDate,
                                     style: TextStyle(
-                                        color: dueDateColor, fontSize: 11),
+                                        color: colorFecha, fontSize: 11),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -230,7 +232,7 @@ class AllTasksScreen extends StatelessWidget {
                         border: Border.all(color: AppColors.cyanAccent.withOpacity(0.3)),
                       ),
                       child: Text(
-                        '+${task.xpReward} XP',
+                        '+${t.xpReward} XP',
                         style: const TextStyle(
                           color: AppColors.cyanAccent,
                           fontWeight: FontWeight.bold,
@@ -245,10 +247,10 @@ class AllTasksScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
-  Widget _buildPill(String label, Color color) {
+  Widget _etiqueta(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -267,8 +269,8 @@ class AllTasksScreen extends StatelessWidget {
     );
   }
 
-  static String _priorityLabel(String priority, AppStrings s) {
-    switch (priority) {
+  static String _textoPrioridad(String prioridad, AppStrings s) {
+    switch (prioridad) {
       case 'HIGH':
         return s.get('priority_high');
       case 'MED':
@@ -276,11 +278,11 @@ class AllTasksScreen extends StatelessWidget {
       case 'LOW':
         return s.get('priority_low');
       default:
-        return priority;
+        return prioridad;
     }
   }
 
-  static Color? _parseColor(String? hex) {
+  static Color? _leerColor(String? hex) {
     if (hex == null || hex.isEmpty) return null;
     final clean = hex.replaceFirst('#', '');
     if (clean.length != 6) return null;
@@ -289,3 +291,4 @@ class AllTasksScreen extends StatelessWidget {
     return Color(0xFF000000 | value);
   }
 }
+
